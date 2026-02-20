@@ -477,6 +477,7 @@ AC_CONFIG_FILES([
 	test/ragel.d/Makefile
 	doc/Makefile
 	doc/colm/Makefile
+	doc/ragel/Makefile
 	src/ragel/Makefile
 	src/ragel/host-asm/Makefile
 	src/ragel/host-c/Makefile

@@ -3,6 +3,8 @@
 /Makefile
 /Makefile.in
 /runtests
+/subject.mk
+/subject.sh
 
 /cgil-c
 /cgil-c.c

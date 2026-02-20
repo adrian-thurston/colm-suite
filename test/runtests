@@ -40,8 +40,8 @@ timed()
 		cd $OLDPWD
 	done
 
-	CASES=`find $WORKING -name '*.sh' -not -size 0 | wc -l`
-	FAILURES=`find $WORKING -name '*.diff' -not -size 0 | wc -l`
+	CASES=`find $WORKING -name '*.sh' -not -size 0 | wc -l | tr -d ' '`
+	FAILURES=`find $WORKING -name '*.diff' -not -size 0 | wc -l | tr -d ' '`
 
 	find $WORKING -name '*.diff' -not -size 0
 

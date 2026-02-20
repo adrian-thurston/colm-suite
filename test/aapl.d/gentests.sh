@@ -36,7 +36,7 @@ for t; do
 
 	echo echo testing $t >> working/$t.sh
 	echo ./$t '>' working/$t.out >> working/$t.sh
-	echo diff working/$t.out $t.exp '>' working/$t.diff >> working/$t.sh
+	echo diff -w working/$t.out $t.exp '>' working/$t.diff >> working/$t.sh
 
 	echo working/$t.sh
 done

@@ -7,12 +7,12 @@ check_SCRIPTS = subject.mk subject.sh
 
 pkgdata_SCRIPTS = runtests
 
-EXTRA_DIST = subject.mk.in subject.sh.in runtests
+EXTRA_DIST = runtests
 
-subject.mk: subject.mk.in Makefile
+subject.mk: $(top_srcdir)/test/subject.mk.in Makefile
 	@$(top_srcdir)/sedsubst $< $@ -w,+x $(SED_SUBST)
 
-subject.sh: subject.sh.in Makefile
+subject.sh: $(top_srcdir)/test/subject.sh.in Makefile
 	@$(top_srcdir)/sedsubst $< $@ -w,+x $(SED_SUBST)
 
 runtests: runtests.in Makefile

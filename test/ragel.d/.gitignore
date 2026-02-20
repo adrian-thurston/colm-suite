@@ -32,3 +32,7 @@
 /subject.sh
 
 /.libs
+
+/gentests.log
+/gentests.trs
+/test-suite.log

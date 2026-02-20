@@ -1,4 +1,4 @@
-SUBDIRS = . aapl.d colm.d rlhc.d rlparse.d trans.d
+SUBDIRS = . aapl.d colm.d ragel.d rlhc.d rlparse.d trans.d
 
 check_SCRIPTS = subject.mk subject.sh
 

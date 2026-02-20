@@ -474,6 +474,7 @@ AC_CONFIG_FILES([
 	test/rlhc.d/Makefile
 	test/rlparse.d/Makefile
 	test/trans.d/Makefile
+	test/ragel.d/Makefile
 	doc/Makefile
 	doc/colm/Makefile
 	src/ragel/Makefile

@@ -21,8 +21,8 @@
 
 SUBDIRS = src doc test
 
-dist_doc_DATA = colm.vim
-EXTRA_DIST = colm.vim sedsubst
+dist_doc_DATA = colm.vim ragel.vim
+EXTRA_DIST = colm.vim ragel.vim sedsubst
 ACLOCAL_AMFLAGS = -I m4
 
 export CC CFLAGS

@@ -1,3 +1,6 @@
+Ragel Issues
+============
+
 Guard against including a ragel file more than once (newsgroup).
 
 Line numbers in included files refer to the master file. This needs to be

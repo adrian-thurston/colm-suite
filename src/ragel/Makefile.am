@@ -55,8 +55,8 @@ BUILT_SOURCES += \
 endif
 
 version.h: Makefile
-	echo '#define VERSION "@VERSION@"' > version.h
-	echo '#define PUBDATE "@PUBDATE@"' >> version.h
+	echo '#define VERSION "@RAGEL_VERSION@"' > version.h
+	echo '#define PUBDATE "@RAGEL_PUBDATE@"' >> version.h
 
 EXTRA_DIST = \
 	$(RAGEL_LM) \

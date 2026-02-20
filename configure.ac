@@ -426,8 +426,14 @@ dnl
 AC_SUBST(SED_SUBST)
 
 dnl
-dnl Ragel build configuration - use local colm components
+dnl Ragel build configuration
 dnl
+RAGEL_VERSION="7.0.4"
+RAGEL_PUBDATE="February 2021"
+AC_SUBST(RAGEL_VERSION)
+AC_SUBST(RAGEL_PUBDATE)
+
+dnl Use local colm components
 COLM='$(abs_top_builddir)/src/colm'
 COLM_WRAP='$(abs_top_builddir)/src/colm-wrap'
 COLM_SHARE='$(abs_top_srcdir)/src/cgil'

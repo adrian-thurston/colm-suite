@@ -1280,7 +1280,7 @@ void Compiler::insertUniqueEmptyProductions()
 
 		/* Get a language element. */
 		char name[20];
-		sprintf(name, "U%li", prodList.length());
+		snprintf(name, sizeof(name), "U%li", prodList.length());
 		LangEl *prodName = addLangEl( this, rootNamespace, name, LangEl::NonTerm );
 		Production *newDef = Production::cons( InputLoc(), prodName, 
 				0, String(), false, 0, prodList.length(), prodName->prodList.length() );

@@ -418,7 +418,10 @@ void IpGoto::NFA_PUSH_ST( RedStateAp *state )
 				out << CLOSE_HOST_BLOCK();
 			}
 
-			int alt = 0;
+#ifdef LOG_ALT
+			out <<
+				"	" << alt << " = 0;\n";
+#endif
 			for ( RedNfaTargs::Iter nt = *state->nfaTargs; nt.lte(); nt++ ) {
 				out <<
 					"	nfa_bp[nfa_len].state = " << nt->state->id << ";\n"
@@ -441,7 +444,10 @@ void IpGoto::NFA_PUSH_ST( RedStateAp *state )
 				out <<
 					"	nfa_len += 1;\n";
 
-				alt += 1;
+#ifdef LOG_ALT
+				out <<
+					"	" << alt << " += 1;\n";
+#endif
 			}
 
 			out <<
@@ -693,7 +699,9 @@ void IpGoto::writeExec()
 	DECLARE( INT(), nbreak );
 	DECLARE( INT(), ps );
 	DECLARE( INT(), new_recs );
+#ifdef LOG_ALT
 	DECLARE( INT(), alt );
+#endif
 
 	if ( _again.isReferenced ) {
 		out << 

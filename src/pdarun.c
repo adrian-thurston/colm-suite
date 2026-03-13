@@ -842,6 +842,7 @@ static head_t *peek_match( program_t *prg, struct pda_run *pda_run, struct input
 	return head;
 }
 
+#ifdef DEBUG
 #define DEBUG_ESC_BUF    256
 #define DEBUG_ESC_CHAR   4      /* worst case: \xNN */
 #define DEBUG_ESC_TAIL   3      /* chars to show after ... */
@@ -890,6 +891,7 @@ static void escape_string( const char *data, long len, char *buf, int buf_size )
 
 	*p = '\0';
 }
+#endif
 
 static void send_ignore( program_t *prg, tree_t **sp,
 		struct pda_run *pda_run, struct input_impl *is, long id )

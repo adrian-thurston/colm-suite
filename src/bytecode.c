@@ -57,6 +57,16 @@
 	i |= ((word_t) *instr++) << 8; \
 } while(0)
 
+#ifdef DEBUG
+#define debug_decl( type, var ) type var
+#define debug_read_byte( var ) read_byte( var )
+#define debug_read_half( var ) read_half( var )
+#else
+#define debug_decl( type, var )
+#define debug_read_byte( var ) consume_byte()
+#define debug_read_half( var ) consume_half()
+#endif
+
 /* There are better ways. */
 #if SIZEOF_LONG == 4
 
@@ -837,9 +847,9 @@ again:
 			break;
 		}
 		case IN_READ_REDUCE: {
-			half_t generic_id;
+			debug_decl( half_t, generic_id );
 			half_t reducer_id;
-			read_half( generic_id );
+			debug_read_half( generic_id );
 			read_half( reducer_id );
 
 			input_t *input = vm_pop_input();
@@ -4309,11 +4319,10 @@ again:
 			}
 
 			case FN_MAP_INSERT_BKT: {
-				short gen_id;
 				uchar inserted;
 				word_t wmap_el;
 
-				read_half( gen_id );
+				consume_half(); //( gen_id );
 				read_byte( inserted );
 				read_word( wmap_el );
 
@@ -4386,8 +4395,8 @@ again:
 				break;
 			}
 			case FN_VMAP_INSERT_WC: {
-				short gen_id;
-				read_half( gen_id );
+				debug_decl( short, gen_id );
+				debug_read_half( gen_id );
 
 				debug( prg, REALM_BYTECODE, "FN_VMAP_INSERT_WC %hd\n", gen_id );
 
@@ -4425,11 +4434,10 @@ again:
 				break;
 			}
 			case FN_VMAP_INSERT_BKT: {
-				short gen_id;
 				uchar inserted;
 				word_t wmap_el;
 
-				read_half( gen_id );
+				consume_half(); //( gen_id );
 				read_byte( inserted );
 				read_word( wmap_el );
 
@@ -4445,8 +4453,8 @@ again:
 				break;
 			}
 			case FN_VMAP_REMOVE_WC: {
-				short gen_id;
-				read_half( gen_id );
+				debug_decl( short, gen_id );
+				debug_read_half( gen_id );
 
 				debug( prg, REALM_BYTECODE, "FN_VMAP_REMOVE_WC %hd\n", gen_id );
 
@@ -4460,8 +4468,8 @@ again:
 				break;
 			}
 			case FN_VMAP_FIND: {
-				short gen_id;
-				read_half( gen_id );
+				debug_decl( short, gen_id );
+				debug_read_half( gen_id );
 
 				debug( prg, REALM_BYTECODE, "FN_VMAP_FIND %hd\n", gen_id );
 
@@ -4477,8 +4485,8 @@ again:
 				break;
 			}
 			case FN_VLIST_PUSH_TAIL_WC: {
-				short gen_id;
-				read_half( gen_id );
+				debug_decl( short, gen_id );
+				debug_read_half( gen_id );
 
 				debug( prg, REALM_BYTECODE, "FN_VLIST_PUSH_TAIL_WC %hd\n", gen_id );
 
@@ -4491,8 +4499,8 @@ again:
 				break;
 			}
 			case FN_VLIST_PUSH_TAIL_WV: {
-				short gen_id;
-				read_half( gen_id );
+				debug_decl( short, gen_id );
+				debug_read_half( gen_id );
 
 				debug( prg, REALM_BYTECODE, "FN_VLIST_PUSH_TAIL_WV %hd\n", gen_id );
 
@@ -4517,8 +4525,8 @@ again:
 				break;
 			}
 			case FN_VLIST_PUSH_HEAD_WC: {
-				short gen_id;
-				read_half( gen_id );
+				debug_decl( short, gen_id );
+				debug_read_half( gen_id );
 
 				debug( prg, REALM_BYTECODE, "FN_VLIST_PUSH_HEAD_WC %hd\n", gen_id );
 
@@ -4531,8 +4539,8 @@ again:
 				break;
 			}
 			case FN_VLIST_PUSH_HEAD_WV: {
-				short gen_id;
-				read_half( gen_id );
+				debug_decl( short, gen_id );
+				debug_read_half( gen_id );
 
 				debug( prg, REALM_BYTECODE, "FN_VLIST_PUSH_HEAD_WV %hd\n", gen_id );
 
@@ -4557,8 +4565,8 @@ again:
 				break;
 			}
 			case FN_VLIST_POP_HEAD_WC: {
-				short gen_id;
-				read_half( gen_id );
+				debug_decl( short, gen_id );
+				debug_read_half( gen_id );
 
 				debug( prg, REALM_BYTECODE, "FN_VLIST_POP_HEAD_WC %hd\n", gen_id );
 
@@ -4588,9 +4596,8 @@ again:
 				break;
 			}
 			case FN_VLIST_POP_HEAD_BKT: {
-				short gen_id;
 				tree_t *val;
-				read_half( gen_id );
+				consume_half(); //( gen_id );
 				read_tree( val );
 
 				debug( prg, REALM_BYTECODE, "FN_VLIST_POP_HEAD_BKT\n" );
@@ -4601,8 +4608,8 @@ again:
 				break;
 			}
 			case FN_VLIST_POP_TAIL_WC: {
-				short gen_id;
-				read_half( gen_id );
+				debug_decl( short, gen_id );
+				debug_read_half( gen_id );
 
 				debug( prg, REALM_BYTECODE, "FN_VLIST_POP_TAIL_WC %hd\n", gen_id );
 
@@ -4632,9 +4639,8 @@ again:
 				break;
 			}
 			case FN_VLIST_POP_TAIL_BKT: {
-				short gen_id;
 				tree_t *val;
-				read_half( gen_id );
+				consume_half(); //( gen_id );
 				read_tree( val );
 
 				debug( prg, REALM_BYTECODE, "FN_VLIST_POP_TAIL_BKT\n" );
@@ -4855,16 +4861,16 @@ again:
 			break;
 		}
 		case IN_GET_FIELD_TREE_BKT: {
-			short field;
-			read_half( field );
+			debug_decl( short, field );
+			debug_read_half( field );
 
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_TREE_BKT %hd\n", field );
 			break;
 		}
 		case IN_SET_FIELD_TREE_BKT: {
-			short field;
+			debug_decl( short, field );
 			tree_t *val;
-			read_half( field );
+			debug_read_half( field );
 			read_tree( val );
 
 			debug( prg, REALM_BYTECODE, "IN_SET_FIELD_TREE_BKT %hd\n", field );
@@ -4873,9 +4879,9 @@ again:
 			break;
 		}
 		case IN_SET_STRUCT_BKT: {
-			short field;
+			debug_decl( short, field );
 			tree_t *val;
-			read_half( field );
+			debug_read_half( field );
 			read_tree( val );
 
 			debug( prg, REALM_BYTECODE, "IN_SET_STRUCT_BKT %hd\n", field );
@@ -4907,15 +4913,15 @@ again:
 			break;
 		}
 		case IN_GET_LIST_MEM_BKT: {
-			short field;
-			read_half( field );
+			debug_decl( short, field );
+			debug_read_half( field );
 
 			debug( prg, REALM_BYTECODE, "IN_GET_LIST_MEM_BKT %hd\n", field );
 			break;
 		}
 		case IN_GET_MAP_MEM_BKT: {
-			short field;
-			read_half( field );
+			debug_decl( short, field );
+			debug_read_half( field );
 
 			debug( prg, REALM_BYTECODE, "IN_GET_MAP_MEM_BKT %hd\n", field );
 			break;
@@ -4947,34 +4953,20 @@ again:
 				break;
 			}
 			case FN_MAP_INSERT_BKT: {
-				#ifdef DEBUG
-				uchar inserted;
+				debug_decl( uchar, inserted );
 				consume_half(); //( genId );
-				read_byte( inserted );
+				debug_read_byte( inserted );
 				consume_word(); //( wmapEl );
-				#else
-				consume_half(); //( genId );
-				consume_byte(); // inserted
-				consume_word(); //( wmapEl );
-				#endif
 
 				debug( prg, REALM_BYTECODE, "FN_MAP_INSERT_BKT %d\n",
 						(int)inserted );
 				break;
 			}
 			case FN_VMAP_INSERT_BKT: {
-				short gen_id;
-
-				#ifdef DEBUG
-				uchar inserted;
-				read_half( gen_id );
-				read_byte( inserted );
+				debug_decl( uchar, inserted );
+				consume_half(); //( gen_id );
+				debug_read_byte( inserted );
 				consume_word(); //read_word( wmap_el );
-				#else
-				read_half( gen_id );
-				consume_byte();
-				consume_word(); //read_word( wmap_el );
-				#endif
 
 				//map_el_t *map_el = (map_el_t*)wmap_el;
 
@@ -5004,17 +4996,15 @@ again:
 			}
 
 			case FN_VLIST_POP_HEAD_BKT: {
-				short gen_id;
 				//word_t result;
-				read_half( gen_id );
+				consume_half(); //( gen_id );
 				consume_word(); //read_word( result );
 				break;
 			}
 
 			case FN_VLIST_POP_TAIL_BKT: {
-				short gen_id;
 				//word_t result;
-				read_half( gen_id );
+				consume_half(); //( gen_id );
 				consume_word(); //read_word( result );
 				break;
 			}

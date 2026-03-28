@@ -417,12 +417,12 @@ static int input_undo_consume_data( struct colm_program *prg, struct input_impl_
 		const alph_t *data, int length )
 {
 	/* When we push back data we need to move backwards through the block of
-	 * text. The source stream type will */
+	 * text. The source stream type will peel data from the tail of the string,
+	 * shortening it. */
 	debug( prg, REALM_INPUT, "input_undo_consume_data: stream %p undoing consume of %d bytes\n", si, length );
 
 	assert( length > 0 );
 	long tot = length;
-	int offset = 0;
 	int remaining = length;
 
 	while ( true ) {
@@ -430,7 +430,6 @@ static int input_undo_consume_data( struct colm_program *prg, struct input_impl_
 			struct stream_impl *sub = si->queue.head->si;
 			int pushed_back = sub->funcs->undo_consume_data( prg, sub, data, remaining );
 			remaining -= pushed_back;
-			offset += pushed_back;
 
 			if ( remaining == 0 )
 				break;

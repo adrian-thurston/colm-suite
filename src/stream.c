@@ -587,6 +587,8 @@ static int data_consume_data( struct colm_program *prg, struct stream_impl_data 
 static int data_undo_consume_data( struct colm_program *prg, struct stream_impl_data *sid,
 		const alph_t *data, int length )
 {
+	debug( prg, REALM_PARSE, "data_undo_consume_data: sending back %d bytes: %*s\n", length, length, data);
+
 	const alph_t *end = data + length;
 	int amount = length;
 	if ( amount > sid->consumed )

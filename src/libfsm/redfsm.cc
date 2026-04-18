@@ -201,9 +201,11 @@ void RedFsmAp::breadthFirstOrdering()
 	if ( startState != 0 )
 		breadthFirstAdd( startState );
 	
+#ifdef LOG_DEPTH
 	int depth = 0;
 	int nextLevel = stateList.length();
 	int pos = 0;
+#endif
 
 	/* To implement breadth-first we traverse the current list (assuming a
 	 * start state) and add children. */
@@ -224,12 +226,15 @@ void RedFsmAp::breadthFirstOrdering()
 		}
 
 		cur = cur->next;
+
+#ifdef LOG_DEPTH
 		pos += 1;
 
 		if ( pos == nextLevel ) {
 			depth += 1;
 			nextLevel = stateList.length();
 		}
+#endif
 	}
 
 	for ( RedStateSet::Iter en = entryPoints; en.lte(); en++ )

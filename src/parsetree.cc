@@ -253,7 +253,7 @@ void RegionImpl::makeActions( Compiler *pd )
 		inlineList->append( InlineItem::cons( lmi->getLoc(), this, lmi, 
 				InlineItem::LmSetActId ) );
 		char *actName = new char[50];
-		sprintf( actName, "store%i", lmi->longestMatchId );
+		snprintf( actName, 50, "store%i", lmi->longestMatchId );
 		lmi->setActId = newAction( pd, lmi->getLoc(), actName, inlineList );
 	}
 
@@ -265,7 +265,7 @@ void RegionImpl::makeActions( Compiler *pd )
 		inlineList->append( InlineItem::cons( lmi->getLoc(), this, lmi, 
 				InlineItem::LmOnLast ) );
 		char *actName = new char[50];
-		sprintf( actName, "imm%i", lmi->longestMatchId );
+		snprintf( actName, 50, "imm%i", lmi->longestMatchId );
 		lmi->actOnLast = newAction( pd, lmi->getLoc(), actName, inlineList );
 	}
 
@@ -279,7 +279,7 @@ void RegionImpl::makeActions( Compiler *pd )
 		inlineList->append( InlineItem::cons( lmi->getLoc(), this, lmi, 
 				InlineItem::LmOnNext ) );
 		char *actName = new char[50];
-		sprintf( actName, "lagh%i", lmi->longestMatchId );
+		snprintf( actName, 50, "lagh%i", lmi->longestMatchId );
 		lmi->actOnNext = newAction( pd, lmi->getLoc(), actName, inlineList );
 	}
 
@@ -292,7 +292,7 @@ void RegionImpl::makeActions( Compiler *pd )
 		inlineList->append( InlineItem::cons( lmi->getLoc(), this, lmi, 
 				InlineItem::LmOnLagBehind ) );
 		char *actName = new char[50];
-		sprintf( actName, "lag%i", lmi->longestMatchId );
+		snprintf( actName, 50, "lag%i", lmi->longestMatchId );
 		lmi->actLagBehind = newAction( pd, lmi->getLoc(), actName, inlineList );
 	}
 

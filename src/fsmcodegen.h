@@ -64,7 +64,7 @@ std::ostream *openOutput( char *inputFile );
 inline string itoa( int i )
 {
 	char buf[16];
-	sprintf( buf, "%i", i );
+	snprintf( buf, sizeof(buf), "%i", i );
 	return buf;
 }
 

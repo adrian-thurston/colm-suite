@@ -1,6 +1,6 @@
-# Colm / Ragel
+# Colm Suite
 
-This repository contains two closely related projects:
+The Colm Suite is a unified distribution of two closely related language tools:
 
 - **Colm** (COmputer Language Machinery): A programming language designed for the analysis and [transformation of computer languages](https://www.program-transformation.org/Transform/TransformationSystems). Influenced primarily by [TXL](https://www.txl.ca/).
 

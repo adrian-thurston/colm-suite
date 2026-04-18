@@ -1,5 +1,6 @@
 #
-# This dockerfile demonstrates building ragel from release tarballs.
+# This dockerfile demonstrates building the Colm Suite (Colm + Ragel) from a
+# release tarball.
 #
 
 FROM ubuntu:focal AS build
@@ -12,23 +13,12 @@ RUN apt-get update && apt-get install -y \
 RUN curl https://www.colm.net/files/thurston.asc | gpg --import -
 
 WORKDIR /build
-ENV COLM_VERSION=0.14.7
-RUN curl -O https://www.colm.net/files/colm/colm-${COLM_VERSION}.tar.gz
-RUN curl -O https://www.colm.net/files/colm/colm-${COLM_VERSION}.tar.gz.asc
-RUN gpg --verify colm-${COLM_VERSION}.tar.gz.asc colm-${COLM_VERSION}.tar.gz
-RUN tar -zxvf colm-${COLM_VERSION}.tar.gz
-WORKDIR /build/colm-${COLM_VERSION}
-RUN ./configure --prefix=/opt/colm/colm --disable-manual
-RUN make
-RUN make install
-
-WORKDIR /build
-ENV RAGEL_VERSION=7.0.4
-RUN curl -O https://www.colm.net/files/ragel/ragel-${RAGEL_VERSION}.tar.gz 
-RUN curl -O https://www.colm.net/files/ragel/ragel-${RAGEL_VERSION}.tar.gz.asc
-RUN gpg --verify ragel-${RAGEL_VERSION}.tar.gz.asc ragel-${RAGEL_VERSION}.tar.gz
-RUN tar -zxvf ragel-${RAGEL_VERSION}.tar.gz
-WORKDIR /build/ragel-${RAGEL_VERSION}
-RUN ./configure --prefix=/opt/colm/ragel --with-colm=/opt/colm/colm --disable-manual
+ENV COLM_SUITE_VERSION=0.15.0-pre.1
+RUN curl -O https://www.colm.net/files/colm-suite/colm-suite-${COLM_SUITE_VERSION}.tar.gz
+RUN curl -O https://www.colm.net/files/colm-suite/colm-suite-${COLM_SUITE_VERSION}.tar.gz.asc
+RUN gpg --verify colm-suite-${COLM_SUITE_VERSION}.tar.gz.asc colm-suite-${COLM_SUITE_VERSION}.tar.gz
+RUN tar -zxvf colm-suite-${COLM_SUITE_VERSION}.tar.gz
+WORKDIR /build/colm-suite-${COLM_SUITE_VERSION}
+RUN ./configure --prefix=/opt/colm-suite --disable-manual
 RUN make
 RUN make install

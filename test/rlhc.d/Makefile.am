@@ -17,6 +17,7 @@ RLHC_DEP = \
 EXTRA_DIST = gentests rlhc.lm $(RLHC_DEP) $(CASES)
 
 check_PROGRAMS = rlhc
+rlhc_SOURCES =
 
 rlhc$(EXEEXT): rlhc.lm $(RLHC_DEP) $(COLM_BIN)
 	$(COLM_BIN) -B '$(top_builddir)' -b rlhc_object -o $@ -I$(srcdir) $<

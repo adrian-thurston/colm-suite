@@ -737,7 +737,7 @@ void InputData::usage()
 void InputData::version()
 {
 	info() << "Ragel State Machine Compiler version " RAGEL_VERSION << " " RAGEL_PUBDATE << endl <<
-			"Copyright (c) 2001-2021 by Dr. Adrian D. Thurston et al." << endl;
+			"Copyright (c) 2001-2026 by Dr. Adrian D. Thurston et al." << endl;
 	abortCompile( 0 );
 }
 

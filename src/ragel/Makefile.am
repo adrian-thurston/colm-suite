@@ -18,6 +18,7 @@ libragel_la_CPPFLAGS = -I$(top_srcdir)/src/aapl -I$(top_srcdir)/src/include -DBI
 
 dist_libragel_la_SOURCES = \
 	parsedata.h parsetree.h inputdata.h pcheck.h reducer.h rlscan.h load.h \
+	nragel.h \
 	parsetree.cc longest.cc parsedata.cc inputdata.cc load.cc reducer.cc \
 	ncommon.cc allocgen.cc
 

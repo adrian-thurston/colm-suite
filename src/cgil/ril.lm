@@ -52,9 +52,6 @@ lex
 	token hex_number
 		/ '0x' [0-9a-fA-F]+ /
 
-	ignore
-		/ c_comment | cpp_comment /
-
 	token string
 		/ s_literal | d_literal /
 

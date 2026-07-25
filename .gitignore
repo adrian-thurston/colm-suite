@@ -12,4 +12,5 @@
 /autom4te.cache
 /compile
 /build
+/dist
 /test-driver

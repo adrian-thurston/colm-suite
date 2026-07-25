@@ -23,18 +23,23 @@ Build dependencies:
   `fig2dev`/`transfig`, and `ghostscript`.
 - `gpg` for signing.
 
-`package/Dockerfile` automates the build end to end and is the recommended way
-to cut a release. Build on **x86_64**: `ragel`/`kelbt` are x86-era C++ that fail
-to compile where `char` is unsigned (arm64); the tarball and PDF are
-architecture-neutral regardless.
+`package/Dockerfile` builds an image with all of the above installed — the
+recommended environment for both development and release builds. Build on
+**x86_64**: `ragel`/`kelbt` are x86-era C++ that fail to compile where `char` is
+unsigned (arm64); the tarball and PDF are architecture-neutral regardless.
 
 `./autogen.sh && ./configure && make && make dist` produces the tarball, with
 the parser sources and guide PDF baked in so end users need only a C++ compiler.
-To cut a release:
+`package/release.sh` wraps that up: it builds a throwaway clone of the committed
+tree (so the working directory is untouched and the tarball is reproducible from
+VCS) and collects the tarball, the versioned guide PDF and `SHA256SUMS` into
+`dist/`. It does not run the tests — do that separately with
+`cd test && ./runtests -C -Z` (C/C++/obj-C and Go; D is excluded because gdc 8.x
+rejects the 2009-era D test sources). To cut a release:
 
 1. Bump the version and `PUBDATE` in `configure.ac`; add a `ChangeLog` entry.
 2. Commit, then tag `ragel-<ver>`.
-3. Build (e.g. via `package/Dockerfile`) to get the tarball + guide PDF.
+3. Run the test suite, then `package/release.sh` to get the tarball + guide PDF.
 4. Sign: `gpg --armor --detach-sign ragel-<ver>.tar.gz`.
 5. Upload the `.tar.gz`, `.asc`, and `ragel-guide-<ver>.pdf` to
    `colm.net/files/ragel/` and update the download page.

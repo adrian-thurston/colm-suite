@@ -8,10 +8,10 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <objc/Object.h>
+#include "objbase.h"
 
 
-@interface ErrAct : Object
+@interface ErrAct : TestObject
 {
 @public
 	int cs;

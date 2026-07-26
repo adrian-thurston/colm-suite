@@ -8,9 +8,9 @@
  */
 
 #include <stdio.h>
-#include <objc/Object.h>
+#include "objbase.h"
 
-@interface Fsm : Object
+@interface Fsm : TestObject
 {
 @public
 	int cs;

@@ -4,12 +4,12 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <objc/Object.h>
+#include "objbase.h"
 
 
 int num = 0;
 
-@interface CallTest : Object
+@interface CallTest : TestObject
 {
 @public 
 	/* State machine operation data. */

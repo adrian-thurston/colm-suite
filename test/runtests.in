@@ -108,8 +108,8 @@ function run_test()
 
 	# Ruby doesn't need to be compiled.
 	if [ $lang != ruby ]; then
-		echo "$compiler ${cflags} ${out_args} ${code_src}"
-		if ! $compiler ${cflags} ${out_args} ${code_src}; then
+		echo "$compiler ${cflags} ${out_args} ${code_src} ${libs}"
+		if ! $compiler ${cflags} ${out_args} ${code_src} ${libs}; then
 			test_error;
 		fi
 	fi
@@ -161,6 +161,8 @@ for test_case; do
 		exit 1;
 	fi
 
+	libs=""
+
 	case $lang in
 		c++)
 			lang_opt=-C;
@@ -184,7 +186,10 @@ for test_case; do
 			lang_opt=-C;
 			code_suffix=m;
 			compiler=$objc_compiler
-			cflags="-Wall -O3 -fno-strict-aliasing -lobjc"
+			cflags="-Wall -O3 -fno-strict-aliasing"
+			# After the source, not in cflags: ld resolves left to right and
+			# defaults to --as-needed, so a library named first is dropped.
+			libs="-lobjc"
 		;;
 		java)
 			lang_opt=-J;
@@ -262,7 +267,7 @@ for test_case; do
 	[ -z "$allow_minflags" ] && allow_minflags="-n -m -l -e"
 
 	case $lang in
-	c|c++|d)
+	c|c++|d|obj-c)
 		# Using genflags, get the allowed gen flags from the test case. If the
 		# test case doesn't specify assume that all gen flags are allowed.
 		allow_genflags=`sed '/@ALLOW_GENFLAGS:/s/^.*: *//p;d' $test_case`

@@ -11,6 +11,9 @@
 #   KELBT_VERSION   kelbt release to fetch  (default 0.16)
 #   UBUNTU_TAG      base image              (default 16.04; 18.04-22.04 work)
 #   BUILD_PLATFORM  build architecture      (default linux/amd64)
+#
+# Drop a txl*.tar.gz into the build context to get the indep test cases too;
+# see the note further down.
 
 ARG UBUNTU_TAG=16.04
 # amd64 by default: ragel/kelbt are x86-era C++ that only compile where char is
@@ -89,11 +92,64 @@ RUN set -eux; \
 # only when mono did not already install a real gmcs, as older versions do.
 RUN command -v gmcs >/dev/null || ln -sf mcs /usr/bin/gmcs
 
-# NOTE: the 17 @LANG:indep test cases are translated into every host language by
-# langtrans_<lang>.sh, which needs txl -- without it runtests skips all 17 for
-# *every* language, C and Go included. txl is not packaged (tarball from txl.ca,
-# and its licence is non-commercial-use only), so it is deliberately not
-# installed here. Adding it is the single largest coverage win available.
+# txl, optional. The 17 @LANG:indep test cases are translated into every host
+# language by langtrans_<lang>.sh, which shells out to txl; without it runtests
+# skips all 17 for *every* language, C and Go included, so it is the single
+# largest coverage win available. It is not in apt and the binary distribution
+# is not always to hand, so it is installed if and only if a tarball is sitting
+# in the build context:
+#
+#   cp ~/installs/txl/txl10.5h.linux64.tar.gz package/
+#   docker build -t ragel6-dev package/
+#
+# Anything matching txl*.tar.gz is picked up. Exactly one may be present; more
+# than that is an error rather than a guess, since the wrong pick would quietly
+# cost the indep tests. The tarball must match the build architecture: the
+# plain "linux" ones are i386, the "linux64" ones x86_64. That is checked
+# against the ELF header rather than by running the binary, because under
+# buildx a foreign-arch binary may execute happily via qemu and only reveal
+# itself later.
+#
+# Licence (COPYRIGHT.txt): free of charge for use by individuals, companies and
+# institutions, and redistributable provided the distribution is kept entire
+# and unmodified and nothing is charged for it -- so the tarball may simply be
+# committed next to this file. Published work depending on it is asked to
+# acknowledge TXL.
+COPY . /tmp/ctx/
+RUN set -eux; \
+    set -- /tmp/ctx/txl*.tar.gz; \
+    if [ ! -e "$1" ]; then \
+        echo "no txl*.tar.gz in the build context;" \
+             "the 17 indep test cases will be skipped"; \
+    elif [ $# -gt 1 ]; then \
+        echo "more than one txl tarball in the build context:" >&2; \
+        for f; do echo "  $( basename "$f" )" >&2; done; \
+        echo "leave only the one to install." >&2; \
+        exit 1; \
+    else \
+        mkdir -p /opt/txl; \
+        echo "installing $( basename "$1" )"; \
+        tar --strip-components=1 -xzf "$1" -C /opt/txl; \
+        case "$(uname -m)" in \
+            x86_64)  want=3e00 ;; \
+            aarch64) want=b700 ;; \
+            i?86)    want=0300 ;; \
+            *)       want= ;; \
+        esac; \
+        got="$( od -An -tx1 -j18 -N2 /opt/txl/bin/txl | tr -d ' \n' )"; \
+        if [ -n "$want" ] && [ "$got" != "$want" ]; then \
+            echo "txl is built for the wrong architecture: ELF e_machine" >&2; \
+            echo "$got, need $want for $(uname -m). The plain 'linux'" >&2; \
+            echo "tarballs are i386 (0300); use a linux64 one." >&2; \
+            exit 1; \
+        fi; \
+        /opt/txl/bin/txl -help 2>&1 | grep -q "TXL processor" || \
+            { echo "extracted txl does not run" >&2; exit 1; }; \
+    fi; \
+    rm -rf /tmp/ctx
+# Ahead of the shipped path, and harmless when nothing was extracted. txl finds
+# its lib/ relative to the binary, so no install step and no TXLLIB are needed.
+ENV PATH=/opt/txl/bin:${PATH}
 #
 # NOTE: two further gaps are in the tree, not in this image. runtests dispatches
 # on language twice and the second case has no obj-c arm, so those six tests

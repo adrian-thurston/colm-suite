@@ -114,7 +114,11 @@ define al_expr_op
 end define
 
 define al_term
-		[al_term_base] [opt union]
+		[al_term_base] [opt union] [opt al_method]
+end define
+
+define al_method
+		[SPOFF] '. [id] [SPON]
 end define
 
 define al_term_base

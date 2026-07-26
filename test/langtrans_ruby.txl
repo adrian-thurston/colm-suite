@@ -308,7 +308,7 @@ rule fixCharLit
 	construct Repl [stringlit]
 		EmptyString [quote Id]
 	by
-		Repl '[0]
+		Repl '. 'ord
 end rule
 
 

@@ -44,22 +44,22 @@ class CLang
 
 		# Functions to dump tokens as they are matched.
 		action ident {
-			printf("ident(%i): %.*s\n", curLine, identBuf);
+			printf("ident(%i): %.*s\n", curLine, cast(int)identBuf.length, identBuf.ptr);
 		}
 		action literal {
-			printf("literal(%i): %.*s\n", curLine, identBuf);
+			printf("literal(%i): %.*s\n", curLine, cast(int)identBuf.length, identBuf.ptr);
 		}
 		action float {
-			printf("float(%i): %.*s\n", curLine, identBuf);
+			printf("float(%i): %.*s\n", curLine, cast(int)identBuf.length, identBuf.ptr);
 		}
 		action int {
-			printf("int(%i): %.*s\n", curLine, identBuf);
+			printf("int(%i): %.*s\n", curLine, cast(int)identBuf.length, identBuf.ptr);
 		}
 		action hex {
-			printf("hex(%i): 0x%.*s\n", curLine, identBuf);
+			printf("hex(%i): 0x%.*s\n", curLine, cast(int)identBuf.length, identBuf.ptr);
 		}
 		action symbol {
-			printf("symbol(%i): %.*s\n", curLine, identBuf);
+			printf("symbol(%i): %.*s\n", curLine, cast(int)identBuf.length, identBuf.ptr);
 		}
 
 		# Alpha numberic characters or underscore.
@@ -179,17 +179,15 @@ class CLang
 
 static const int BUFSIZE = 1024;
 
-void test( char buf[] )
+void test( const(char)[] buf )
 {
 	CLang scanner = new CLang();
 	scanner.init();
-	scanner.execute( buf.ptr, buf.length );
+	scanner.execute( cast(char*)buf.ptr, cast(int)buf.length );
 	if ( scanner.finish() > 0 )
 		printf("ACCEPT\n");
 	else
 		printf("FAIL\n");
-
-	return 0;
 }
 
 int main()

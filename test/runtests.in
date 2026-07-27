@@ -97,8 +97,8 @@ function test_error
 
 function run_test()
 {
-	echo "$ragel $lang_opt $min_opt $gen_opt -o $code_src $test_case"
-	if ! $ragel $lang_opt $min_opt $gen_opt -o $code_src $test_case; then
+	echo "$ragel $ragel_opt $min_opt $gen_opt -o $code_src $test_case"
+	if ! $ragel $ragel_opt $min_opt $gen_opt -o $code_src $test_case; then
 		test_error;
 	fi
 
@@ -162,6 +162,9 @@ for test_case; do
 	fi
 
 	libs=""
+	# The flag ragel generates with. Same as the selector except where a
+	# language has more than one backend; see the d arm below.
+	ragel_opt=""
 
 	case $lang in
 		c++)
@@ -172,6 +175,10 @@ for test_case; do
 		;;
 		d)
 			lang_opt=-D;
+			# The test cases are D2. Ragel's -D backend emits D1, which no
+			# compiler has accepted since gdc dropped it around 2011, so
+			# generate with -E and leave -D as the selector.
+			ragel_opt=-E;
 			code_suffix=d;
 			compiler=$d_compiler;
 			cflags="-Wall -O3"
@@ -252,6 +259,8 @@ for test_case; do
 
 	# Make sure that we are interested in the host language.
 	echo "$langflags" | grep -e $lang_opt >/dev/null || continue
+
+	[ -z "$ragel_opt" ] && ragel_opt=$lang_opt
 
 	code_src=$root.$code_suffix;
 	binary=$root.bin;

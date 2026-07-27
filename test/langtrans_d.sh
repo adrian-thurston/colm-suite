@@ -50,12 +50,12 @@ cat << EOF
 		%% write init;
 	}
 
-	void exec( char data[] )
+	void exec( const(char)[] data )
 	{
-		char *p = data.ptr;
-		char *pe = data.ptr + data.length;
+		char *p = cast(char*)data.ptr;
+		char *pe = cast(char*)data.ptr + data.length;
 		char *eof = pe;
-		char _s[];
+		char[] _s;
 
 		%% write exec;
 	}
@@ -73,7 +73,7 @@ EOF
 # Write out the test data.
 sed -n '0,/\/\* _____INPUT_____/d; /_____INPUT_____ \*\//q; p;' $file | awk '
 BEGIN {
-	print "	char[][] inp = ["
+	print "	string[] inp = ["
 }
 {
 	print "		" $0 ","

@@ -54,14 +54,14 @@ class Scanner
 	{
 		/* Leader. */
 		if ( nonTokBuf.length > 0 ) {
-			printf("%.*s", nonTokBuf);
-			nonTokBuf = "";
+			printf("%.*s", cast(int)nonTokBuf.length, nonTokBuf.ptr);
+			nonTokBuf = null;
 		}
 
 		/* Token data. */
-		printf("<%d>%.*s", id, tokBuf);
+		printf("<%d>%.*s", id, cast(int)tokBuf.length, tokBuf.ptr);
 
-		tokBuf = "";
+		tokBuf = null;
 	}
 
 	int cs, stack, top;
@@ -155,8 +155,8 @@ class Scanner
 
 		action onEOFChar { 
 			/* On EOF char, write out the non token buffer. */
-			printf("%.*s", nonTokBuf);
-			nonTokBuf = "";
+			printf("%.*s", cast(int)nonTokBuf.length, nonTokBuf.ptr);
+			nonTokBuf = null;
 		}
 
 		# Using 0 as eof. If seeingAs a result all null characters get ignored.
@@ -185,7 +185,6 @@ class Scanner
 		line = 1;
 		col = 1;
 		%% write init;
-		return 1;
 	}
 
 	int execute( char* _data, int _len )
@@ -217,11 +216,11 @@ class Scanner
 	}
 };
 
-void test(char[] buf)
+void test(const(char)[] buf)
 {
 	Scanner scanner = new Scanner();
 	scanner.init();
-	scanner.execute( buf.ptr, buf.length );
+	scanner.execute( cast(char*)buf.ptr, cast(int)buf.length );
 
 	/* The last token is ignored (because there is no next token). Send
 	 * trailing null to force the last token into whitespace. */

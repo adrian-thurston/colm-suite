@@ -48,7 +48,7 @@ class Scanner
 	void token( int tok )
 	{
 		char *data = ts;
-		int len = te - ts;
+		int len = cast(int)(te - ts);
 		printf( "<%i> ", tok );
 		for ( int i = 0; i < len; i++ )
 			printf( "%c", data[i] );
@@ -163,18 +163,17 @@ class Scanner
 
 static const int BUFSIZE = 12;
 
-void test( char buf[] )
+void test( const(char)[] buf )
 {
 	Scanner scanner = new Scanner();
 	scanner.init();
 
-	scanner.execute( buf.ptr, buf.length );
+	scanner.execute( cast(char*)buf.ptr, cast(int)buf.length );
 	if ( scanner.cs == Scanner.error ) {
 		/* Machine failed before finding a token. */
 		printf("PARSE ERROR\n");
 	}
 	scanner.finish();
-	return 0;
 }
 
 int main()

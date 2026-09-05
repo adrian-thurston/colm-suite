@@ -506,6 +506,7 @@ COLM_SHARE='$(abs_top_srcdir)/src/cgil'
 LIBCOLM_LA='$(abs_top_builddir)/src/colm/libcolm.la'
 LIBCOLM_CPPFLAGS='-I$(abs_top_builddir)/src/colm/include'
 LIBFSM_LA='$(abs_top_builddir)/src/libfsm/libfsm.la'
+LIBFSMGRAPH_LA='$(abs_top_builddir)/src/libfsm/libfsmgraph.la'
 LIBFSM_CPPFLAGS='-I$(abs_top_srcdir)/src'
 
 AC_SUBST(COLM)
@@ -514,6 +515,7 @@ AC_SUBST(COLM_SHARE)
 AC_SUBST(LIBCOLM_LA)
 AC_SUBST(LIBCOLM_CPPFLAGS)
 AC_SUBST(LIBFSM_LA)
+AC_SUBST(LIBFSMGRAPH_LA)
 AC_SUBST(LIBFSM_CPPFLAGS)
 
 AC_CONFIG_HEADERS([src/colm/config.h src/colm/defs.h src/colm/version.h])

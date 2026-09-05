@@ -20,7 +20,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-AM_CPPFLAGS = -I$(top_srcdir)/src/aapl
+AM_CPPFLAGS = -I$(top_srcdir)/src/aapl $(LIBFSM_CPPFLAGS)
 
 AUTOMAKE_OPTIONS = subdir-objects
 
@@ -120,7 +120,7 @@ AM_LDFLAGS = -L.
 # using limited features. No code is supported.
 bootstrap0_CXXFLAGS = $(common_CFLAGS) -DCONS_INIT
 bootstrap0_SOURCES = consinit.cc consinit.h main.cc builddir.cc
-bootstrap0_LDADD = libprog.a libcolm.la
+bootstrap0_LDADD = libprog.a $(LIBFSMGRAPH_LA) libcolm.la
 
 #
 # bootstrap1: The input program is specified using a stripped down colm syntax.
@@ -147,7 +147,7 @@ bootstrap1_CXXFLAGS = $(common_CFLAGS) -DLOAD_INIT
 bootstrap1_CFLAGS = $(common_CFLAGS)
 bootstrap1_SOURCES = loadinit.h loadinit.cc main.cc builddir.cc
 nodist_bootstrap1_SOURCES = gen/if1.h gen/if1.cc gen/parse1.c
-bootstrap1_LDADD = libprog.a libcolm.la
+bootstrap1_LDADD = libprog.a $(LIBFSMGRAPH_LA) libcolm.la
 
 #
 # bootstrap2: The input program is specified using the colm grammar used in
@@ -174,7 +174,7 @@ bootstrap2_CXXFLAGS = $(common_CFLAGS) -DLOAD_COLM
 bootstrap2_CFLAGS = $(common_CFLAGS)
 bootstrap2_SOURCES = main.cc builddir.cc loadboot2.cc loadfinal.h
 nodist_bootstrap2_SOURCES = gen/if2.h gen/if2.cc gen/parse2.c
-bootstrap2_LDADD = libprog.a libcolm.la
+bootstrap2_LDADD = libprog.a $(LIBFSMGRAPH_LA) libcolm.la
 
 endif
 
@@ -196,7 +196,7 @@ colm_CXXFLAGS = $(common_CFLAGS) -DLOAD_COLM
 colm_CFLAGS = $(common_CFLAGS)
 colm_SOURCES = main.cc builddir.cc loadcolm.cc loadfinal.h
 nodist_colm_SOURCES = gen/if3.h gen/if3.cc gen/parse3.c
-colm_LDADD = libprog.a libcolm.la
+colm_LDADD = libprog.a $(LIBFSMGRAPH_LA) libcolm.la
 
 # Listing if1.h in BUILT_SOURCES isn't sufficient because it depends on the
 # building of bootstrap0. Automake wants to put all built sources into a list

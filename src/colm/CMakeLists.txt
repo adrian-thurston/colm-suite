@@ -86,7 +86,7 @@ target_include_directories(libprog
 	$<BUILD_INTERFACE:${COLM_AAPL_INCLUDE_DIR}>
 	$<BUILD_INTERFACE:${COLM_INCLUDE_DIR}>)
 
-target_link_libraries(libprog PUBLIC libcolm)
+target_link_libraries(libprog PUBLIC libcolm libfsmgraph)
 
 set_target_properties(libprog PROPERTIES
 	OUTPUT_NAME prog)

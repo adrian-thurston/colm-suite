@@ -27,7 +27,7 @@ for fn; do
 
 		exp=${fn%.rl}_$l.rl
 
-		diff=${fn%.rl}_$l.out
+		diff=${fn%.rl}_$l.diff
 		diff=working/${diff#case/}
 
 		sh=${fn%.rl}_$l.sh

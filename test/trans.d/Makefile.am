@@ -21,6 +21,12 @@ EXTRA_DIST = \
 	trans-zig.lm \
 	$(CASES)
 
+TRANS_DEPS = \
+	ragel.lm ragel-c.lm ragel-crack.lm ragel-ocaml.lm ragel-ruby.lm \
+	trans-asm.lm trans-c.lm trans-crack.lm trans-csharp.lm trans-d.lm \
+	trans-go.lm trans-java.lm trans-julia.lm trans-ocaml.lm trans-ruby.lm \
+	trans-rust.lm trans-zig.lm
+
 trans.c: trans.lm $(TRANS_DEPS) $(COLM)
 	$(COLM) -b trans_object -c -o $@ -I$(srcdir) $<
 

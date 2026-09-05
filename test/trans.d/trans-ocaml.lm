@@ -59,7 +59,7 @@ int rw_ocaml_factor( Factor: indep::factor )
 	}
 	default {
 		send Out
-			[Factor]
+			[$Factor]
 	}
 }
 

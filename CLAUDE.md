@@ -96,17 +96,20 @@ ragel-zig input.rl
 # Run all tests
 make check
 
-# Run tests directly with parallel execution
-./test/runtests
+# Run the harness directly (after make check has built the test programs)
+./test/harness/harness
 
-# Run specific test suites
-cd test/colm.d && ../../test/runtests     # Colm tests
-cd test/ragel.d && ../../test/runtests    # Ragel tests
-cd test/aapl.d && ../../test/runtests     # AAPL tests
-cd test/rlhc.d && ../../test/runtests     # RLHC tests
-cd test/rlparse.d && ../../test/runtests  # Ragel parser tests
-cd test/trans.d && ../../test/runtests    # Translation tests
+# Run specific suites or cases
+./test/harness/harness --suite colm.d              # one suite
+./test/harness/harness colm.d/argv1.lm ragel.d/atoi1.rl
+cd test/ragel.d && ../harness/harness atoi1.rl     # from inside a suite
+./test/harness/harness --lang java --genflags -T0  # ragel.d matrix selection
+./test/harness/harness -v --tap results.tap        # every result, TAP output
 ```
+
+The harness (`test/harness/`) enumerates all six suites into one work queue
+and runs them in parallel. Failures leave a `.diff` file in the suite's
+`working/` directory with the differences and the commands run.
 
 ## Code Architecture
 

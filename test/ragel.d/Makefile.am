@@ -20,8 +20,6 @@
 
 RAGEL_LM = $(top_srcdir)/src/ragel
 
-TESTS = gentests
-
 noinst_SCRIPTS = gentests
 noinst_PROGRAMS = trans
 
@@ -80,6 +78,9 @@ clean-local:
 	if test '$(builddir)' != '$(srcdir)'; then \
 		rm -f *.rl *.h include3; \
 	fi
+
+check-local:
+	'$(top_srcdir)/test/runtests'
 
 TRANS_DEPS = \
 	$(RAGEL_LM)/ragel.lm \

@@ -275,7 +275,7 @@ function runtests()
 			cat <<-EOF >> $SH
 			e=\$?
 			if [ \$e != "$EXIT" ]; then
-				echo "FAILED: exit value error: got: \$e expected: $EXIT"
+				echo "FAILED: exit value error: got: \$e expected: $EXIT" | tee -a $DIFF
 			fi
 			EOF
 

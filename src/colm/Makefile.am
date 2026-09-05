@@ -71,16 +71,15 @@ common_CFLAGS = \
 	-DABS_BUILDDIR='"$(abs_builddir)"'
 
 libprog_a_SOURCES = \
-	buffer.h bytecode.h colm.h debug.h dotgen.h fsmcodegen.h fsmgraph.h \
-	input.h keyops.h map.h compiler.h \
+	buffer.h bytecode.h colm.h debug.h dotgen.h fsmcodegen.h \
+	input.h map.h compiler.h \
 	parsetree.h pcheck.h pdacodegen.h pdagraph.h pdarun.h pool.h redbuild.h \
 	redfsm.h tree.h global.h colm.h parser.h cstring.h \
 	internal.h \
 	\
 	resolve.cc lookup.cc synthesis.cc parsetree.cc \
-	fsmstate.cc fsmbase.cc fsmattach.cc fsmmin.cc \
-	fsmgraph.cc pdagraph.cc pdabuild.cc pdacodegen.cc fsmcodegen.cc \
-	redfsm.cc fsmexec.cc redbuild.cc closure.cc fsmap.cc \
+	pdagraph.cc pdabuild.cc pdacodegen.cc fsmcodegen.cc \
+	redfsm.cc fsmexec.cc redbuild.cc closure.cc \
 	dotgen.cc pcheck.cc ctinput.cc declare.cc codegen.cc \
 	exports.cc compiler.cc parser.cc reduce.cc
 

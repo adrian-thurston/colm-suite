@@ -678,8 +678,8 @@ LexFactorAug *BaseParser::lexFactorLabel( const InputLoc &loc,
 			ObjectField::LexSubstrType, typeRef, data );
 
 	/* Create the enter and leaving actions that will mark the substring. */
-	Action *enter = Action::cons( MarkMark, pd->nextMatchEndNum++ );
-	Action *leave = Action::cons( MarkMark, pd->nextMatchEndNum++ );
+	Action *enter = new LexAction( MarkMark, pd->nextMatchEndNum++ );
+	Action *leave = new LexAction( MarkMark, pd->nextMatchEndNum++ );
 	pd->actionList.append( enter );
 	pd->actionList.append( leave );
 	
@@ -696,7 +696,7 @@ LexJoin *BaseParser::lexOptJoin( LexJoin *join, LexJoin *context )
 {
 	if ( context != 0 ) {
 		/* Create the enter and leaving actions that will mark the substring. */
-		Action *mark = Action::cons( MarkMark, pd->nextMatchEndNum++ );
+		LexAction *mark = new LexAction( MarkMark, pd->nextMatchEndNum++ );
 		pd->actionList.append( mark );
 
 		join->context = context;

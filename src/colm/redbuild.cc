@@ -32,10 +32,11 @@
 
 using namespace std;
 
-RedFsmBuild::RedFsmBuild( Compiler *pd, FsmGraph *fsm )
+RedFsmBuild::RedFsmBuild( Compiler *pd, FsmAp *fsm )
 :
 	pd(pd),
 	fsm(fsm),
+	keyOps(fsm->ctx->keyOps),
 	nextActionTableId(0),
 	startState(-1),
 	errState(-1)
@@ -134,10 +135,10 @@ void RedFsmBuild::newTrans( int snum, int tnum, Key lowKey,
 		 * the error transitions. */
 		if ( destRange.length() == 0 ) {
 			/* Range is currently empty. */
-			if ( keyOps->minKey < lowKey ) {
+			if ( keyOps->lt( keyOps->minKey, lowKey ) ) {
 				/* The first range doesn't start at the low end. */
 				Key fillHighKey = lowKey;
-				fillHighKey.decrement();
+				keyOps->decrement( fillHighKey );
 
 				/* Create the filler with the state's error transition. */
 				RedTransEl newTel( keyOps->minKey, fillHighKey, redFsm->getErrorTrans() );
@@ -148,11 +149,11 @@ void RedFsmBuild::newTrans( int snum, int tnum, Key lowKey,
 			/* The range list is not empty, get the the last range. */
 			RedTransEl *last = &destRange[destRange.length()-1];
 			Key nextKey = last->highKey;
-			nextKey.increment();
-			if ( nextKey < lowKey ) {
+			keyOps->increment( nextKey );
+			if ( keyOps->lt( nextKey, lowKey ) ) {
 				/* There is a gap to fill. Make the high key. */
 				Key fillHighKey = lowKey;
-				fillHighKey.decrement();
+				keyOps->decrement( fillHighKey );
 
 				/* Create the filler with the state's error transtion. */
 				RedTransEl newTel( nextKey, fillHighKey, redFsm->getErrorTrans() );
@@ -186,10 +187,10 @@ void RedFsmBuild::finishTransList( int snum )
 		else {
 			/* Get the last and check for a gap on the end. */
 			RedTransEl *last = &destRange[destRange.length()-1];
-			if ( last->highKey < keyOps->maxKey ) {
+			if ( keyOps->lt( last->highKey, keyOps->maxKey ) ) {
 				/* Make the high key. */
 				Key fillLowKey = last->highKey;
-				fillLowKey.increment();
+				keyOps->increment( fillLowKey );
 
 				/* Create the new range with the error trans and append it. */
 				RedTransEl newTel( fillLowKey, keyOps->maxKey, redFsm->getErrorTrans() );
@@ -237,11 +238,6 @@ void RedFsmBuild::closeMachine()
 }
 
 
-void RedFsmBuild::initStateCondList( int snum, ulong length )
-{
-	/* Could preallocate these, as we could with transitions. */
-}
-
 void RedFsmBuild::setForcedErrorState()
 {
 	redFsm->forcedErrorState = true;
@@ -257,7 +253,7 @@ Key RedFsmBuild::findMaxKey()
 		long rangeLen = st->outRange.length();
 		if ( rangeLen > 0 ) {
 			Key highKey = st->outRange[rangeLen-1].highKey;
-			if ( highKey > maxKey )
+			if ( keyOps->gt( highKey, maxKey ) )
 				maxKey = highKey;
 		}
 	}
@@ -328,8 +324,10 @@ void RedFsmBuild::reduceActionTables()
 
 		/* Loop the transitions and reduce their actions. */
 		for ( TransList::Iter trans = st->outList; trans.lte(); trans++ ) {
-			if ( trans->actionTable.length() > 0 ) {
-				if ( actionTableMap.insert( trans->actionTable, &actionTable ) )
+			assert( trans->plain() );
+			TransDataAp *tdap = trans->tdap();
+			if ( tdap->actionTable.length() > 0 ) {
+				if ( actionTableMap.insert( tdap->actionTable, &actionTable ) )
 					actionTable->id = nextActionTableId++;
 			}
 		}
@@ -337,13 +335,14 @@ void RedFsmBuild::reduceActionTables()
 }
 
 void RedFsmBuild::appendTrans( TransListVect &outList, Key lowKey, 
-		Key highKey, FsmTrans *trans )
+		Key highKey, TransAp *trans )
 {
-	if ( trans->toState != 0 || trans->actionTable.length() > 0 )
+	TransDataAp *tdap = trans->tdap();
+	if ( tdap->toState != 0 || tdap->actionTable.length() > 0 )
 		outList.append( TransEl( lowKey, highKey, trans ) );
 }
 
-void RedFsmBuild::makeTrans( Key lowKey, Key highKey, FsmTrans *trans )
+void RedFsmBuild::makeTrans( Key lowKey, Key highKey, TransDataAp *trans )
 {
 	/* First reduce the action. */
 	RedActionTable *actionTable = 0;
@@ -356,7 +355,7 @@ void RedFsmBuild::makeTrans( Key lowKey, Key highKey, FsmTrans *trans )
 	newTrans( curState, curTrans++, lowKey, highKey, targ, action );
 }
 
-void RedFsmBuild::makeTransList( FsmState *state )
+void RedFsmBuild::makeTransList( StateAp *state )
 {
 	TransListVect outList;
 
@@ -365,6 +364,7 @@ void RedFsmBuild::makeTransList( FsmState *state )
 		/* Loop each source range. */
 		for ( TransList::Iter trans = state->outList; trans.lte(); trans++ ) {
 			/* Reduce the transition. If it reduced to anything then add it. */
+			assert( trans->plain() );
 			appendTrans( outList, trans->lowKey, trans->highKey, trans );
 		}
 	}
@@ -374,20 +374,22 @@ void RedFsmBuild::makeTransList( FsmState *state )
 	curTrans = 0;
 
 	for ( TransListVect::Iter tvi = outList; tvi.lte(); tvi++ )
-		makeTrans( tvi->lowKey, tvi->highKey, tvi->value );
+		makeTrans( tvi->lowKey, tvi->highKey, tvi->value->tdap() );
 	finishTransList( curState );
 }
 
 void RedFsmBuild::newAction( int anum, char *name, int line, int col, Action *action )
 {
+	LexAction *lexAction = LexAction::cast( action );
+
 	redFsm->allActions[anum].actionId = anum;
 	redFsm->allActions[anum].name = name;
 	redFsm->allActions[anum].loc_line = line;
 	redFsm->allActions[anum].loc_col = col;
 	redFsm->allActions[anum].inlineList = action->inlineList;
-	redFsm->allActions[anum].objField = action->objField;
-	redFsm->allActions[anum].markType = action->markType;
-	redFsm->allActions[anum].markId = action->markId + 1;
+	redFsm->allActions[anum].objField = lexAction->objField;
+	redFsm->allActions[anum].markType = lexAction->markType;
+	redFsm->allActions[anum].markId = lexAction->markId + 1;
 }
 
 void RedFsmBuild::makeAction( Action *action )
@@ -396,8 +398,8 @@ void RedFsmBuild::makeAction( Action *action )
 	int col = action->loc.col;
 
 	char *name = 0;
-	if ( action->name != 0 ) 
-		name = action->name;
+	if ( !action->name.empty() )
+		name = strdup( action->name.c_str() );
 
 	newAction( curAction++, name, line, col, action );
 }
@@ -416,7 +418,7 @@ void xmlEscapeHost( std::ostream &out, char *data, int len )
 	}
 }
 
-void RedFsmBuild::makeStateActions( FsmState *state )
+void RedFsmBuild::makeStateActions( StateAp *state )
 {
 	RedActionTable *toStateActions = 0;
 	if ( state->toStateActionTable.length() > 0 )
@@ -479,12 +481,12 @@ void RedFsmBuild::makeStateList()
 
 void RedFsmBuild::makeEntryPoints()
 {
-	if ( fsm->lmRequiresErrorState )
+	if ( fsm->ctx->lmRequiresErrorState )
 		setForcedErrorState();
 
 	for ( EntryMap::Iter en = fsm->entryPoints; en.lte(); en++ ) {
 		/* Get the name instantiation from nameIndex. */
-		FsmState *state = en->value;
+		StateAp *state = en->value;
 		long entry = state->alg.stateNum;
 		addEntryPoint( en->key, entry );
 	}
@@ -509,7 +511,6 @@ void RedFsmBuild::makeMachine()
 
 	makeActionList();
 	makeActionTableList();
-	makeConditions();
 
 	/* Start state. */
 	startState = fsm->startState->alg.stateNum;
@@ -522,13 +523,9 @@ void RedFsmBuild::makeMachine()
 	makeStateList();
 }
 
-void RedFsmBuild::makeConditions()
-{
-}
-
 RedFsm *RedFsmBuild::reduceMachine()
 {
-	redFsm = new RedFsm();
+	redFsm = new RedFsm( keyOps );
 	redFsm->wantComplete = true;
 
 	/* Open the definition. */

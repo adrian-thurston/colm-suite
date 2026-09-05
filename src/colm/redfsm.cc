@@ -30,7 +30,6 @@
 #include <sstream>
 #include <iostream>
 
-#include "fsmgraph.h"
 #include "parsetree.h"
 
 using std::ostringstream;
@@ -46,8 +45,9 @@ string nameOrLoc( GenAction *genAction )
 	}
 }
 
-RedFsm::RedFsm()
+RedFsm::RedFsm( KeyOps *keyOps )
 :
+	keyOps(keyOps),
 	wantComplete(false),
 	forcedErrorState(false),
 	nextActionId(0),
@@ -71,8 +71,7 @@ RedFsm::RedFsm()
 	bAnyRegNextStmt(false),
 	bAnyRegCurStateRef(false),
 	bAnyRegBreak(false),
-	bAnyLmSwitchError(false),
-	bAnyConditions(false)
+	bAnyLmSwitchError(false)
 {
 }
 
@@ -244,8 +243,8 @@ bool RedFsm::canExtend( const RedTransList &list, int pos )
 	for ( int next = pos + 1; next < list.length(); pos++, next++ ) {
 		/* If they are not continuous then cannot extend. */
 		Key nextKey = list[next].lowKey;
-		nextKey.decrement();
-		if ( list[pos].highKey != nextKey )
+		keyOps->decrement( nextKey );
+		if ( keyOps->ne( list[pos].highKey, nextKey ) )
 			break;
 
 		/* Check for the extenstion property. */
@@ -306,8 +305,6 @@ void RedFsm::chooseSingle()
 void RedFsm::makeFlat()
 {
 	for ( RedStateList::Iter st = stateList; st.lte(); st++ ) {
-		st->condLowKey = 0;
-		st->condHighKey = 0;
 
 		if ( st->outRange.length() == 0 ) {
 			st->lowKey = st->highKey = 0;
@@ -367,21 +364,21 @@ bool RedFsm::alphabetCovered( RedTransList &outRange )
 	/* If the first range doesn't start at the the lower bound then the
 	 * alphabet is not covered. */
 	RedTransList::Iter rtel = outRange;
-	if ( keyOps->minKey < rtel->lowKey )
+	if ( keyOps->lt( keyOps->minKey, rtel->lowKey ) )
 		return false;
 
 	/* Check that every range is next to the previous one. */
 	rtel.increment();
 	for ( ; rtel.lte(); rtel++ ) {
 		Key highKey = rtel[-1].highKey;
-		highKey.increment();
-		if ( highKey != rtel->lowKey )
+		keyOps->increment( highKey );
+		if ( keyOps->ne( highKey, rtel->lowKey ) )
 			return false;
 	}
 
 	/* The last must extend to the upper bound. */
 	RedTransEl *last = &outRange[outRange.length()-1];
-	if ( last->highKey < keyOps->maxKey )
+	if ( keyOps->lt( last->highKey, keyOps->maxKey ) )
 		return false;
 
 	return true;
@@ -593,17 +590,11 @@ void RedFsm::setValueLimits()
 	maxActionLoc = 0;
 	maxActArrItem = 0;
 	maxSpan = 0;
-	maxCondSpan = 0;
 	maxFlatIndexOffset = 0;
-	maxCondOffset = 0;
-	maxCondLen = 0;
-	maxCondSpaceId = 0;
-	maxCondIndexOffset = 0;
 
 	/* In both of these cases the 0 index is reserved for no value, so the max
 	 * is one more than it would be if they started at 0. */
 	maxIndex = transSet.length();
-	maxCond = 0;
 
 	/* The nextStateId - 1 is the last state id assigned. */
 	maxState = nextStateId - 1;
@@ -716,7 +707,7 @@ void RedFsm::analyzeAction( GenAction *act, InlineList *inlineList )
 				act->numFromStateRefs > 0 || act->numEofRefs > 0 )
 		{
 			if ( item->type == InlineItem::LmSwitch && 
-					item->tokenRegion->lmSwitchHandlesError )
+					item->longestMatch->lmSwitchHandlesError )
 			{
 				bAnyLmSwitchError = true;
 			}

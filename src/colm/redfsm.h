@@ -40,7 +40,9 @@
 #include <sbstset.h>
 #include <sbsttable.h>
 
-#include "keyops.h"
+#include "libfsm/fsmgraph.h"
+#include "libfsm/action.h"
+
 #include "compare.h"
 #include "global.h"
 #include "pdarun.h"
@@ -92,7 +94,6 @@ inline int numRefs( GenAction *genAction )
 
 /* Forwards. */
 struct RedState;
-struct FsmState;
 
 /* Transistion GenAction Element. */
 typedef SBstMapEl< int, GenAction* > GenActionTableEl;
@@ -283,9 +284,6 @@ struct RedState
 	RedTransList outRange;
 	RedTrans *defTrans;
 
-	/* For flat conditions. */
-	Key condLowKey, condHighKey;
-
 	/* For flat keys. */
 	Key lowKey, highKey;
 	RedTrans **transList;
@@ -325,7 +323,10 @@ typedef BstSet< RedTrans*, CmpOrd<RedTrans*> > RedTransPtrSet;
 /* Next version of the fsm machine. */
 struct RedFsm
 {
-	RedFsm();
+	RedFsm( KeyOps *keyOps );
+
+	/* Key comparison for the scanner alphabet. */
+	KeyOps *keyOps;
 
 	bool wantComplete;
 	bool forcedErrorState;
@@ -369,7 +370,6 @@ struct RedFsm
 	bool bAnyRegCurStateRef;
 	bool bAnyRegBreak;
 	bool bAnyLmSwitchError;
-	bool bAnyConditions;
 
 	int maxState;
 	int maxSingleLen;
@@ -381,14 +381,8 @@ struct RedFsm
 	int maxActionLoc;
 	int maxActArrItem;
 	unsigned long long maxSpan;
-	unsigned long long maxCondSpan;
 	int maxFlatIndexOffset;
 	Key maxKey;
-	int maxCondOffset;
-	int maxCondLen;
-	int maxCondSpaceId;
-	int maxCondIndexOffset;
-	int maxCond;
 
 	bool anyActions();
 	bool anyToStateActions()        { return bAnyToStateActions; }
@@ -404,7 +398,6 @@ struct RedFsm
 	bool anyRegCurStateRef()        { return bAnyRegCurStateRef; }
 	bool anyRegBreak()              { return bAnyRegBreak; }
 	bool anyLmSwitchError()         { return bAnyLmSwitchError; }
-	bool anyConditions()            { return bAnyConditions; }
 
 	/* Is is it possible to extend a range by bumping ranges that span only
 	 * one character to the singles array. */

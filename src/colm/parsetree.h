@@ -36,6 +36,9 @@
 #include <dlistval.h>
 #include <dlistmel.h>
 
+#include "libfsm/fsmgraph.h"
+#include "libfsm/action.h"
+
 #include "global.h"
 #include "cstring.h"
 #include "bytecode.h"
@@ -54,8 +57,6 @@
 	#error "SIZEOF_LONG contained an unexpected value"
 #endif
 
-struct NameInst;
-struct FsmGraph;
 struct RedFsm;
 struct ObjectDef;
 struct ElementOf;
@@ -226,30 +227,12 @@ enum AugType
 	at_leave
 };
 
-struct Action;
-struct PriorDesc;
+struct LexAction;
 struct RegExpr;
 struct ReItem;
 struct ReOrBlock;
 struct ReOrItem;
 struct ExplicitMachine;
-struct InlineItem;
-struct InlineList;
-
-/* Reference to a named state. */
-typedef Vector<String> NameRef;
-typedef Vector<NameRef*> NameRefList;
-typedef Vector<NameInst*> NameTargList;
-
-/* Structure for storing location of epsilon transitons. */
-struct EpsilonLink
-{
-	EpsilonLink( const InputLoc &loc, NameRef &target )
-		: loc(loc), target(target) { }
-
-	InputLoc loc;
-	NameRef target;
-};
 
 struct Label
 {
@@ -308,7 +291,7 @@ struct LexDefinition
 		: name(name), join(join) { }
 	
 	/* Parse tree traversal. */
-	FsmGraph *walk( Compiler *pd );
+	FsmRes walk( Compiler *pd );
 	void makeNameTree( const InputLoc &loc, Compiler *pd );
 
 	String name;
@@ -443,16 +426,22 @@ struct TokenInstancePtr
 	TokenInstance *prev, *next;
 };
 
+/* A token in a scanner. The libfsm longest match part carries the action
+ * slots the longest match operator fills in; the scanner code generators cast
+ * a part taken from an inline item back to the token instance. */
 struct TokenInstance
 :
-	public TokenInstancePtr
+	public TokenInstancePtr,
+	public FsmLongestMatchPart
 {
 	TokenInstance()
 	: 
-		action(0),
-		inLmSelect(false),
+		FsmLongestMatchPart( 0, 0 ),
 		dupOf(0)
 	{}
+
+	static TokenInstance *cast( FsmLongestMatchPart *part )
+		{ return static_cast<TokenInstance*>( part ); }
 
 	static TokenInstance *cons( TokenDef *tokenDef,
 		LexJoin *join, const InputLoc &semiLoc, 
@@ -477,15 +466,8 @@ struct TokenInstance
 	
 	TokenDef *tokenDef;
 	LexJoin *join;
-	Action *action;
 	InputLoc semiLoc;
 
-	Action *setActId;
-	Action *actOnLast;
-	Action *actOnNext;
-	Action *actLagBehind;
-	int longestMatchId;
-	bool inLmSelect;
 	Namespace *nspace;
 	TokenRegion *tokenRegion;
 
@@ -630,16 +612,24 @@ typedef AvlTree< TypeMapEl, String, ColmCmpStr > TypeMap;
 
 typedef Vector<TokenRegion*> RegionVect;
 
+/* A scanner: a set of tokens combined with the longest match operator. The
+ * libfsm longest match base carries lmSwitchHandlesError; the code generators
+ * cast the base taken from an inline item back to the region. */
 struct RegionImpl
+:
+	public FsmLongestMatch
 {
 	RegionImpl()
 	:
+		FsmLongestMatch( 0 ),
 		regionNameInst(0),
 		lmActSelect(0),
-		lmSwitchHandlesError(false),
 		defaultTokenInstance(0),
 		wasEmpty(false)
 	{}
+
+	static RegionImpl *cast( FsmLongestMatch *lm )
+		{ return static_cast<RegionImpl*>( lm ); }
 
 	InputLoc loc;
 
@@ -649,7 +639,6 @@ struct RegionImpl
 
 	TokenInstanceListReg tokenInstanceList;
 	Action *lmActSelect;
-	bool lmSwitchHandlesError;
 	TokenInstance *defaultTokenInstance;
 
 	/* We alway init empty scanners with a single token. If we had to do this
@@ -658,11 +647,11 @@ struct RegionImpl
 
 	RegionImpl *prev, *next;
 
-	void runLongestMatch( Compiler *pd, FsmGraph *graph );
-	void transferScannerLeavingActions( FsmGraph *graph );
-	FsmGraph *walk( Compiler *pd );
+	void runLongestMatch( Compiler *pd, FsmAp *graph );
+	void transferScannerLeavingActions( FsmAp *graph );
+	FsmRes walk( Compiler *pd );
 
-	void restart( FsmGraph *graph, FsmTrans *trans );
+	void restart( FsmAp *graph, TransAp *trans );
 	void makeNameTree( const InputLoc &loc, Compiler *pd );
 	void makeActions( Compiler *pd );
 	Action *newAction( Compiler *pd, const InputLoc &loc,
@@ -1037,14 +1026,14 @@ struct LexJoin
 	}
 
 	/* tree_t traversal. */
-	FsmGraph *walk( Compiler *pd );
+	FsmRes walk( Compiler *pd );
 	void makeNameTree( Compiler *pd );
 	void varDecl( Compiler *pd, TokenDef *tokenDef );
 
 	/* Data. */
 	LexExpression *expr;
 	LexJoin *context;
-	Action *mark;
+	LexAction *mark;
 };
 
 /*
@@ -1096,7 +1085,7 @@ struct LexExpression
 	~LexExpression();
 
 	/* tree_t traversal. */
-	FsmGraph *walk( Compiler *pd, bool lastInSeq = true );
+	FsmRes walk( Compiler *pd, bool lastInSeq = true );
 	void makeNameTree( Compiler *pd );
 	void varDecl( Compiler *pd, TokenDef *tokenDef );
 
@@ -1153,7 +1142,7 @@ struct LexTerm
 	
 	~LexTerm();
 
-	FsmGraph *walk( Compiler *pd, bool lastInSeq = true );
+	FsmRes walk( Compiler *pd, bool lastInSeq = true );
 	void makeNameTree( Compiler *pd );
 	void varDecl( Compiler *pd, TokenDef *tokenDef );
 
@@ -1182,11 +1171,11 @@ struct LexFactorAug
 	~LexFactorAug();
 
 	/* tree_t traversal. */
-	FsmGraph *walk( Compiler *pd );
+	FsmRes walk( Compiler *pd );
 	void makeNameTree( Compiler *pd );
 	void varDecl( Compiler *pd, TokenDef *tokenDef );
 
-	void assignActions( Compiler *pd, FsmGraph *graph, int *actionOrd );
+	void assignActions( Compiler *pd, FsmAp *graph, int *actionOrd );
 
 	/* Actions and priorities assigned to the factor node. */
 	Vector<ParserAction> actions;
@@ -1244,7 +1233,7 @@ struct LexFactorRep
 	~LexFactorRep();
 
 	/* tree_t traversal. */
-	FsmGraph *walk( Compiler *pd );
+	FsmRes walk( Compiler *pd );
 	void makeNameTree( Compiler *pd );
 
 	InputLoc loc;
@@ -1294,7 +1283,7 @@ struct LexFactorNeg
 	~LexFactorNeg();
 
 	/* tree_t traversal. */
-	FsmGraph *walk( Compiler *pd );
+	FsmRes walk( Compiler *pd );
 	void makeNameTree( Compiler *pd );
 
 	LexFactorNeg *factorNeg;
@@ -1389,7 +1378,7 @@ struct LexFactor
 	~LexFactor();
 
 	/* tree_t traversal. */
-	FsmGraph *walk( Compiler *pd );
+	FsmRes walk( Compiler *pd );
 	void makeNameTree( Compiler *pd );
 
 	InputLoc loc;
@@ -1415,8 +1404,8 @@ struct Range
 	}
 
 	~Range();
-	FsmGraph *walk( Compiler *pd );
-	bool verifyRangeFsm( FsmGraph *rangeEnd );
+	FsmRes walk( Compiler *pd );
+	bool verifyRangeFsm( FsmAp *rangeEnd );
 
 	Literal *lowerLit;
 	Literal *upperLit;
@@ -1436,7 +1425,7 @@ struct Literal
 		return l;
 	}
 
-	FsmGraph *walk( Compiler *pd );
+	FsmRes walk( Compiler *pd );
 	
 	InputLoc loc;
 	String literal;
@@ -1468,7 +1457,7 @@ struct RegExpr
 	}
 
 	~RegExpr();
-	FsmGraph *walk( Compiler *pd, RegExpr *rootRegex );
+	FsmRes walk( Compiler *pd, RegExpr *rootRegex );
 
 	RegExpr *regExp;
 	ReItem *item;
@@ -1505,7 +1494,7 @@ struct ReItem
 	}
 
 	~ReItem();
-	FsmGraph *walk( Compiler *pd, RegExpr *rootRegex );
+	FsmRes walk( Compiler *pd, RegExpr *rootRegex );
 
 	String data;
 	ReOrBlock *orBlock;
@@ -1535,7 +1524,7 @@ struct ReOrBlock
 	}
 
 	~ReOrBlock();
-	FsmGraph *walk( Compiler *pd, RegExpr *rootRegex );
+	FsmRes walk( Compiler *pd, RegExpr *rootRegex );
 	
 	ReOrBlock *orBlock;
 	ReOrItem *item;
@@ -1566,7 +1555,7 @@ struct ReOrItem
 		return r;
 	}
 
-	FsmGraph *walk( Compiler *pd, RegExpr *rootRegex );
+	FsmRes walk( Compiler *pd, RegExpr *rootRegex );
 
 	InputLoc loc;
 	String data;
@@ -1579,103 +1568,6 @@ struct ReOrItem
 /*
  * Inline code tree
  */
-struct InlineList;
-struct InlineItem
-{
-	enum Type 
-	{
-		Text, 
-		LmSwitch, 
-		LmSetActId, 
-		LmSetTokEnd, 
-		LmOnLast, 
-		LmOnNext,
-		LmOnLagBehind, 
-		LmInitAct, 
-		LmInitTokStart, 
-		LmSetTokStart 
-	};
-
-	static InlineItem *cons( const InputLoc &loc, const String &data, Type type )
-	{
-		InlineItem *i = new InlineItem;
-		i->loc = loc;
-		i->data = data;
-		i->nameRef = 0;
-		i->children = 0;
-		i->type = type;
-		return i;
-	}
-
-	static InlineItem *cons( const InputLoc &loc, NameRef *nameRef, Type type )
-	{
-		InlineItem *i = new InlineItem;
-		i->loc = loc;
-		i->nameRef = nameRef;
-		i->children = 0;
-		i->type = type;
-		return i;
-	}
-
-	static InlineItem *cons( const InputLoc &loc, RegionImpl *tokenRegion, 
-		TokenInstance *longestMatchPart, Type type ) 
-	{
-		InlineItem *i = new InlineItem;
-		i->loc = loc;
-		i->nameRef = 0;
-		i->children = 0;
-		i->tokenRegion = tokenRegion;
-		i->longestMatchPart = longestMatchPart;
-		i->type = type;
-		return i;
-	}
-
-	static InlineItem *cons( const InputLoc &loc, NameInst *nameTarg, Type type )
-	{
-		InlineItem *i = new InlineItem;
-		i->loc = loc;
-		i->nameRef = 0;
-		i->nameTarg = nameTarg;
-		i->children = 0;
-		i->type = type;
-		return i;
-	}
-
-	static InlineItem *cons( const InputLoc &loc, Type type ) 
-	{
-		InlineItem *i = new InlineItem;
-		i->loc = loc;
-		i->nameRef = 0;
-		i->children = 0;
-		i->type = type;
-		return i;
-	}
-	
-	InputLoc loc;
-	String data;
-	NameRef *nameRef;
-	NameInst *nameTarg;
-	InlineList *children;
-	RegionImpl *tokenRegion;
-	TokenInstance *longestMatchPart;
-	Type type;
-
-	InlineItem *prev, *next;
-};
-
-struct InlineList 
-:
-	public DList<InlineItem>
-{
-	InlineList( int i ) {}
-
-	static InlineList *cons()
-	{
-		return new InlineList( 0 );
-	}
-};
-
-
 struct ProdEl;
 struct LangVarRef;
 struct ObjectField;

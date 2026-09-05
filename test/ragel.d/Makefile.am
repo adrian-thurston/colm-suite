@@ -20,11 +20,10 @@
 
 RAGEL_LM = $(top_srcdir)/src/ragel
 
-noinst_SCRIPTS = gentests
 noinst_PROGRAMS = trans
 
 EXTRA_DIST = \
-	gentests.sh trans.lm \
+	trans.lm \
 	trans-asm.lm     trans-d.lm      trans-ocaml.lm \
 	trans-c.lm       trans-go.lm     trans-ruby.lm \
 	trans-crack.lm   trans-java.lm   trans-rust.lm trans-zig.lm \
@@ -58,29 +57,10 @@ EXTRA_DIST = \
 	tofrom1.rl tofrom2.rl tokstart1.rl union.rl url1.rl xmlcommon.rl xml.rl \
 	zlen1.rl
 
-CLEANFILES = trans.c gentests
-
-# gentests runs in the build directory and takes its cases from there. Out of
-# tree they are in the source directory, so link them in first. check_DATA is
-# built before check-TESTS runs.
-check_DATA = link-cases
-
-.PHONY: link-cases
-link-cases:
-	if test '$(builddir)' != '$(srcdir)'; then \
-		$(LN_S) -f '$(srcdir)/'*.rl '$(srcdir)/'*.h '$(builddir)'; \
-		test -L include3 && rm -f include3; \
-		$(LN_S) -f '$(srcdir)/include3' '$(builddir)'; \
-	fi
+CLEANFILES = trans.c
 
 clean-local:
 	rm -Rf working
-	if test '$(builddir)' != '$(srcdir)'; then \
-		rm -f *.rl *.h include3; \
-	fi
-
-check-local:
-	'$(top_srcdir)/test/runtests'
 
 TRANS_DEPS = \
 	$(RAGEL_LM)/ragel.lm \
@@ -98,7 +78,4 @@ trans_LDFLAGS = -static
 
 trans.c: trans.lm $(TRANS_DEPS) $(COLM)
 	$(COLM) -c -b trans_object -I$(srcdir) -I$(RAGEL_LM) -I$(RAGEL_LM)/host-go -o $@ $<
-
-gentests: gentests.sh Makefile
-	@$(top_srcdir)/sedsubst $< $@ -w,+x $(SED_SUBST)
 

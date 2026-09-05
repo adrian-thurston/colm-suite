@@ -19,8 +19,6 @@ check_PROGRAMS = \
 	test_avlikeyless test_compare test_string \
 	test_rope
 
-check_SCRIPTS = gentests
-
 stress_avltree_SOURCES = stress_avltree.cpp util.cpp
 stress_avliter_SOURCES = stress_avliter.cpp util.cpp
 stress_avlmel_SOURCES = stress_avlmel.cpp util.cpp
@@ -59,16 +57,13 @@ test_string_SOURCES = test_string.cpp util.cpp
 test_rope_SOURCES = test_rope.cpp util.cpp
 
 EXTRA_DIST = \
-	avlverify.h util.h gentests.sh \
+	avlverify.h util.h \
 	test_allavl.exp test_allsort.exp test_avlikeyless.exp test_avliter.exp \
 	test_avlkeyless.exp test_bstmap.exp test_bstset.exp test_bsttable.exp \
 	test_bubblesort.exp test_compare.exp test_dlistval.exp test_doublelist.exp \
 	test_insertsort.exp test_mergesort.exp test_quicksort.exp test_rope.exp \
 	test_sbstmap.exp test_sbstset.exp test_sbsttable.exp test_string.exp \
 	test_svector.exp test_vector.exp 
-
-gentests: gentests.sh Makefile
-	@$(top_srcdir)/sedsubst $< $@ -w,+x $(SED_SUBST)
 
 #*************************************
 
@@ -101,16 +96,5 @@ gentests: gentests.sh Makefile
 #
 #-include $(DEPS)
 
-CLEANFILES = gentests
-
 clean-local:
 	rm -Rf working
-	if test '$(builddir)' != '$(srcdir)'; then \
-		rm -f *.exp; \
-	fi
-
-check-local:
-	if test '$(builddir)' != '$(srcdir)'; then \
-		$(LN_S) -f '$(srcdir)/'*.exp '$(builddir)'; \
-	fi
-	'$(top_srcdir)/test/runtests'

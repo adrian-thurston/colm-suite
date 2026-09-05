@@ -1,7 +1,6 @@
 check_PROGRAMS = trans
 
 EXTRA_DIST = \
-	gentests \
 	ragel.lm \
 	ragel-c.lm \
 	ragel-crack.lm \
@@ -405,13 +404,3 @@ CLEANFILES = trans.c
 
 clean-local:
 	rm -Rf working
-	if test '$(builddir)' != '$(srcdir)'; then \
-		rm -Rf case; \
-		rm -f gentests; \
-	fi
-
-check-local:
-	if test '$(builddir)' != '$(srcdir)'; then \
-		$(LN_S) -f '$(srcdir)/gentests' '$(srcdir)/case' '$(builddir)'; \
-	fi
-	'$(top_srcdir)/test/runtests'

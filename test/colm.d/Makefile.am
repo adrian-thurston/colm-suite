@@ -1,7 +1,4 @@
-check_SCRIPTS = gentests
-
 EXTRA_DIST = \
-	gentests.sh \
 	accum1.lm \
 	accum2.lm \
 	accum3.lm \
@@ -13,8 +10,12 @@ EXTRA_DIST = \
 	backtrack1.lm \
 	backtrack2.lm \
 	backtrack3.lm \
+	balance1.lm \
+	balance2.lm \
+	balance3.lm \
 	binary1.lm \
 	broken/travs2.lm \
+	btpat1.lm \
 	btscan1.lm \
 	btscan2.lm \
 	call1.lm \
@@ -182,19 +183,10 @@ EXTRA_DIST = \
 	redef4.lm \
 	redef5.lm
 
-gentests: gentests.sh Makefile
-	@$(top_srcdir)/sedsubst $< $@ -w,+x $(SED_SUBST)
-
-CLEANFILES = gentests
-
+# Out of tree the harness links the case files into the build directory, as
+# the cases open their inputs and includes relative to it.
 clean-local:
 	rm -Rf working
 	if test '$(builddir)' != '$(srcdir)'; then \
 		rm -f *.lm *.lmi *.in; \
 	fi
-
-check-local:
-	if test '$(builddir)' != '$(srcdir)'; then \
-		$(LN_S) -f '$(srcdir)/'*.lm '$(srcdir)/'*.lmi '$(srcdir)/'*.in '$(builddir)'; \
-	fi
-	'$(top_srcdir)/test/runtests'

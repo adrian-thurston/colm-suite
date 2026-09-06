@@ -546,6 +546,7 @@ AC_CONFIG_FILES([
 	src/colm/Makefile
 	src/Makefile
 	test/Makefile
+	test/harness/Makefile
 	test/aapl.d/Makefile
 	test/colm.d/Makefile
 	test/rlhc.d/Makefile

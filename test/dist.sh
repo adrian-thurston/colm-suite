@@ -14,5 +14,4 @@ trap "rm -Rf $DIST $WORKDIR" EXIT
 tar -C $WORKDIR -xzvf $DIST
 
 cd $WORKDIR/${DIST%.tar.gz}
-./configure && make -j8
-cd test && ./runtests
+./configure && make -j8 && make check

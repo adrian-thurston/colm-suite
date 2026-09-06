@@ -1,11 +1,19 @@
 /*
  * @LANG: c++
+ * @ENABLED: false
  *
  * This test case exercises repetition of a machine that accepts zero-length
- * string. It is very ambiguous and not useful as a pattern. 
+ * string. It is very ambiguous and not useful as a pattern.
+ *
+ * Disabled: the case was imported with a host program that did not compile
+ * and never called test(), so it was never run. With the program completed,
+ * the machine goes to the error state at the first space after a word, on
+ * every input, so the nested condstar needs investigating before an expected
+ * output can be recorded.
  */
 
 #include <iostream>
+#include <string>
 #include <string.h>
 
 using std::cout;
@@ -53,17 +61,25 @@ using std::endl;
 
 %% write data;
 
+bool bs_b( const char *src, const char *p )
+{
+	return p > src && p[-1] == '\\';
+}
+
 void test( const char *str )
 {
 	int cs = foo_start;
+	const char *src = str;
 	const char *p = str;
 	const char *pe = str + strlen( str );
+	const char *eof = pe;
 	int match = 0;
 
 	long q_4 = 0, q_5 = 0, q_6 = 0;
 
 	cout << "run:" << endl;
 	%% write exec;
+	cout << "  stopped at " << ( p - str ) << " of " << ( pe - str ) << ", cs " << cs << ( cs == foo_error ? " (error)" : "" ) << endl;
 	if ( match )
 		cout << "  success" << endl;
 	else
@@ -71,8 +87,30 @@ void test( const char *str )
 	cout << endl;
 }
 
+/* Exactly 100 repetitions of a word of 1 to 25 characters followed by 1 to 5
+ * spaces, then any character. */
 int main()
 {
+	std::string ok = "</style><";
+	for ( int i = 0; i < 100; i++ )
+		ok += "abc ";
+	ok += "x";
+	test( ok.c_str() );
+
+	std::string few = "</style><";
+	for ( int i = 0; i < 99; i++ )
+		few += "abc ";
+	few += "x";
+	test( few.c_str() );
+
+	std::string many = "</style><";
+	for ( int i = 0; i < 101; i++ )
+		many += "abc ";
+	many += "x";
+	test( many.c_str() );
+
+	test( "</style><abc      x" );
+	test( "</style>" );
 	return 0;
 }
 

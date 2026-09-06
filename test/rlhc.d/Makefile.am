@@ -12,7 +12,7 @@ RLHC_DEP = \
 	rlhc-julia.lm \
 	rlhc-js.lm
 
-EXTRA_DIST = gentests rlhc.lm $(RLHC_DEP) $(CASES)
+EXTRA_DIST = rlhc.lm $(RLHC_DEP) $(CASES)
 
 check_PROGRAMS = rlhc
 rlhc_SOURCES =
@@ -1092,13 +1092,3 @@ CLEANFILES = rlhc.c
 
 clean-local:
 	rm -Rf working
-	if test '$(builddir)' != '$(srcdir)'; then \
-		rm -Rf case; \
-		rm -f gentests; \
-	fi
-
-check-local:
-	if test '$(builddir)' != '$(srcdir)'; then \
-		$(LN_S) -f '$(srcdir)/gentests' '$(srcdir)/case' '$(builddir)'; \
-	fi
-	'$(top_srcdir)/test/runtests'

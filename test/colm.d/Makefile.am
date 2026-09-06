@@ -10,8 +10,12 @@ EXTRA_DIST = \
 	backtrack1.lm \
 	backtrack2.lm \
 	backtrack3.lm \
+	balance1.lm \
+	balance2.lm \
+	balance3.lm \
 	binary1.lm \
 	broken/travs2.lm \
+	btpat1.lm \
 	btscan1.lm \
 	btscan2.lm \
 	call1.lm \

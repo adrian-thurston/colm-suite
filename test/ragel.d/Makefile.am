@@ -36,9 +36,9 @@ EXTRA_DIST = \
 	conderr2.rl condrep1.rl condrep2.rl condrep3.rl condrep4.rl condrep5.rl \
 	cppscan1.h cppscan1.rl cppscan2.rl cppscan3.rl cppscan4.rl cppscan5.rl \
 	cppscan6.rl crack1.rl curs1.rl element1.rl element2.rl element3.rl \
-	empty1.rl eofact.h eofact.rl eofcall1.rl eofcall2.rl eofgoto1.rl \
+	empty1.rl eofact.h eofact.rl eofcall1.rl eofcall2.rl eoffrom.rl eofgoto1.rl \
 	eofgoto2.rl eofret1.rl erract1.rl erract2.rl erract3.rl erract4.rl \
-	erract5.rl erract6.rl erract7.rl erract8.rl erract9.rl export1.rl \
+	erract5.rl erract6.rl erract7.rl erract8.rl erract9.rl export1.rl fbreak1.rl \
 	export2.rl export3.rl export4.rl fnext1.rl fnext2.rl fnext3.rl forder1.rl \
 	forder2.rl forder3.rl genrep1.rl genrep2.rl genrep3.rl genrep4.rl \
 	genrep5.rl genrep6.rl genrep7.rl genrep8.rl goto1.rl gotocallret1.rl \
@@ -54,7 +54,7 @@ EXTRA_DIST = \
 	repetition.rl rlscan.rl rpn1.rl ruby1.rl rust1.rl scan1.rl scan2.rl \
 	scan3.rl scan4.rl scan5.rl scan6.rl scan7.rl stateact1.rl \
 	statechart1.rl strings1.rl strings2.h strings2.rl strings3.rl targs1.rl \
-	tofrom1.rl tofrom2.rl tokstart1.rl union.rl url1.rl xmlcommon.rl xml.rl \
+	tofrom1.rl tofrom2.rl tokstart1.rl tsreset.rl union.rl url1.rl xmlcommon.rl xml.rl \
 	zlen1.rl
 
 CLEANFILES = trans.c

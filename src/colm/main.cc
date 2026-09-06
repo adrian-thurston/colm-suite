@@ -119,15 +119,6 @@ const char *defaultBuildDir();
  * connot be made to work with multiple alphabet types.
  */
 
-HostType hostTypesC[] =
-{
-	{ "unsigned", "char", false, 0, UCHAR_MAX, sizeof(unsigned char) },
-};
-
-
-HostLang hostLangC = { hostTypesC, 1, 0 };
-HostLang *hostLang = &hostLangC;
-
 /* Print the opening to an error in the input, then return the error ostream. */
 ostream &error( const InputLoc &loc )
 {
@@ -152,7 +143,7 @@ ostream &error( const InputLoc &loc )
 ostream &error()
 {
 	gblErrorCount += 1;
-	cerr << "error: " PROGNAME ": ";
+	cerr << "error: colm: ";
 	return cerr;
 }
 

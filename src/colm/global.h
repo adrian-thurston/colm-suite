@@ -33,9 +33,7 @@
 #include <avltree.h>
 
 #include "defs.h"
-#include "keyops.h"
-
-#define PROGNAME "colm"
+#include "libfsm/common.h"
 
 /* IO filenames and stream. */
 extern bool genGraphviz;
@@ -69,25 +67,11 @@ extern char machineMain[];
 extern const char *exportHeaderFn;
 extern bool rangeCrossesZero;
 
-struct colm_location;
-
-/* Location in an input file. */
-struct InputLoc
+/* Capture marks recorded by scanner actions. */
+enum MarkType
 {
-	InputLoc( colm_location *pcloc );
-
-	InputLoc() : fileName(0), line(-1), col(-1)  {}
-
-	InputLoc( const InputLoc &loc )
-	{
-		fileName = loc.fileName;
-		line = loc.line;
-		col = loc.col;
-	}
-
-	const char *fileName;
-	int line;
-	int col;
+	MarkNone = 0,
+	MarkMark
 };
 
 extern InputLoc internal;

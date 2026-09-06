@@ -25,12 +25,10 @@
 
 #include <iostream>
 
-#include "fsmgraph.h"
 #include "compiler.h"
 #include "parsetree.h"
 
 using namespace std;
-ostream &operator<<( ostream &out, const NameRef &nameRef );
 ostream &operator<<( ostream &out, const NameInst &nameInst );
 ostream &operator<<( ostream &out, const Token &token );
 
@@ -189,23 +187,25 @@ int CmpUniqueGeneric::compare( const UniqueGeneric &ut1, const UniqueGeneric &ut
 	return 0;
 }
 
-FsmGraph *LexDefinition::walk( Compiler *pd )
+FsmRes LexDefinition::walk( Compiler *pd )
 {
 	/* Recurse on the expression. */
-	FsmGraph *rtnVal = join->walk( pd );
+	FsmRes rtnVal = join->walk( pd );
+	if ( !rtnVal.success() )
+		return rtnVal;
 
 	/* If the expression below is a join operation with multiple expressions
 	 * then it just had epsilon transisions resolved. If it is a join
 	 * with only a single expression then run the epsilon op now. */
 	if ( join->expr != 0 )
-		rtnVal->epsilonOp();
+		rtnVal = FsmAp::epsilonOp( rtnVal.fsm );
 
 	return rtnVal;
 }
 
 void RegionImpl::makeNameTree( const InputLoc &loc, Compiler *pd )
 {
-	NameInst *nameInst = new NameInst( pd->nextNameId++ );
+	NameInst *nameInst = new NameInst( loc, 0, std::string(), pd->nextNameId++, false );
 	pd->nameInstList.append( nameInst );
 
 	/* Guess we do this now. */
@@ -237,7 +237,7 @@ InputLoc TokenInstance::getLoc()
 Action *RegionImpl::newAction( Compiler *pd, const InputLoc &loc, 
 		const String &name, InlineList *inlineList )
 {
-	Action *action = Action::cons( loc, name, inlineList );
+	Action *action = new LexAction( loc, name, inlineList );
 	pd->actionList.append( action );
 	action->isLmAction = true;
 	return action;
@@ -249,8 +249,8 @@ void RegionImpl::makeActions( Compiler *pd )
 	for ( TokenInstanceListReg::Iter lmi = tokenInstanceList; lmi.lte(); lmi++ ) {
 		/* For each part create actions for setting the match type.  We need
 		 * to do this so that the actions will go into the actionIndex. */
-		InlineList *inlineList = InlineList::cons();
-		inlineList->append( InlineItem::cons( lmi->getLoc(), this, lmi, 
+		InlineList *inlineList = new InlineList;
+		inlineList->append( new InlineItem( lmi->getLoc(), this, lmi,
 				InlineItem::LmSetActId ) );
 		char *actName = new char[50];
 		snprintf( actName, 50, "store%i", lmi->longestMatchId );
@@ -261,8 +261,8 @@ void RegionImpl::makeActions( Compiler *pd )
 	for ( TokenInstanceListReg::Iter lmi = tokenInstanceList; lmi.lte(); lmi++ ) {
 		/* For each part create actions for setting the match type.  We need
 		 * to do this so that the actions will go into the actionIndex. */
-		InlineList *inlineList = InlineList::cons();
-		inlineList->append( InlineItem::cons( lmi->getLoc(), this, lmi, 
+		InlineList *inlineList = new InlineList;
+		inlineList->append( new InlineItem( lmi->getLoc(), this, lmi,
 				InlineItem::LmOnLast ) );
 		char *actName = new char[50];
 		snprintf( actName, 50, "imm%i", lmi->longestMatchId );
@@ -275,8 +275,8 @@ void RegionImpl::makeActions( Compiler *pd )
 	for ( TokenInstanceListReg::Iter lmi = tokenInstanceList; lmi.lte(); lmi++ ) {
 		/* For each part create actions for setting the match type.  We need
 		 * to do this so that the actions will go into the actionIndex. */
-		InlineList *inlineList = InlineList::cons();
-		inlineList->append( InlineItem::cons( lmi->getLoc(), this, lmi, 
+		InlineList *inlineList = new InlineList;
+		inlineList->append( new InlineItem( lmi->getLoc(), this, lmi,
 				InlineItem::LmOnNext ) );
 		char *actName = new char[50];
 		snprintf( actName, 50, "lagh%i", lmi->longestMatchId );
@@ -288,8 +288,8 @@ void RegionImpl::makeActions( Compiler *pd )
 	for ( TokenInstanceListReg::Iter lmi = tokenInstanceList; lmi.lte(); lmi++ ) {
 		/* For each part create actions for setting the match type.  We need
 		 * to do this so that the actions will go into the actionIndex. */
-		InlineList *inlineList = InlineList::cons();
-		inlineList->append( InlineItem::cons( lmi->getLoc(), this, lmi, 
+		InlineList *inlineList = new InlineList;
+		inlineList->append( new InlineItem( lmi->getLoc(), this, lmi,
 				InlineItem::LmOnLagBehind ) );
 		char *actName = new char[50];
 		snprintf( actName, 50, "lag%i", lmi->longestMatchId );
@@ -301,25 +301,27 @@ void RegionImpl::makeActions( Compiler *pd )
 	loc.col = 1;
 
 	/* Create the error action. */
-	InlineList *il6 = InlineList::cons();
-	il6->append( InlineItem::cons( loc, this, 0, InlineItem::LmSwitch ) );
+	InlineList *il6 = new InlineList;
+	il6->append( new InlineItem( loc, this, 0, InlineItem::LmSwitch ) );
 	lmActSelect = newAction( pd, loc, "lagsel", il6 );
 }
 
-void RegionImpl::restart( FsmGraph *graph, FsmTrans *trans )
+void RegionImpl::restart( FsmAp *graph, TransAp *trans )
 {
-	FsmState *fromState = trans->fromState;
-	graph->detachTrans( fromState, trans->toState, trans );
-	graph->attachTrans( fromState, graph->startState, trans );
+	/* Colm never embeds conditions, so every transition is plain. */
+	TransDataAp *tdap = trans->tdap();
+	StateAp *fromState = tdap->fromState;
+	graph->detachTrans( fromState, tdap->toState, tdap );
+	graph->attachTrans( fromState, graph->startState, tdap );
 }
 
-void RegionImpl::runLongestMatch( Compiler *pd, FsmGraph *graph )
+void RegionImpl::runLongestMatch( Compiler *pd, FsmAp *graph )
 {
 	graph->markReachableFromHereStopFinal( graph->startState );
 	for ( StateList::Iter ms = graph->stateList; ms.lte(); ms++ ) {
-		if ( ms->stateBits & SB_ISMARKED ) {
+		if ( ms->stateBits & STB_ISMARKED ) {
 			ms->lmItemSet.insert( 0 );
-			ms->stateBits &= ~ SB_ISMARKED;
+			ms->stateBits &= ~ STB_ISMARKED;
 		}
 	}
 
@@ -329,9 +331,11 @@ void RegionImpl::runLongestMatch( Compiler *pd, FsmGraph *graph )
 	 * next pass we have the item set entries from all lmAction tables. */
 	for ( StateList::Iter st = graph->stateList; st.lte(); st++ ) {
 		for ( TransList::Iter trans = st->outList; trans.lte(); trans++ ) {
-			if ( trans->lmActionTable.length() > 0 ) {
-				LmActionTableEl *lmAct = trans->lmActionTable.data;
-				FsmState *toState = trans->toState;
+			assert( trans->plain() );
+			TransDataAp *tdap = trans->tdap();
+			if ( tdap->lmActionTable.length() > 0 ) {
+				LmActionTableEl *lmAct = tdap->lmActionTable.data;
+				StateAp *toState = tdap->toState;
 				assert( toState );
 
 				/* Check if there are transitions out, this may be a very
@@ -341,9 +345,9 @@ void RegionImpl::runLongestMatch( Compiler *pd, FsmGraph *graph )
 					/* Fill the item sets. */
 					graph->markReachableFromHereStopFinal( toState );
 					for ( StateList::Iter ms = graph->stateList; ms.lte(); ms++ ) {
-						if ( ms->stateBits & SB_ISMARKED ) {
+						if ( ms->stateBits & STB_ISMARKED ) {
 							ms->lmItemSet.insert( lmAct->value );
-							ms->stateBits &= ~ SB_ISMARKED;
+							ms->stateBits &= ~ STB_ISMARKED;
 						}
 					}
 				}
@@ -357,15 +361,15 @@ void RegionImpl::runLongestMatch( Compiler *pd, FsmGraph *graph )
 	int maxItemSetLength = 0;
 	graph->markReachableFromHereStopFinal( graph->startState );
 	for ( StateList::Iter ms = graph->stateList; ms.lte(); ms++ ) {
-		if ( ms->stateBits & SB_ISMARKED ) {
+		if ( ms->stateBits & STB_ISMARKED ) {
 			if ( ms->lmItemSet.length() > maxItemSetLength )
 				maxItemSetLength = ms->lmItemSet.length();
-			ms->stateBits &= ~ SB_ISMARKED;
+			ms->stateBits &= ~ STB_ISMARKED;
 		}
 	}
 
 	/* The actions executed on starting to match a token. */
-	graph->isolateStartState();
+	FsmAp::isolateStartState( graph );
 	graph->startState->fromStateActionTable.setAction( pd->setTokStartOrd, pd->setTokStart );
 	if ( maxItemSetLength > 1 ) {
 		/* The longest match action switch may be called when tokens are
@@ -380,15 +384,16 @@ void RegionImpl::runLongestMatch( Compiler *pd, FsmGraph *graph )
 	 * restarting to affect the searching through the graph that follows. For
 	 * now take the safe route and save the list of transitions to restart
 	 * until after all searching is done. */
-	Vector<FsmTrans*> restartTrans;
+	Vector<TransAp*> restartTrans;
 
 	/* Set actions that do immediate token recognition, set the longest match part
 	 * id and set the token ending. */
 	for ( StateList::Iter st = graph->stateList; st.lte(); st++ ) {
 		for ( TransList::Iter trans = st->outList; trans.lte(); trans++ ) {
-			if ( trans->lmActionTable.length() > 0 ) {
-				LmActionTableEl *lmAct = trans->lmActionTable.data;
-				FsmState *toState = trans->toState;
+			TransDataAp *tdap = trans->tdap();
+			if ( tdap->lmActionTable.length() > 0 ) {
+				LmActionTableEl *lmAct = tdap->lmActionTable.data;
+				StateAp *toState = tdap->toState;
 				assert( toState );
 
 				/* Check if there are transitions out, this may be a very
@@ -397,7 +402,7 @@ void RegionImpl::runLongestMatch( Compiler *pd, FsmGraph *graph )
 				if ( toState->outList.length() == 0 ) {
 					/* Can execute the immediate action for the longest match
 					 * part. Redirect the action to the start state. */
-					trans->actionTable.setAction( lmAct->key, 
+					tdap->actionTable.setAction( lmAct->key,
 							lmAct->value->actOnLast );
 					restartTrans.append( trans );
 				}
@@ -411,12 +416,12 @@ void RegionImpl::runLongestMatch( Compiler *pd, FsmGraph *graph )
 					maxItemSetLength = 0;
 					graph->markReachableFromHereStopFinal( toState );
 					for ( StateList::Iter ms = graph->stateList; ms.lte(); ms++ ) {
-						if ( ms->stateBits & SB_ISMARKED ) {
+						if ( ms->stateBits & STB_ISMARKED ) {
 							if ( ms->lmItemSet.length() > 0 && !ms->isFinState() )
 								nonFinalNonEmptyItemSet = true;
 							if ( ms->lmItemSet.length() > maxItemSetLength )
 								maxItemSetLength = ms->lmItemSet.length();
-							ms->stateBits &= ~ SB_ISMARKED;
+							ms->stateBits &= ~ STB_ISMARKED;
 						}
 					}
 
@@ -425,14 +430,16 @@ void RegionImpl::runLongestMatch( Compiler *pd, FsmGraph *graph )
 					 * length greater than one then we need to set tokend
 					 * because the error action that matches the token will
 					 * require it. */
-					if ( nonFinalNonEmptyItemSet || maxItemSetLength > 1 )
-						trans->actionTable.setAction( pd->setTokEndOrd, pd->setTokEnd );
+					if ( nonFinalNonEmptyItemSet || maxItemSetLength > 1 ) {
+						tdap->actionTable.setAction( pd->setTokEndOrd,
+								pd->setTokEnd );
+					}
 
 					/* Some states may not know which longest match item to
 					 * execute, must set it. */
 					if ( maxItemSetLength > 1 ) {
 						/* There are transitions out, another match may come. */
-						trans->actionTable.setAction( lmAct->key, 
+						tdap->actionTable.setAction( lmAct->key,
 								lmAct->value->setActId );
 					}
 				}
@@ -442,10 +449,10 @@ void RegionImpl::runLongestMatch( Compiler *pd, FsmGraph *graph )
 
 	/* Now that all graph searching is done it certainly safe set the
 	 * restarting. It may be safe above, however this must be verified. */
-	for ( Vector<FsmTrans*>::Iter rs = restartTrans; rs.lte(); rs++ )
+	for ( Vector<TransAp*>::Iter rs = restartTrans; rs.lte(); rs++ )
 		restart( graph, *rs );
 
-	int lmErrActionOrd = pd->curActionOrd++;
+	int lmErrActionOrd = pd->fsmCtx->curActionOrd++;
 
 	/* Embed the error for recognizing a char. */
 	for ( StateList::Iter st = graph->stateList; st.lte(); st++ ) {
@@ -486,7 +493,7 @@ void RegionImpl::runLongestMatch( Compiler *pd, FsmGraph *graph )
 	graph->setFinState( graph->startState );
 }
 
-void RegionImpl::transferScannerLeavingActions( FsmGraph *graph )
+void RegionImpl::transferScannerLeavingActions( FsmAp *graph )
 {
 	for ( StateList::Iter st = graph->stateList; st.lte(); st++ ) {
 		if ( st->outActionTable.length() > 0 )
@@ -494,17 +501,25 @@ void RegionImpl::transferScannerLeavingActions( FsmGraph *graph )
 	}
 }
 
-FsmGraph *RegionImpl::walk( Compiler *pd )
+FsmRes RegionImpl::walk( Compiler *pd )
 {
 	/* Make each part of the longest match. */
 	int numParts = 0;
-	FsmGraph **parts = new FsmGraph*[tokenInstanceList.length()];
+	FsmAp **parts = new FsmAp*[tokenInstanceList.length()];
 	for ( TokenInstanceListReg::Iter lmi = tokenInstanceList; lmi.lte(); lmi++ ) {
 		/* Watch out for patternless tokens. */
 		if ( lmi->join != 0 ) {
 			/* Create the machine and embed the setting of the longest match id. */
-			parts[numParts] = lmi->join->walk( pd );
-			parts[numParts]->longMatchAction( pd->curActionOrd++, lmi );
+			FsmRes res = lmi->join->walk( pd );
+			if ( !res.success() ) {
+				for ( int i = 0; i < numParts; i++ )
+					delete parts[i];
+				delete[] parts;
+				return res;
+			}
+
+			parts[numParts] = res.fsm;
+			parts[numParts]->longMatchAction( pd->fsmCtx->curActionOrd++, lmi );
 
 			/* Look for tokens that accept the zero length-word. The first one found
 			 * will be used as the default token. */
@@ -514,15 +529,16 @@ FsmGraph *RegionImpl::walk( Compiler *pd )
 			numParts += 1;
 		}
 	}
-	FsmGraph *retFsm = parts[0];
 
 	if ( defaultTokenInstance != 0 && defaultTokenInstance->tokenDef->tdLangEl->isIgnore )
 		error() << "ignore token cannot be a scanner's zero-length token" << endp;
 
+	FsmRes retFsm( FsmRes::Fsm(), 0 );
+
 	/* The region is empty. Return the empty set. */
 	if ( numParts == 0 ) {
-		retFsm = new FsmGraph();
-		retFsm->lambdaFsm();
+		delete[] parts;
+		retFsm = FsmRes( FsmRes::Fsm(), FsmAp::lambdaFsm( pd->fsmCtx ) );
 	}
 	else {
 		/* Before we union the patterns we need to deal with leaving actions. They
@@ -533,32 +549,44 @@ FsmGraph *RegionImpl::walk( Compiler *pd )
 			transferScannerLeavingActions( parts[i] );
 
 		/* Union machines one and up with machine zero. */
-		FsmGraph *retFsm = parts[0];
+		retFsm = FsmRes( FsmRes::Fsm(), parts[0] );
 		for ( int i = 1; i < numParts; i++ ) {
-			retFsm->unionOp( parts[i] );
-			afterOpMinimize( retFsm );
+			retFsm = FsmAp::unionOp( retFsm.fsm, parts[i] );
+			if ( !retFsm.success() ) {
+				for ( int j = i + 1; j < numParts; j++ )
+					delete parts[j];
+				delete[] parts;
+				return retFsm;
+			}
 		}
 
-		runLongestMatch( pd, retFsm );
+		runLongestMatch( pd, retFsm.fsm );
 		delete[] parts;
 	}
 
 	/* Need the entry point for the region. */
-	retFsm->setEntry( regionNameInst->id, retFsm->startState );
+	retFsm.fsm->setEntry( regionNameInst->id, retFsm.fsm->startState );
 
 	return retFsm;
 }
 
 /* Walk an expression node. */
-FsmGraph *LexJoin::walk( Compiler *pd )
+FsmRes LexJoin::walk( Compiler *pd )
 {
-	FsmGraph *retFsm = expr->walk( pd );
+	FsmRes retFsm = expr->walk( pd );
+	if ( !retFsm.success() )
+		return retFsm;
 
 	/* Maybe the the context. */
 	if ( context != 0 ) {
-		retFsm->leaveFsmAction( pd->curActionOrd++, mark );
-		FsmGraph *contextGraph = context->walk( pd );
-		retFsm->concatOp( contextGraph );
+		retFsm.fsm->leaveFsmAction( pd->fsmCtx->curActionOrd++, mark );
+		FsmRes contextGraph = context->walk( pd );
+		if ( !contextGraph.success() ) {
+			delete retFsm.fsm;
+			return contextGraph;
+		}
+
+		retFsm = FsmAp::concatOp( retFsm.fsm, contextGraph.fsm );
 	}
 
 	return retFsm;
@@ -582,69 +610,100 @@ LexExpression::~LexExpression()
 }
 
 /* Evaluate a single expression node. */
-FsmGraph *LexExpression::walk( Compiler *pd, bool lastInSeq )
+FsmRes LexExpression::walk( Compiler *pd, bool lastInSeq )
 {
-	FsmGraph *rtnVal = 0;
 	switch ( type ) {
 		case OrType: {
 			/* Evaluate the expression. */
-			rtnVal = expression->walk( pd, false );
+			FsmRes exprFsm = expression->walk( pd, false );
+			if ( !exprFsm.success() )
+				return exprFsm;
+
 			/* Evaluate the term. */
-			FsmGraph *rhs = term->walk( pd );
+			FsmRes rhs = term->walk( pd );
+			if ( !rhs.success() ) {
+				delete exprFsm.fsm;
+				return rhs;
+			}
+
 			/* Perform union. */
-			rtnVal->unionOp( rhs );
-			afterOpMinimize( rtnVal, lastInSeq );
-			break;
+			return FsmAp::unionOp( exprFsm.fsm, rhs.fsm, lastInSeq );
 		}
 		case IntersectType: {
 			/* Evaluate the expression. */
-			rtnVal = expression->walk( pd );
+			FsmRes exprFsm = expression->walk( pd );
+			if ( !exprFsm.success() )
+				return exprFsm;
+
 			/* Evaluate the term. */
-			FsmGraph *rhs = term->walk( pd );
+			FsmRes rhs = term->walk( pd );
+			if ( !rhs.success() ) {
+				delete exprFsm.fsm;
+				return rhs;
+			}
+
 			/* Perform intersection. */
-			rtnVal->intersectOp( rhs );
-			afterOpMinimize( rtnVal, lastInSeq );
-			break;
+			return FsmAp::intersectOp( exprFsm.fsm, rhs.fsm, lastInSeq );
 		}
 		case SubtractType: {
 			/* Evaluate the expression. */
-			rtnVal = expression->walk( pd );
+			FsmRes exprFsm = expression->walk( pd );
+			if ( !exprFsm.success() )
+				return exprFsm;
+
 			/* Evaluate the term. */
-			FsmGraph *rhs = term->walk( pd );
+			FsmRes rhs = term->walk( pd );
+			if ( !rhs.success() ) {
+				delete exprFsm.fsm;
+				return rhs;
+			}
+
 			/* Perform subtraction. */
-			rtnVal->subtractOp( rhs );
-			afterOpMinimize( rtnVal, lastInSeq );
-			break;
+			return FsmAp::subtractOp( exprFsm.fsm, rhs.fsm, lastInSeq );
 		}
 		case StrongSubtractType: {
 			/* Evaluate the expression. */
-			rtnVal = expression->walk( pd );
+			FsmRes exprFsm = expression->walk( pd );
+			if ( !exprFsm.success() )
+				return exprFsm;
 
 			/* Evaluate the term and pad it with any* machines. */
-			FsmGraph *rhs = dotStarFsm( pd );
-			FsmGraph *termFsm = term->walk( pd );
-			FsmGraph *trailAnyStar = dotStarFsm( pd );
-			rhs->concatOp( termFsm );
-			rhs->concatOp( trailAnyStar );
+			FsmRes termFsm = term->walk( pd );
+			if ( !termFsm.success() ) {
+				delete exprFsm.fsm;
+				return termFsm;
+			}
+
+			FsmAp *leadAnyStar = FsmAp::dotStarFsm( pd->fsmCtx );
+			FsmAp *trailAnyStar = FsmAp::dotStarFsm( pd->fsmCtx );
+
+			FsmRes rhs = FsmAp::concatOp( leadAnyStar, termFsm.fsm );
+			if ( !rhs.success() ) {
+				delete exprFsm.fsm;
+				delete trailAnyStar;
+				return rhs;
+			}
+
+			rhs = FsmAp::concatOp( rhs.fsm, trailAnyStar );
+			if ( !rhs.success() ) {
+				delete exprFsm.fsm;
+				return rhs;
+			}
 
 			/* Perform subtraction. */
-			rtnVal->subtractOp( rhs );
-			afterOpMinimize( rtnVal, lastInSeq );
-			break;
+			return FsmAp::subtractOp( exprFsm.fsm, rhs.fsm, lastInSeq );
 		}
 		case TermType: {
 			/* Return result of the term. */
-			rtnVal = term->walk( pd );
-			break;
+			return term->walk( pd );
 		}
 		case BuiltinType: {
 			/* Duplicate the builtin. */
-			rtnVal = makeBuiltin( builtin, pd );
-			break;
+			return FsmRes( FsmRes::Fsm(), makeBuiltin( builtin, pd ) );
 		}
 	}
 
-	return rtnVal;
+	return FsmRes( FsmRes::InternalError() );
 }
 
 /* Clean up after a term node. */
@@ -665,81 +724,89 @@ LexTerm::~LexTerm()
 }
 
 /* Evaluate a term node. */
-FsmGraph *LexTerm::walk( Compiler *pd, bool lastInSeq )
+FsmRes LexTerm::walk( Compiler *pd, bool lastInSeq )
 {
-	FsmGraph *rtnVal = 0;
 	switch ( type ) {
 		case ConcatType: {
 			/* Evaluate the Term. */
-			rtnVal = term->walk( pd, false );
+			FsmRes termFsm = term->walk( pd, false );
+			if ( !termFsm.success() )
+				return termFsm;
+
 			/* Evaluate the LexFactorRep. */
-			FsmGraph *rhs = factorAug->walk( pd );
+			FsmRes rhs = factorAug->walk( pd );
+			if ( !rhs.success() ) {
+				delete termFsm.fsm;
+				return rhs;
+			}
+
 			/* Perform concatenation. */
-			rtnVal->concatOp( rhs );
-			afterOpMinimize( rtnVal, lastInSeq );
-			break;
+			return FsmAp::concatOp( termFsm.fsm, rhs.fsm, lastInSeq );
 		}
 		case RightStartType: {
 			/* Evaluate the Term. */
-			rtnVal = term->walk( pd );
+			FsmRes termFsm = term->walk( pd );
+			if ( !termFsm.success() )
+				return termFsm;
 
 			/* Evaluate the LexFactorRep. */
-			FsmGraph *rhs = factorAug->walk( pd );
+			FsmRes rhs = factorAug->walk( pd );
+			if ( !rhs.success() ) {
+				delete termFsm.fsm;
+				return rhs;
+			}
 
-			/* Set up the priority descriptors. The left machine gets the
-			 * lower priority where as the right get the higher start priority. */
-			priorDescs[0].key = pd->nextPriorKey++;
-			priorDescs[0].priority = 0;
-			rtnVal->allTransPrior( pd->curPriorOrd++, &priorDescs[0] );
-
-			/* The start transitions right machine get the higher priority.
-			 * Use the same unique key. */
-			priorDescs[1].key = priorDescs[0].key;
-			priorDescs[1].priority = 1;
-			rhs->startFsmPrior( pd->curPriorOrd++, &priorDescs[1] );
-
-			/* Perform concatenation. */
-			rtnVal->concatOp( rhs );
-			afterOpMinimize( rtnVal, lastInSeq );
-			break;
+			/* The left machine gets the lower priority where as the right get
+			 * the higher start priority. */
+			return FsmAp::rightStartConcatOp( termFsm.fsm, rhs.fsm, lastInSeq );
 		}
 		case RightFinishType: {
 			/* Evaluate the Term. */
-			rtnVal = term->walk( pd );
+			FsmRes termFsm = term->walk( pd );
+			if ( !termFsm.success() )
+				return termFsm;
 
 			/* Evaluate the LexFactorRep. */
-			FsmGraph *rhs = factorAug->walk( pd );
+			FsmRes rhs = factorAug->walk( pd );
+			if ( !rhs.success() ) {
+				delete termFsm.fsm;
+				return rhs;
+			}
 
 			/* Set up the priority descriptors. The left machine gets the
 			 * lower priority where as the finishing transitions to the right
 			 * get the higher priority. */
-			priorDescs[0].key = pd->nextPriorKey++;
+			priorDescs[0].key = pd->fsmCtx->nextPriorKey++;
 			priorDescs[0].priority = 0;
-			rtnVal->allTransPrior( pd->curPriorOrd++, &priorDescs[0] );
+			termFsm.fsm->allTransPrior( pd->fsmCtx->curPriorOrd++, &priorDescs[0] );
 
 			/* The finishing transitions of the right machine get the higher
 			 * priority. Use the same unique key. */
 			priorDescs[1].key = priorDescs[0].key;
 			priorDescs[1].priority = 1;
-			rhs->finishFsmPrior( pd->curPriorOrd++, &priorDescs[1] );
+			rhs.fsm->finishFsmPrior( pd->fsmCtx->curPriorOrd++, &priorDescs[1] );
 
 			/* Perform concatenation. */
-			rtnVal->concatOp( rhs );
-			afterOpMinimize( rtnVal, lastInSeq );
-			break;
+			return FsmAp::concatOp( termFsm.fsm, rhs.fsm, lastInSeq );
 		}
 		case LeftType: {
 			/* Evaluate the Term. */
-			rtnVal = term->walk( pd );
+			FsmRes termFsm = term->walk( pd );
+			if ( !termFsm.success() )
+				return termFsm;
 
 			/* Evaluate the LexFactorRep. */
-			FsmGraph *rhs = factorAug->walk( pd );
+			FsmRes rhs = factorAug->walk( pd );
+			if ( !rhs.success() ) {
+				delete termFsm.fsm;
+				return rhs;
+			}
 
 			/* Set up the priority descriptors. The left machine gets the
 			 * higher priority. */
-			priorDescs[0].key = pd->nextPriorKey++;
+			priorDescs[0].key = pd->fsmCtx->nextPriorKey++;
 			priorDescs[0].priority = 1;
-			rtnVal->allTransPrior( pd->curPriorOrd++, &priorDescs[0] );
+			termFsm.fsm->allTransPrior( pd->fsmCtx->curPriorOrd++, &priorDescs[0] );
 
 			/* The right machine gets the lower priority.  Since
 			 * startTransPrior might unnecessarily increase the number of
@@ -748,19 +815,17 @@ FsmGraph *LexTerm::walk( Compiler *pd, bool lastInSeq )
 			 * effect. */
 			priorDescs[1].key = priorDescs[0].key;
 			priorDescs[1].priority = 0;
-			rhs->allTransPrior( pd->curPriorOrd++, &priorDescs[1] );
+			rhs.fsm->allTransPrior( pd->fsmCtx->curPriorOrd++, &priorDescs[1] );
 
 			/* Perform concatenation. */
-			rtnVal->concatOp( rhs );
-			afterOpMinimize( rtnVal, lastInSeq );
-			break;
+			return FsmAp::concatOp( termFsm.fsm, rhs.fsm, lastInSeq );
 		}
 		case FactorAugType: {
-			rtnVal = factorAug->walk( pd );
-			break;
+			return factorAug->walk( pd );
 		}
 	}
-	return rtnVal;
+
+	return FsmRes( FsmRes::InternalError() );
 }
 
 LexFactorAug::~LexFactorAug()
@@ -768,14 +833,15 @@ LexFactorAug::~LexFactorAug()
 	delete factorRep;
 }
 
-void LexFactorAug::assignActions( Compiler *pd, FsmGraph *graph, int *actionOrd )
+void LexFactorAug::assignActions( Compiler *pd, FsmAp *graph, int *actionOrd )
 {
 	/* Assign actions. */
 	for ( int i = 0; i < actions.length(); i++ )  {
 		switch ( actions[i].type ) {
 		case at_start:
 			graph->startFsmAction( actionOrd[i], actions[i].action );
-			afterOpMinimize( graph );
+			graph->removeUnreachableStates();
+			graph->minimizePartition2();
 			break;
 		case at_leave:
 			graph->leaveFsmAction( actionOrd[i], actions[i].action );
@@ -785,7 +851,7 @@ void LexFactorAug::assignActions( Compiler *pd, FsmGraph *graph, int *actionOrd 
 }
 
 /* Evaluate a factor with augmentation node. */
-FsmGraph *LexFactorAug::walk( Compiler *pd )
+FsmRes LexFactorAug::walk( Compiler *pd )
 {
 	/* Make the array of function orderings. */
 	int *actionOrd = 0;
@@ -796,19 +862,24 @@ FsmGraph *LexFactorAug::walk( Compiler *pd )
 	 * actions. */
 	for ( int i = 0; i < actions.length(); i++ ) {
 		if ( actions[i].type == at_start )
-			actionOrd[i] = pd->curActionOrd++;
+			actionOrd[i] = pd->fsmCtx->curActionOrd++;
 	}
 
 	/* Evaluate the factor with repetition. */
-	FsmGraph *rtnVal = factorRep->walk( pd );
+	FsmRes rtnVal = factorRep->walk( pd );
+	if ( !rtnVal.success() ) {
+		if ( actionOrd != 0 )
+			delete[] actionOrd;
+		return rtnVal;
+	}
 
 	/* Compute the remaining action orderings. */
 	for ( int i = 0; i < actions.length(); i++ ) {
 		if ( actions[i].type != at_start )
-			actionOrd[i] = pd->curActionOrd++;
+			actionOrd[i] = pd->fsmCtx->curActionOrd++;
 	}
 
-	assignActions( pd, rtnVal , actionOrd );
+	assignActions( pd, rtnVal.fsm, actionOrd );
 
 	if ( actionOrd != 0 )
 		delete[] actionOrd;	
@@ -831,29 +902,29 @@ LexFactorRep::~LexFactorRep()
 }
 
 /* Evaluate a factor with repetition node. */
-FsmGraph *LexFactorRep::walk( Compiler *pd )
+FsmRes LexFactorRep::walk( Compiler *pd )
 {
-	FsmGraph *retFsm = 0;
-
 	switch ( type ) {
 	case StarType: {
 		/* Evaluate the LexFactorRep. */
-		retFsm = factorRep->walk( pd );
-		if ( retFsm->startState->isFinState() ) {
+		FsmRes factorTree = factorRep->walk( pd );
+		if ( !factorTree.success() )
+			return factorTree;
+
+		if ( factorTree.fsm->startState->isFinState() ) {
 			warning(loc) << "applying kleene star to a machine that "
 					"accepts zero length word" << endl;
 		}
 
-		/* Shift over the start action orders then do the kleene star. */
-		pd->curActionOrd += retFsm->shiftStartActionOrder( pd->curActionOrd );
-		retFsm->starOp( );
-		afterOpMinimize( retFsm );
-		break;
+		return FsmAp::starOp( factorTree.fsm );
 	}
 	case StarStarType: {
 		/* Evaluate the LexFactorRep. */
-		retFsm = factorRep->walk( pd );
-		if ( retFsm->startState->isFinState() ) {
+		FsmRes factorTree = factorRep->walk( pd );
+		if ( !factorTree.success() )
+			return factorTree;
+
+		if ( factorTree.fsm->startState->isFinState() ) {
 			warning(loc) << "applying kleene star to a machine that "
 					"accepts zero length word" << endl;
 		}
@@ -861,55 +932,37 @@ FsmGraph *LexFactorRep::walk( Compiler *pd )
 		/* Set up the prior descs. All gets priority one, whereas leaving gets
 		 * priority zero. Make a unique key so that these priorities don't
 		 * interfere with any priorities set by the user. */
-		priorDescs[0].key = pd->nextPriorKey++;
+		priorDescs[0].key = pd->fsmCtx->nextPriorKey++;
 		priorDescs[0].priority = 1;
-		retFsm->allTransPrior( pd->curPriorOrd++, &priorDescs[0] );
+		factorTree.fsm->allTransPrior( pd->fsmCtx->curPriorOrd++, &priorDescs[0] );
 
 		/* Leaveing gets priority 0. Use same unique key. */
 		priorDescs[1].key = priorDescs[0].key;
 		priorDescs[1].priority = 0;
-		retFsm->leaveFsmPrior( pd->curPriorOrd++, &priorDescs[1] );
+		factorTree.fsm->leaveFsmPrior( pd->fsmCtx->curPriorOrd++, &priorDescs[1] );
 
-		/* Shift over the start action orders then do the kleene star. */
-		pd->curActionOrd += retFsm->shiftStartActionOrder( pd->curActionOrd );
-		retFsm->starOp( );
-		afterOpMinimize( retFsm );
-		break;
+		return FsmAp::starOp( factorTree.fsm );
 	}
 	case OptionalType: {
-		/* Make the null fsm. */
-		FsmGraph *nu = new FsmGraph();
-		nu->lambdaFsm( );
-
 		/* Evaluate the LexFactorRep. */
-		retFsm = factorRep->walk( pd );
+		FsmRes factorTree = factorRep->walk( pd );
+		if ( !factorTree.success() )
+			return factorTree;
 
-		/* Perform the question operator. */
-		retFsm->unionOp( nu );
-		afterOpMinimize( retFsm );
-		break;
+		return FsmAp::questionOp( factorTree.fsm );
 	}
 	case PlusType: {
 		/* Evaluate the LexFactorRep. */
-		retFsm = factorRep->walk( pd );
-		if ( retFsm->startState->isFinState() ) {
+		FsmRes factorTree = factorRep->walk( pd );
+		if ( !factorTree.success() )
+			return factorTree;
+
+		if ( factorTree.fsm->startState->isFinState() ) {
 			warning(loc) << "applying plus operator to a machine that "
 					"accpets zero length word" << endl;
 		}
 
-		/* Need a duplicated for the star end. */
-		FsmGraph *dup = new FsmGraph( *retFsm );
-
-		/* The start func orders need to be shifted before doing the star. */
-		pd->curActionOrd += dup->shiftStartActionOrder( pd->curActionOrd );
-
-		/* Star the duplicate. */
-		dup->starOp( );
-		afterOpMinimize( dup );
-
-		retFsm->concatOp( dup );
-		afterOpMinimize( retFsm );
-		break;
+		return FsmAp::plusOp( factorTree.fsm );
 	}
 	case ExactType: {
 		/* Get an int from the repetition amount. */
@@ -919,26 +972,22 @@ FsmGraph *LexFactorRep::walk( Compiler *pd )
 			warning(loc) << "exactly zero repetitions results "
 					"in the null machine" << endl;
 
-			retFsm = new FsmGraph();
-			retFsm->lambdaFsm();
+			return FsmRes( FsmRes::Fsm(), FsmAp::lambdaFsm( pd->fsmCtx ) );
 		}
 		else {
 			/* Evaluate the first LexFactorRep. */
-			retFsm = factorRep->walk( pd );
-			if ( retFsm->startState->isFinState() ) {
+			FsmRes factorTree = factorRep->walk( pd );
+			if ( !factorTree.success() )
+				return factorTree;
+
+			if ( factorTree.fsm->startState->isFinState() ) {
 				warning(loc) << "applying repetition to a machine that "
 						"accepts zero length word" << endl;
 			}
 
-			/* The start func orders need to be shifted before doing the
-			 * repetition. */
-			pd->curActionOrd += retFsm->shiftStartActionOrder( pd->curActionOrd );
-
 			/* Do the repetition on the machine. Already guarded against n == 0 */
-			retFsm->repeatOp( lowerRep );
-			afterOpMinimize( retFsm );
+			return FsmAp::exactRepeatOp( factorTree.fsm, lowerRep );
 		}
-		break;
 	}
 	case MaxType: {
 		/* Get an int from the repetition amount. */
@@ -948,61 +997,35 @@ FsmGraph *LexFactorRep::walk( Compiler *pd )
 			warning(loc) << "max zero repetitions results "
 					"in the null machine" << endl;
 
-			retFsm = new FsmGraph();
-			retFsm->lambdaFsm();
+			return FsmRes( FsmRes::Fsm(), FsmAp::lambdaFsm( pd->fsmCtx ) );
 		}
 		else {
 			/* Evaluate the first LexFactorRep. */
-			retFsm = factorRep->walk( pd );
-			if ( retFsm->startState->isFinState() ) {
+			FsmRes factorTree = factorRep->walk( pd );
+			if ( !factorTree.success() )
+				return factorTree;
+
+			if ( factorTree.fsm->startState->isFinState() ) {
 				warning(loc) << "applying max repetition to a machine that "
 						"accepts zero length word" << endl;
 			}
 
-			/* The start func orders need to be shifted before doing the 
-			 * repetition. */
-			pd->curActionOrd += retFsm->shiftStartActionOrder( pd->curActionOrd );
-
 			/* Do the repetition on the machine. Already guarded against n == 0 */
-			retFsm->optionalRepeatOp( upperRep );
-			afterOpMinimize( retFsm );
+			return FsmAp::maxRepeatOp( factorTree.fsm, upperRep );
 		}
-		break;
 	}
 	case MinType: {
 		/* Evaluate the repeated machine. */
-		retFsm = factorRep->walk( pd );
-		if ( retFsm->startState->isFinState() ) {
+		FsmRes factorTree = factorRep->walk( pd );
+		if ( !factorTree.success() )
+			return factorTree;
+
+		if ( factorTree.fsm->startState->isFinState() ) {
 			warning(loc) << "applying min repetition to a machine that "
 					"accepts zero length word" << endl;
 		}
 
-		/* The start func orders need to be shifted before doing the repetition
-		 * and the kleene star. */
-		pd->curActionOrd += retFsm->shiftStartActionOrder( pd->curActionOrd );
-	
-		if ( lowerRep == 0 ) {
-			/* Acts just like a star op on the machine to return. */
-			retFsm->starOp( );
-			afterOpMinimize( retFsm );
-		}
-		else {
-			/* Take a duplicate for the plus. */
-			FsmGraph *dup = new FsmGraph( *retFsm );
-
-			/* Do repetition on the first half. */
-			retFsm->repeatOp( lowerRep );
-			afterOpMinimize( retFsm );
-
-			/* Star the duplicate. */
-			dup->starOp( );
-			afterOpMinimize( dup );
-
-			/* Tak on the kleene star. */
-			retFsm->concatOp( dup );
-			afterOpMinimize( retFsm );
-		}
-		break;
+		return FsmAp::minRepeatOp( factorTree.fsm, lowerRep );
 	}
 	case RangeType: {
 		/* Check for bogus range. */
@@ -1010,8 +1033,7 @@ FsmGraph *LexFactorRep::walk( Compiler *pd )
 			error(loc) << "invalid range repetition" << endl;
 
 			/* Return null machine as recovery. */
-			retFsm = new FsmGraph();
-			retFsm->lambdaFsm();
+			return FsmRes( FsmRes::Fsm(), FsmAp::lambdaFsm( pd->fsmCtx ) );
 		}
 		else if ( lowerRep == 0 && upperRep == 0 ) {
 			/* No copies. Don't need to evaluate the factorRep.  This
@@ -1019,57 +1041,28 @@ FsmGraph *LexFactorRep::walk( Compiler *pd )
 			warning(loc) << "zero to zero repetitions results "
 					"in the null machine" << endl;
 
-			retFsm = new FsmGraph();
-			retFsm->lambdaFsm();
+			return FsmRes( FsmRes::Fsm(), FsmAp::lambdaFsm( pd->fsmCtx ) );
 		}
 		else {
 			/* Now need to evaluate the repeated machine. */
-			retFsm = factorRep->walk( pd );
-			if ( retFsm->startState->isFinState() ) {
+			FsmRes factorTree = factorRep->walk( pd );
+			if ( !factorTree.success() )
+				return factorTree;
+
+			if ( factorTree.fsm->startState->isFinState() ) {
 				warning(loc) << "applying range repetition to a machine that "
 						"accepts zero length word" << endl;
 			}
 
-			/* The start func orders need to be shifted before doing both kinds
-			 * of repetition. */
-			pd->curActionOrd += retFsm->shiftStartActionOrder( pd->curActionOrd );
-
-			if ( lowerRep == 0 ) {
-				/* Just doing max repetition. Already guarded against n == 0. */
-				retFsm->optionalRepeatOp( upperRep );
-				afterOpMinimize( retFsm );
-			}
-			else if ( lowerRep == upperRep ) {
-				/* Just doing exact repetition. Already guarded against n == 0. */
-				retFsm->repeatOp( lowerRep );
-				afterOpMinimize( retFsm );
-			}
-			else {
-				/* This is the case that 0 < lowerRep < upperRep. Take a
-				 * duplicate for the optional repeat. */
-				FsmGraph *dup = new FsmGraph( *retFsm );
-
-				/* Do repetition on the first half. */
-				retFsm->repeatOp( lowerRep );
-				afterOpMinimize( retFsm );
-
-				/* Do optional repetition on the second half. */
-				dup->optionalRepeatOp( upperRep - lowerRep );
-				afterOpMinimize( dup );
-
-				/* Tak on the duplicate machine. */
-				retFsm->concatOp( dup );
-				afterOpMinimize( retFsm );
-			}
+			return FsmAp::rangeRepeatOp( factorTree.fsm, lowerRep, upperRep );
 		}
-		break;
 	}
 	case FactorNegType: {
 		/* Evaluate the Factor. Pass it up. */
-		retFsm = factorNeg->walk( pd );
-		break;
+		return factorNeg->walk( pd );
 	}}
-	return retFsm;
+
+	return FsmRes( FsmRes::InternalError() );
 }
 
 
@@ -1088,37 +1081,35 @@ LexFactorNeg::~LexFactorNeg()
 }
 
 /* Evaluate a factor with negation node. */
-FsmGraph *LexFactorNeg::walk( Compiler *pd )
+FsmRes LexFactorNeg::walk( Compiler *pd )
 {
-	FsmGraph *retFsm = 0;
-
 	switch ( type ) {
 	case NegateType: {
 		/* Evaluate the factorNeg. */
-		FsmGraph *toNegate = factorNeg->walk( pd );
+		FsmRes toNegate = factorNeg->walk( pd );
+		if ( !toNegate.success() )
+			return toNegate;
 
 		/* Negation is subtract from dot-star. */
-		retFsm = dotStarFsm( pd );
-		retFsm->subtractOp( toNegate );
-		afterOpMinimize( retFsm );
-		break;
+		FsmAp *retFsm = FsmAp::dotStarFsm( pd->fsmCtx );
+		return FsmAp::subtractOp( retFsm, toNegate.fsm );
 	}
 	case CharNegateType: {
 		/* Evaluate the factorNeg. */
-		FsmGraph *toNegate = factorNeg->walk( pd );
+		FsmRes toNegate = factorNeg->walk( pd );
+		if ( !toNegate.success() )
+			return toNegate;
 
 		/* CharNegation is subtract from dot. */
-		retFsm = dotFsm( pd );
-		retFsm->subtractOp( toNegate );
-		afterOpMinimize( retFsm );
-		break;
+		FsmAp *retFsm = FsmAp::dotFsm( pd->fsmCtx );
+		return FsmAp::subtractOp( retFsm, toNegate.fsm );
 	}
 	case FactorType: {
 		/* Evaluate the Factor. Pass it up. */
-		retFsm = factor->walk( pd );
-		break;
+		return factor->walk( pd );
 	}}
-	return retFsm;
+
+	return FsmRes( FsmRes::InternalError() );
 }
 
 /* Clean up after a factor node. */
@@ -1146,31 +1137,24 @@ LexFactor::~LexFactor()
 }
 
 /* Evaluate a factor node. */
-FsmGraph *LexFactor::walk( Compiler *pd )
+FsmRes LexFactor::walk( Compiler *pd )
 {
-	FsmGraph *rtnVal = 0;
 	switch ( type ) {
 	case LiteralType:
-		rtnVal = literal->walk( pd );
-		break;
+		return literal->walk( pd );
 	case RangeType:
-		rtnVal = range->walk( pd );
-		break;
+		return range->walk( pd );
 	case OrExprType:
-		rtnVal = reItem->walk( pd, 0 );
-		break;
+		return reItem->walk( pd, 0 );
 	case RegExprType:
-		rtnVal = regExp->walk( pd, 0 );
-		break;
+		return regExp->walk( pd, 0 );
 	case ReferenceType:
-		rtnVal = varDef->walk( pd );
-		break;
+		return varDef->walk( pd );
 	case ParenType:
-		rtnVal = join->walk( pd );
-		break;
+		return join->walk( pd );
 	}
 
-	return rtnVal;
+	return FsmRes( FsmRes::InternalError() );
 }
 
 
@@ -1181,7 +1165,7 @@ Range::~Range()
 	delete upperLit;
 }
 
-bool Range::verifyRangeFsm( FsmGraph *rangeEnd )
+bool Range::verifyRangeFsm( FsmAp *rangeEnd )
 {
 	/* Must have two states. */
 	if ( rangeEnd->stateList.length() != 2 )
@@ -1199,61 +1183,66 @@ bool Range::verifyRangeFsm( FsmGraph *rangeEnd )
 	if ( rangeEnd->startState->outList.length() != 1 )
 		return false;
 	/* The singe transition out of the start state should not be a range. */
-	FsmTrans *startTrans = rangeEnd->startState->outList.head;
-	if ( startTrans->lowKey != startTrans->highKey )
+	TransAp *startTrans = rangeEnd->startState->outList.head;
+	if ( rangeEnd->ctx->keyOps->ne( startTrans->lowKey, startTrans->highKey ) )
 		return false;
 	return true;
 }
 
 /* Evaluate a range. Gets the lower an upper key and makes an fsm range. */
-FsmGraph *Range::walk( Compiler *pd )
+FsmRes Range::walk( Compiler *pd )
 {
 	/* Construct and verify the suitability of the lower end of the range. */
-	FsmGraph *lowerFsm = lowerLit->walk( pd );
-	if ( !verifyRangeFsm( lowerFsm ) ) {
+	FsmRes lowerFsm = lowerLit->walk( pd );
+	if ( !lowerFsm.success() )
+		return lowerFsm;
+
+	if ( !verifyRangeFsm( lowerFsm.fsm ) ) {
 		error(lowerLit->loc) << 
 			"bad range lower end, must be a single character" << endl;
 	}
 
 	/* Construct and verify the upper end. */
-	FsmGraph *upperFsm = upperLit->walk( pd );
-	if ( !verifyRangeFsm( upperFsm ) ) {
+	FsmRes upperFsm = upperLit->walk( pd );
+	if ( !upperFsm.success() ) {
+		delete lowerFsm.fsm;
+		return upperFsm;
+	}
+
+	if ( !verifyRangeFsm( upperFsm.fsm ) ) {
 		error(upperLit->loc) << 
 			"bad range upper end, must be a single character" << endl;
 	}
 
 	/* Grab the keys from the machines, then delete them. */
-	Key lowKey = lowerFsm->startState->outList.head->lowKey;
-	Key highKey = upperFsm->startState->outList.head->lowKey;
-	delete lowerFsm;
-	delete upperFsm;
+	Key lowKey = lowerFsm.fsm->startState->outList.head->lowKey;
+	Key highKey = upperFsm.fsm->startState->outList.head->lowKey;
+	delete lowerFsm.fsm;
+	delete upperFsm.fsm;
 
 	/* Validate the range. */
-	if ( lowKey > highKey ) {
+	if ( pd->fsmCtx->keyOps->gt( lowKey, highKey ) ) {
 		/* Recover by setting upper to lower; */
 		error(lowerLit->loc) << "lower end of range is greater then upper end" << endl;
 		highKey = lowKey;
 	}
 
 	/* Return the range now that it is validated. */
-	FsmGraph *retFsm = new FsmGraph();
-	retFsm->rangeFsm( lowKey, highKey );
-	return retFsm;
+	return FsmRes( FsmRes::Fsm(), FsmAp::rangeFsm( pd->fsmCtx, lowKey, highKey ) );
 }
 
 /* Evaluate a literal object. */
-FsmGraph *Literal::walk( Compiler *pd )
+FsmRes Literal::walk( Compiler *pd )
 {
-	/* FsmGraph to return, is the alphabet signed. */
-	FsmGraph *rtnVal = 0;
+	/* FsmAp to return, is the alphabet signed. */
+	FsmAp *rtnVal = 0;
 
 	switch ( type ) {
 	case Number: {
 		/* Make the fsm key in int format. */
 		Key fsmKey = makeFsmKeyNum( literal.data, loc, pd );
 		/* Make the new machine. */
-		rtnVal = new FsmGraph();
-		rtnVal->concatFsm( fsmKey );
+		rtnVal = FsmAp::concatFsm( pd->fsmCtx, fsmKey );
 		break;
 	}
 	case LitString: {
@@ -1265,15 +1254,15 @@ FsmGraph *Literal::walk( Compiler *pd )
 		makeFsmKeyArray( arr, interp.data, interp.length(), pd );
 
 		/* Make the new machine. */
-		rtnVal = new FsmGraph();
 		if ( caseInsensitive )
-			rtnVal->concatFsmCI( arr, interp.length() );
+			rtnVal = FsmAp::concatFsmCI( pd->fsmCtx, arr, interp.length() );
 		else
-			rtnVal->concatFsm( arr, interp.length() );
+			rtnVal = FsmAp::concatFsm( pd->fsmCtx, arr, interp.length() );
 		delete[] arr;
 		break;
 	}}
-	return rtnVal;
+
+	return FsmRes( FsmRes::Fsm(), rtnVal );
 }
 
 /* Clean up after a regular expression object. */
@@ -1290,33 +1279,39 @@ RegExpr::~RegExpr()
 }
 
 /* Evaluate a regular expression object. */
-FsmGraph *RegExpr::walk( Compiler *pd, RegExpr *rootRegex )
+FsmRes RegExpr::walk( Compiler *pd, RegExpr *rootRegex )
 {
 	/* This is the root regex, pass down a pointer to this. */
 	if ( rootRegex == 0 )
 		rootRegex = this;
 
-	FsmGraph *rtnVal = 0;
 	switch ( type ) {
 		case RecurseItem: {
-			/* Walk both items. */
-			FsmGraph *fsm1 = regExp->walk( pd, rootRegex );
-			FsmGraph *fsm2 = item->walk( pd, rootRegex );
-			if ( fsm1 == 0 )
-				rtnVal = fsm2;
-			else {
-				fsm1->concatOp( fsm2 );
-				rtnVal = fsm1;
+			/* Walk both items. The regex may be empty, which comes back as a
+			 * null machine rather than a failure. */
+			FsmRes fsm1 = regExp->walk( pd, rootRegex );
+			if ( fsm1.type != FsmRes::TypeFsm )
+				return fsm1;
+
+			FsmRes fsm2 = item->walk( pd, rootRegex );
+			if ( !fsm2.success() ) {
+				if ( fsm1.fsm != 0 )
+					delete fsm1.fsm;
+				return fsm2;
 			}
-			break;
+
+			if ( fsm1.fsm == 0 )
+				return fsm2;
+
+			return FsmAp::concatOp( fsm1.fsm, fsm2.fsm );
 		}
 		case Empty: {
 			/* FIXME: Return something here. */
-			rtnVal = 0;
-			break;
+			return FsmRes( FsmRes::Fsm(), 0 );
 		}
 	}
-	return rtnVal;
+
+	return FsmRes( FsmRes::InternalError() );
 }
 
 /* Clean up after an item in a regular expression. */
@@ -1334,11 +1329,8 @@ ReItem::~ReItem()
 }
 
 /* Evaluate a regular expression object. */
-FsmGraph *ReItem::walk( Compiler *pd, RegExpr *rootRegex )
+FsmRes ReItem::walk( Compiler *pd, RegExpr *rootRegex )
 {
-	/* The fsm to return, is the alphabet signed? */
-	FsmGraph *rtnVal = 0;
-
 	switch ( type ) {
 		case Data: {
 			/* Move the data into an integer array and make a concat fsm. */
@@ -1346,43 +1338,54 @@ FsmGraph *ReItem::walk( Compiler *pd, RegExpr *rootRegex )
 			makeFsmKeyArray( arr, data.data, data.length(), pd );
 
 			/* Make the concat fsm. */
-			rtnVal = new FsmGraph();
+			FsmAp *rtnVal = 0;
 			if ( rootRegex != 0 && rootRegex->caseInsensitive )
-				rtnVal->concatFsmCI( arr, data.length() );
+				rtnVal = FsmAp::concatFsmCI( pd->fsmCtx, arr, data.length() );
 			else
-				rtnVal->concatFsm( arr, data.length() );
+				rtnVal = FsmAp::concatFsm( pd->fsmCtx, arr, data.length() );
 			delete[] arr;
-			break;
+			return FsmRes( FsmRes::Fsm(), rtnVal );
 		}
 		case Dot: {
 			/* Make the dot fsm. */
-			rtnVal = dotFsm( pd );
-			break;
+			return FsmRes( FsmRes::Fsm(), FsmAp::dotFsm( pd->fsmCtx ) );
 		}
 		case OrBlock: {
-			/* Get the or block and minmize it. */
-			rtnVal = orBlock->walk( pd, rootRegex );
-			if ( rtnVal == 0 ) {
-				rtnVal = new FsmGraph();
-				rtnVal->lambdaFsm();
-			}
-			rtnVal->minimizePartition2();
-			break;
+			/* Get the or block and minmize it. An empty block comes back as
+			 * a null machine rather than a failure. */
+			FsmRes rtnVal = orBlock->walk( pd, rootRegex );
+			if ( rtnVal.type != FsmRes::TypeFsm )
+				return rtnVal;
+
+			if ( rtnVal.fsm == 0 )
+				rtnVal = FsmRes( FsmRes::Fsm(), FsmAp::lambdaFsm( pd->fsmCtx ) );
+
+			rtnVal.fsm->minimizePartition2();
+			return rtnVal;
 		}
 		case NegOrBlock: {
 			/* Get the or block and minimize it. */
-			FsmGraph *fsm = orBlock->walk( pd, rootRegex );
-			fsm->minimizePartition2();
+			FsmRes fsm = orBlock->walk( pd, rootRegex );
+			if ( fsm.type != FsmRes::TypeFsm )
+				return fsm;
+
+			if ( fsm.fsm == 0 )
+				fsm = FsmRes( FsmRes::Fsm(), FsmAp::lambdaFsm( pd->fsmCtx ) );
+
+			fsm.fsm->minimizePartition2();
 
 			/* Make a dot fsm and subtract from it. */
-			rtnVal = dotFsm( pd );
-			rtnVal->subtractOp( fsm );
-			rtnVal->minimizePartition2();
-			break;
+			FsmAp *rtnVal = FsmAp::dotFsm( pd->fsmCtx );
+			FsmRes res = FsmAp::subtractOp( rtnVal, fsm.fsm );
+			if ( !res.success() )
+				return res;
+
+			res.fsm->minimizePartition2();
+			return res;
 		}
 	}
 
-	return rtnVal;
+	return FsmRes( FsmRes::InternalError() );
 }
 
 /* Clean up after an or block of a regular expression. */
@@ -1400,51 +1403,54 @@ ReOrBlock::~ReOrBlock()
 
 
 /* Evaluate an or block of a regular expression. */
-FsmGraph *ReOrBlock::walk( Compiler *pd, RegExpr *rootRegex )
+FsmRes ReOrBlock::walk( Compiler *pd, RegExpr *rootRegex )
 {
-	FsmGraph *rtnVal = 0;
 	switch ( type ) {
 		case RecurseItem: {
-			/* Evaluate the two fsm. */
-			FsmGraph *fsm1 = orBlock->walk( pd, rootRegex );
-			FsmGraph *fsm2 = item->walk( pd, rootRegex );
-			if ( fsm1 == 0 )
-				rtnVal = fsm2;
-			else {
-				fsm1->unionOp( fsm2 );
-				rtnVal = fsm1;
+			/* Evaluate the two fsm. The block may be empty, which comes back
+			 * as a null machine rather than a failure. */
+			FsmRes fsm1 = orBlock->walk( pd, rootRegex );
+			if ( fsm1.type != FsmRes::TypeFsm )
+				return fsm1;
+
+			FsmRes fsm2 = item->walk( pd, rootRegex );
+			if ( !fsm2.success() ) {
+				if ( fsm1.fsm != 0 )
+					delete fsm1.fsm;
+				return fsm2;
 			}
-			break;
+
+			if ( fsm1.fsm == 0 )
+				return fsm2;
+
+			return FsmAp::unionOp( fsm1.fsm, fsm2.fsm );
 		}
 		case Empty: {
-			rtnVal = 0;
-			break;
+			return FsmRes( FsmRes::Fsm(), 0 );
 		}
 	}
-	return rtnVal;;
+
+	return FsmRes( FsmRes::InternalError() );
 }
 
 /* Evaluate an or block item of a regular expression. */
-FsmGraph *ReOrItem::walk( Compiler *pd, RegExpr *rootRegex )
+FsmRes ReOrItem::walk( Compiler *pd, RegExpr *rootRegex )
 {
-	/* The return value, is the alphabet signed? */
-	FsmGraph *rtnVal = 0;
+	KeyOps *keyOps = pd->fsmCtx->keyOps;
+
 	switch ( type ) {
 	case Data: {
-		/* Make the or machine. */
-		rtnVal = new FsmGraph();
-
 		/* Put the or data into an array of ints. Note that we find unique
 		 * keys. Duplicates are silently ignored. The alternative would be to
 		 * issue warning or an error but since we can't with [a0-9a] or 'a' |
 		 * 'a' don't bother here. */
-		KeySet keySet;
+		KeySet keySet( keyOps );
 		makeFsmUniqueKeyArray( keySet, data.data, data.length(), 
 			rootRegex != 0 ? rootRegex->caseInsensitive : false, pd );
 
 		/* Run the or operator. */
-		rtnVal->orFsm( keySet.data, keySet.length() );
-		break;
+		FsmAp *rtnVal = FsmAp::orFsm( pd->fsmCtx, keySet.data, keySet.length() );
+		return FsmRes( FsmRes::Fsm(), rtnVal );
 	}
 	case Range: {
 		/* Make the upper and lower keys. */
@@ -1452,44 +1458,48 @@ FsmGraph *ReOrItem::walk( Compiler *pd, RegExpr *rootRegex )
 		Key highKey = makeFsmKeyChar( upper, pd );
 
 		/* Validate the range. */
-		if ( lowKey > highKey ) {
+		if ( keyOps->gt( lowKey, highKey ) ) {
 			/* Recover by setting upper to lower; */
 			error(loc) << "lower end of range is greater then upper end" << endl;
 			highKey = lowKey;
 		}
 
 		/* Make the range machine. */
-		rtnVal = new FsmGraph();
-		rtnVal->rangeFsm( lowKey, highKey );
+		FsmRes rtnVal( FsmRes::Fsm(), FsmAp::rangeFsm( pd->fsmCtx, lowKey, highKey ) );
 
 		if ( rootRegex != 0 && rootRegex->caseInsensitive ) {
-			if ( lowKey <= 'Z' && 'A' <= highKey ) {
-				Key otherLow = lowKey < 'A' ? Key('A') : lowKey;
-				Key otherHigh = 'Z' < highKey ? Key('Z') : highKey;
+			if ( keyOps->le( lowKey, 'Z' ) && keyOps->le( 'A', highKey ) ) {
+				Key otherLow = keyOps->lt( lowKey, 'A' ) ? Key('A') : lowKey;
+				Key otherHigh = keyOps->lt( 'Z', highKey ) ? Key('Z') : highKey;
 
-				otherLow = 'a' + ( otherLow - 'A' );
-				otherHigh = 'a' + ( otherHigh - 'A' );
+				otherLow = 'a' + ( otherLow.getVal() - 'A' );
+				otherHigh = 'a' + ( otherHigh.getVal() - 'A' );
 
-				FsmGraph *otherRange = new FsmGraph();
-				otherRange->rangeFsm( otherLow, otherHigh );
-				rtnVal->unionOp( otherRange );
-				rtnVal->minimizePartition2();
+				FsmAp *otherRange = FsmAp::rangeFsm( pd->fsmCtx,
+						otherLow, otherHigh );
+				rtnVal = FsmAp::unionOp( rtnVal.fsm, otherRange );
+				if ( !rtnVal.success() )
+					return rtnVal;
+				rtnVal.fsm->minimizePartition2();
 			}
-			else if ( lowKey <= 'z' && 'a' <= highKey ) {
-				Key otherLow = lowKey < 'a' ? Key('a') : lowKey;
-				Key otherHigh = 'z' < highKey ? Key('z') : highKey;
+			else if ( keyOps->le( lowKey, 'z' ) && keyOps->le( 'a', highKey ) ) {
+				Key otherLow = keyOps->lt( lowKey, 'a' ) ? Key('a') : lowKey;
+				Key otherHigh = keyOps->lt( 'z', highKey ) ? Key('z') : highKey;
 
-				otherLow = 'A' + ( otherLow - 'a' );
-				otherHigh = 'A' + ( otherHigh - 'a' );
+				otherLow = 'A' + ( otherLow.getVal() - 'a' );
+				otherHigh = 'A' + ( otherHigh.getVal() - 'a' );
 
-				FsmGraph *otherRange = new FsmGraph();
-				otherRange->rangeFsm( otherLow, otherHigh );
-				rtnVal->unionOp( otherRange );
-				rtnVal->minimizePartition2();
+				FsmAp *otherRange = FsmAp::rangeFsm( pd->fsmCtx,
+						otherLow, otherHigh );
+				rtnVal = FsmAp::unionOp( rtnVal.fsm, otherRange );
+				if ( !rtnVal.success() )
+					return rtnVal;
+				rtnVal.fsm->minimizePartition2();
 			}
 		}
 
-		break;
+		return rtnVal;
 	}}
-	return rtnVal;
+
+	return FsmRes( FsmRes::InternalError() );
 }

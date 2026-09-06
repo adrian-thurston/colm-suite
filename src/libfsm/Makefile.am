@@ -7,6 +7,13 @@
 # installed it is still built, as a convenience library, so the ragel
 # programs can be built and tested from the build tree.
 #
+# The library is assembled from two convenience libraries: libfsmgraph, the
+# state machine construction library, and libfsmgen, the reduction and code
+# generation half. Colm builds its token scanners on libfsmgraph and links it
+# statically, so the colm binary never depends on an installed libfsm.
+#
+noinst_LTLIBRARIES = libfsmgraph.la libfsmgen.la
+
 if INSTALL_RAGEL
 lib_LTLIBRARIES = libfsm.la
 
@@ -22,11 +29,9 @@ libfsminclude_HEADERS = \
 	actloop.h actexp.h \
 	ipgoto.h
 else
-noinst_LTLIBRARIES = libfsm.la
+noinst_LTLIBRARIES += libfsm.la
 endif
 
-#
-# libfsm: state machine construction and direct code generation.
 #
 # libfsm takes nothing from configure: no config.h, no HAVE_* or SIZEOF_*
 # macros. nostdinc drops automake's implicit -I$(top_builddir)/src/colm, so a
@@ -35,11 +40,22 @@ endif
 #
 AUTOMAKE_OPTIONS = nostdinc
 
-libfsm_la_CPPFLAGS = -I$(top_srcdir)/src/aapl
+#
+# libfsmgraph: state machine construction.
+#
+libfsmgraph_la_CPPFLAGS = -I$(top_srcdir)/src/aapl
 
-dist_libfsm_la_SOURCES = \
+dist_libfsmgraph_la_SOURCES = \
 	idbase.cc fsmstate.cc fsmbase.cc fsmattach.cc fsmmin.cc fsmgraph.cc \
-	fsmap.cc fsmcond.cc fsmnfa.cc redfsm.cc gendata.cc \
+	fsmap.cc fsmcond.cc fsmnfa.cc
+
+#
+# libfsmgen: reduction and direct code generation.
+#
+libfsmgen_la_CPPFLAGS = -I$(top_srcdir)/src/aapl
+
+dist_libfsmgen_la_SOURCES = \
+	redfsm.cc gendata.cc \
 	codegen.cc \
 	actexp.cc binvar.cc \
 	tables.cc tabgoto.cc tabbreak.cc tabvar.cc \
@@ -48,6 +64,14 @@ dist_libfsm_la_SOURCES = \
 	switch.cc switchgoto.cc switchbreak.cc switchvar.cc \
 	goto.cc gotoloop.cc gotoexp.cc ipgoto.cc \
 	dot.cc asm.cc
+
+#
+# libfsm: both halves. The source list is empty; the EXTRA C++ source makes
+# automake link with the C++ driver.
+#
+libfsm_la_SOURCES =
+nodist_EXTRA_libfsm_la_SOURCES = dummy.cc
+libfsm_la_LIBADD = libfsmgraph.la libfsmgen.la
 
 if INSTALL_RAGEL
 libfsm_la_LDFLAGS = -release ${LIBFSM_VERSION} -no-undefined

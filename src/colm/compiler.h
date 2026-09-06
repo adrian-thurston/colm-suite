@@ -34,11 +34,12 @@
 #include <bstset.h>
 #include <dlist.h>
 #include <dlistmel.h>
-#include <fsmgraph.h>
 #include <compare.h>
 
+#include "libfsm/fsmgraph.h"
+#include "libfsm/action.h"
+
 #include "global.h"
-#include "keyops.h"
 #include "parsetree.h"
 #include "cstring.h"
 #include "pdagraph.h"
@@ -49,7 +50,6 @@
 
 using std::ostream;
 
-struct exit_object { };
 extern exit_object endp;
 void operator<<( std::ostream &out, exit_object & );
 extern const char *objectName;
@@ -391,96 +391,50 @@ struct PdaLiteral
 	long value;
 };
 
-/* Nodes in the tree that use this action. */
-typedef Vector<NameInst*> ActionRefs;
-
-/* Element in list of actions. Contains the string for the code to exectute. */
-struct Action 
-:
-	public DListEl<Action>,
-	public AvlTreeEl<Action>
+/* The scanner alphabet type. */
+struct AlphType
 {
-public:
+	const char *data1;
+	const char *data2;
+	bool isSigned;
+	long long minVal;
+	long long maxVal;
+	unsigned int size;
+};
 
-	static Action *cons( const InputLoc &loc, const String &name, InlineList *inlineList )
-	{
-		Action *a = new Action;
-		a->loc = (loc);
-		a->name = (name);
-		a->markType = (MarkNone);
-		a->objField = (0);
-		a->markId = (-1);
-		a->inlineList = (inlineList);
-		a->actionId = (-1);
-		a->numTransRefs = (0);
-		a->numToStateRefs = (0);
-		a->numFromStateRefs = (0);
-		a->numEofRefs = (0);
-		a->numCondRefs = (0);
-		a->anyCall = (false);
-		a->isLmAction = (false);
-		return a;
-	}
+extern const AlphType colmAlphType;
 
-	static Action *cons( MarkType markType, long markId )
-	{
-		Action *a = new Action;
-		a->name = ("mark");
-		a->markType = (markType);
-		a->objField = (0);
-		a->markId = (markId);
-		a->inlineList = (InlineList::cons());
-		a->actionId = (-1);
-		a->numTransRefs = (0);
-		a->numToStateRefs = (0);
-		a->numFromStateRefs = (0);
-		a->numEofRefs = (0);
-		a->numCondRefs = (0);
-		a->anyCall = (false);
-		a->isLmAction = (false);
-		return a;
-	}
+/* A scanner action. Colm builds its scanners on libfsm, whose Action carries
+ * the inline list and the reference counts. The capture mark is colm's own.
+ * Every action in the scanner graphs is one of these, so a libfsm Action
+ * pointer taken from a graph may be cast back down. */
+struct LexAction
+:
+	public Action
+{
+	LexAction( const InputLoc &loc, const String &name, InlineList *inlineList )
+	:
+		Action( loc, std::string( name.data != 0 ? name.data : "" ), inlineList, 0 ),
+		markType(MarkNone),
+		objField(0),
+		markId(-1)
+	{}
 
-	/* Key for action dictionary. */
-	const String &getKey() const { return name; }
+	LexAction( MarkType markType, long markId )
+	:
+		Action( InputLoc(), "mark", new InlineList, 0 ),
+		markType(markType),
+		objField(0),
+		markId(markId)
+	{}
 
-	/* Data collected during parse. */
-	InputLoc loc;
-	String name;
-	
+	static LexAction *cast( Action *action )
+		{ return static_cast<LexAction*>( action ); }
+
 	MarkType markType;
 	ObjectField *objField;
 	long markId;
-
-	InlineList *inlineList;
-	int actionId;
-
-	void actionName( ostream &out )
-	{
-		if ( name != 0 )
-			out << name;
-		else
-			out << loc.line << ":" << loc.col;
-	}
-
-	/* Places in the input text that reference the action. */
-	ActionRefs actionRefs;
-
-	/* Number of references in the final machine. */
-	bool numRefs() 
-		{ return numTransRefs + numToStateRefs + numFromStateRefs + numEofRefs; }
-	int numTransRefs;
-	int numToStateRefs;
-	int numFromStateRefs;
-	int numEofRefs;
-	int numCondRefs;
-	bool anyCall;
-
-	bool isLmAction;
 };
-
-/* A list of actions. */
-typedef DList<Action> ActionList;
 
 struct VarDef;
 struct LexJoin;
@@ -498,33 +452,6 @@ struct ReOrBlock;
 struct ReOrItem;
 struct TokenRegion;
 
-/* tree_t of instantiated names. */
-typedef BstMapEl<String, NameInst*> NameMapEl;
-typedef BstMap<String, NameInst*, ColmCmpStr> NameMap;
-typedef Vector<NameInst*> NameVect;
-typedef BstSet<NameInst*> NameSet;
-
-/* Node in the tree of instantiated names. */
-struct NameInst
-{
-	NameInst( int id )
-		: id(id) {}
-
-	int id;
-
-	/* Pointers for the name search queue. */
-	NameInst *prev, *next;
-};
-
-typedef DList<NameInst> NameInstList;
-
-/* Stack frame used in walking the name tree. */
-struct NameFrame 
-{
-	NameInst *prevNameInst;
-	int prevNameChild;
-	NameInst *prevLocalScope;
-};
 
 /* Class to collect information about the machine during the 
  * parse of input. */
@@ -550,36 +477,19 @@ struct Compiler
 
 	/* Make a name id in the current name instantiation scope if it is not
 	 * already there. */
-	NameInst *makeJoinNameTree( LexJoin *join );
-	NameInst *makeNameTree();
+	void makeNameTree();
 	NameInst **makeNameIndex();
 
-	void printNameTree( NameInst *rootName );
-	void printNameIndex( NameInst **nameIndex );
-
-	/* Resove name references in action code and epsilon transitions. */
-	NameSet resolvePart( NameInst *refFrom, const char *data, bool recLabelsOnly );
-	void resolveFrom( NameSet &result, NameInst *refFrom, 
-			const NameRef &nameRef, int namePos );
-
-	/* Set the alphabet type. If type types are not valid returns false. */
-	bool setAlphType( char *s1, char *s2 );
-	bool setAlphType( char *s1 );
-
-	/* Unique actions. */
-	void removeDups( ActionTable &actionTable );
-	void removeActionDups( FsmGraph *graph );
-
-	/* Dumping the name instantiation tree. */
-	void printNameInst( NameInst *nameInst, int level );
-
 	/* Make the graph from a graph dict node. Does minimization. */
-	void finishGraphBuild( FsmGraph *graph );
-	FsmGraph *makeAllRegions();
-	FsmGraph *makeScanner();
+	void finishGraphBuild( FsmAp *graph );
+	FsmAp *makeAllRegions();
+	FsmAp *makeScanner();
+
+	/* Report a failed libfsm operation as a compile error. */
+	void fsmFailure( const InputLoc &loc, const FsmRes &res );
 
 	void analyzeAction( Action *action, InlineList *inlineList );
-	void analyzeGraph( FsmGraph *graph );
+	void analyzeGraph( FsmAp *graph );
 	void resolvePrecedence( PdaGraph *pdaGraph );
 	LangEl *predOf( PdaTrans *trans, long action );
 	bool precedenceSwap( long action1, long action2, LangEl *l1, LangEl *l2 );
@@ -598,37 +508,28 @@ struct Compiler
 	 * Data collected during the parse.
 	 */
 
-	/* List of actions. Will be pasted into a switch statement. */
-	ActionList actionList;
+	/* The state machine library context. Owns the key operators, the
+	 * minimization settings and the action and priority ordering counters.
+	 * The action list lives on the context. */
+	FsmGbl *fsmGbl;
+	FsmCtx *fsmCtx;
+	ActionList &actionList;
 
-	/* The id of the next priority name and label. */
-	int nextPriorKey, nextNameId;
-
-	/* Alphabet type. */
-	const HostType *userAlphType;
-	bool alphTypeSet;
+	/* The id of the next label. */
+	int nextNameId;
 
 	/* Element type and get key expression. */
 	InlineList *getKeyExpr;
 	InlineList *accessExpr;
 	InlineList *curStateExpr;
 
-	/* The alphabet range. */
-	char *lowerNum, *upperNum;
-	Key lowKey, highKey;
-	InputLoc rangeLowLoc, rangeHighLoc;
-
 	/* Number of errors encountered parsing the fsm spec. */
 	int errorCount;
-
-	/* Counting the action and priority ordering. */
-	int curActionOrd;
-	int curPriorOrd;
 
 	/* Root of the name tree. */
 	NameInst *curNameInst;
 	int curNameChild;
-	NameInstList nameInstList;
+	NameVect nameInstList;
 
 	/* The place where resolved epsilon transitions go. These cannot go into
 	 * the parse tree because a single epsilon op can resolve more than once
@@ -663,13 +564,6 @@ struct Compiler
 	int setTokEndOrd;
 
 	CodeBlock *rootCodeBlock;
-
-	void beginProcessing()
-	{
-		::keyOps = &thisKeyOps;
-	}
-
-	KeyOps thisKeyOps;
 
 	UniqueType *mainReturnUT;
 
@@ -1100,7 +994,6 @@ struct Compiler
 	void writeCommitStub();
 };
 
-void afterOpMinimize( FsmGraph *fsm, bool lastInSeq = true );
 Key makeFsmKeyHex( char *str, const InputLoc &loc, Compiler *pd );
 Key makeFsmKeyDec( char *str, const InputLoc &loc, Compiler *pd );
 Key makeFsmKeyNum( char *str, const InputLoc &loc, Compiler *pd );
@@ -1108,11 +1001,7 @@ Key makeFsmKeyChar( char c, Compiler *pd );
 void makeFsmKeyArray( Key *result, char *data, int len, Compiler *pd );
 void makeFsmUniqueKeyArray( KeySet &result, char *data, int len, 
 		bool caseInsensitive, Compiler *pd );
-FsmGraph *makeBuiltin( BuiltinMachine builtin, Compiler *pd );
-FsmGraph *dotFsm( Compiler *pd );
-FsmGraph *dotStarFsm( Compiler *pd );
-
-void errorStateLabels( const NameSet &locations );
+FsmAp *makeBuiltin( BuiltinMachine builtin, Compiler *pd );
 
 struct ColmParser;
 

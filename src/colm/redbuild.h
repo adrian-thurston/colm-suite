@@ -27,17 +27,14 @@
 
 #include <avltree.h>
 
-#include "fsmgraph.h"
+#include "libfsm/fsmgraph.h"
+
 #include "compiler.h"
 
 /* Forwards. */
-struct FsmTrans;
-struct FsmGraph;
 struct Compiler;
 struct FsmCodeGen;
 struct RedFsm;
-struct GenCondSpace;
-struct Condition;
 
 struct RedActionTable
 :
@@ -58,51 +55,25 @@ struct RedActionTable
 
 typedef AvlTree<RedActionTable, ActionTable, CmpActionTable> ActionTableMap;
 
-struct NextRedTrans
-{
-	Key lowKey, highKey;
-	FsmTrans *trans;
-	FsmTrans *next;
-
-	void load() {
-		if ( trans != 0 ) {
-			next = trans->next;
-			lowKey = trans->lowKey;
-			highKey = trans->highKey;
-		}
-	}
-
-	NextRedTrans( FsmTrans *t ) {
-		trans = t;
-		load();
-	}
-
-	void increment() {
-		trans = next;
-		load();
-	}
-};
-
+/*
+ * Builds the reduced machine from the libfsm graph. Colm never embeds
+ * conditions in its scanners, so every transition in the graph is a plain
+ * transition and the walk asserts as much.
+ */
 class RedFsmBuild
 {
 public:
-	RedFsmBuild( Compiler *pd, FsmGraph *fsm );
+	RedFsmBuild( Compiler *pd, FsmAp *fsm );
 	RedFsm *reduceMachine( );
 
 private:
-	void appendTrans( TransListVect &outList, Key lowKey, Key highKey, FsmTrans *trans );
-	void makeStateActions( FsmState *state );
+	void appendTrans( TransListVect &outList, Key lowKey, Key highKey, TransAp *trans );
+	void makeStateActions( StateAp *state );
 	void makeStateList();
-	void makeStateConditions( FsmState *state );
 
 	void initActionList( unsigned long length );
 	void newAction( int anum, char *name, int line, int col, Action *action );
 	void initActionTableList( unsigned long length );
-	void initCondSpaceList( ulong length );
-	void condSpaceItem( int cnum, long condActionId );
-	void newCondSpace( int cnum, int condSpaceId, Key baseKey );
-	void initStateCondList( int snum, ulong length );
-	void addStateCond( int snum, Key lowKey, Key highKey, long condNum );
 	void initStateList( unsigned long length );
 	void addRegionToEntry( int regionId, int entryId );
 	void addEntryPoint( int entryId, unsigned long entryState );
@@ -120,25 +91,17 @@ private:
 	Key findMaxKey();
 
 	void makeEntryPoints();
-	void makeGetKeyExpr();
-	void makeAccessExpr();
-	void makeCurStateExpr();
-	void makeConditions();
-	void makeInlineList( InlineList *inlineList, InlineItem *context );
 	void makeActionList();
 	void makeActionTableList();
-	void reduceTrans( FsmTrans *trans );
 	void reduceActionTables();
-	void makeTransList( FsmState *state );
-	void makeTrans( Key lowKey, Key highKey, FsmTrans *defTrans );
+	void makeTransList( StateAp *state );
+	void makeTrans( Key lowKey, Key highKey, TransDataAp *trans );
 	void makeAction( Action *action );
-	void makeLmSwitch( InlineItem *item );
 	void makeMachine();
-	void makeActionExec( InlineItem *item );
-	void makeActionExecTE( InlineItem *item );
 
 	Compiler *pd;
-	FsmGraph *fsm;
+	FsmAp *fsm;
+	KeyOps *keyOps;
 	ActionTableMap actionTableMap;
 	int nextActionTableId;
 
@@ -153,8 +116,6 @@ private:
 	int curActionTable;
 	int curTrans;
 	int curState;
-	int curCondSpace;
-	int curStateCond;
 };
 
 #endif /* _COLM_FSMREDUCE_H */

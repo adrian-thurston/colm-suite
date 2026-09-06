@@ -17,9 +17,16 @@ set(LIBFSM_HDR
 	actloop.h actexp.h
 	ipgoto.h)
 
-add_library(libfsm
+# The library is assembled from two halves: libfsmgraph, the state machine
+# construction library, and the reduction and code generation sources. Colm
+# builds its token scanners on libfsmgraph and links it statically, so the
+# colm binary never depends on an installed libfsm.
+add_library(libfsmgraph STATIC
 	idbase.cc fsmstate.cc fsmbase.cc fsmattach.cc fsmmin.cc fsmgraph.cc
-	fsmap.cc fsmcond.cc fsmnfa.cc redfsm.cc gendata.cc
+	fsmap.cc fsmcond.cc fsmnfa.cc)
+
+add_library(libfsm
+	redfsm.cc gendata.cc
 	codegen.cc
 	actexp.cc binvar.cc
 	tables.cc tabgoto.cc tabbreak.cc tabvar.cc
@@ -27,21 +34,29 @@ add_library(libfsm
 	flat.cc flatgoto.cc flatbreak.cc flatvar.cc
 	switch.cc switchgoto.cc switchbreak.cc switchvar.cc
 	goto.cc gotoloop.cc gotoexp.cc ipgoto.cc
-	dot.cc asm.cc)
+	dot.cc asm.cc
+	$<TARGET_OBJECTS:libfsmgraph>)
 
 # Consumers include the headers as <libfsm/...>, so the parent of this
 # directory is the include root in the build tree, as ${includedir} is once
 # installed.
 get_filename_component(_libfsm_include_root "${CMAKE_CURRENT_LIST_DIR}" DIRECTORY)
 
-target_include_directories(libfsm
-	PUBLIC
-	$<BUILD_INTERFACE:${_libfsm_include_root}>
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
-	$<BUILD_INTERFACE:${COLM_AAPL_INCLUDE_DIR}>
-	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/aapl>
-	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/libfsm>)
+foreach(_lib libfsmgraph libfsm)
+	target_include_directories(${_lib}
+		PUBLIC
+		$<BUILD_INTERFACE:${_libfsm_include_root}>
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>
+		$<BUILD_INTERFACE:${COLM_AAPL_INCLUDE_DIR}>
+		$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+		$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/aapl>
+		$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/libfsm>)
+endforeach()
+
+# The graph objects also go into libfsm, which may be shared.
+set_target_properties(libfsmgraph PROPERTIES
+	OUTPUT_NAME fsmgraph
+	POSITION_INDEPENDENT_CODE ON)
 
 # libfsm carries its own version, independent of the suite's. This mirrors
 # the libtool -release string in Makefile.am.

@@ -48,32 +48,13 @@ void operator<<( ostream &out, exit_object & )
 	exit(1);
 }
 
-/* Perform minimization after an operation according 
- * to the command line args. */
-void afterOpMinimize( FsmGraph *fsm, bool lastInSeq )
-{
-	/* Switch on the prefered minimization algorithm. */
-	if ( lastInSeq ) {
-		/* First clean up the graph. FsmGraph operations may leave these
-		 * lying around. There should be no dead end states. The subtract
-		 * intersection operators are the only places where they may be
-		 * created and those operators clean them up. */
-		fsm->removeUnreachableStates();
-		fsm->minimizePartition2();
-	}
-}
-
-/* Count the transitions in the fsm by walking the state list. */
-int countTransitions( FsmGraph *fsm )
-{
-	int numTrans = 0;
-	FsmState *state = fsm->stateList.head;
-	while ( state != 0 ) {
-		numTrans += state->outList.length();
-		state = state->next;
-	}
-	return numTrans;
-}
+/*
+ * The scanner alphabet. The parsing machinery uses char data throughout, so
+ * this is fixed at compile time; changing it requires changing colm_alph_t
+ * as well. Keys are compared as signed values, so characters with the high
+ * bit set come out negative, exactly as the char type delivers them.
+ */
+const AlphType colmAlphType = { "unsigned", "char", false, 0, UCHAR_MAX, sizeof(unsigned char) };
 
 Key makeFsmKeyHex( char *str, const InputLoc &loc, Compiler *pd )
 {
@@ -81,7 +62,7 @@ Key makeFsmKeyHex( char *str, const InputLoc &loc, Compiler *pd )
 	 * an error, sets the return val to the upper or lower bound being tested
 	 * against. */
 	errno = 0;
-	unsigned int size = keyOps->alphType->size;
+	unsigned int size = colmAlphType.size;
 	bool unusedBits = size < sizeof(unsigned long);
 
 	unsigned long ul = strtoul( str, 0, 16 );
@@ -92,7 +73,7 @@ Key makeFsmKeyHex( char *str, const InputLoc &loc, Compiler *pd )
 		ul = 1 << (size * 8);
 	}
 
-	if ( keyOps->alphType->isSigned && unusedBits && ul >> (size * 8 - 1) )
+	if ( colmAlphType.isSigned && unusedBits && ul >> (size * 8 - 1) )
 		ul |= (ULONG_MAX >> (size*8 ) ) << (size*8);
 
 	return Key( (long)ul );
@@ -103,8 +84,8 @@ Key makeFsmKeyDec( char *str, const InputLoc &loc, Compiler *pd )
 	/* Convert the number to a decimal. First reset errno so we can check
 	 * for overflow or underflow. */
 	errno = 0;
-	long long minVal = keyOps->alphType->minVal;
-	long long maxVal = keyOps->alphType->maxVal;
+	long long minVal = colmAlphType.minVal;
+	long long maxVal = colmAlphType.maxVal;
 
 	long long ll = strtoll( str, 0, 10 );
 
@@ -173,160 +154,113 @@ void makeFsmUniqueKeyArray( KeySet &result, char *data, int len,
 	}
 }
 
-FsmGraph *dotFsm( Compiler *pd )
-{
-	FsmGraph *retFsm = new FsmGraph();
-	retFsm->rangeFsm( keyOps->minKey, keyOps->maxKey );
-	return retFsm;
-}
-
-FsmGraph *dotStarFsm( Compiler *pd )
-{
-	FsmGraph *retFsm = new FsmGraph();
-	retFsm->rangeStarFsm( keyOps->minKey, keyOps->maxKey );
-	return retFsm;
-}
-
 /* Make a builtin type. Depends on the signed nature of the alphabet type. */
-FsmGraph *makeBuiltin( BuiltinMachine builtin, Compiler *pd )
+FsmAp *makeBuiltin( BuiltinMachine builtin, Compiler *pd )
 {
-	/* FsmGraph created to return. */
-	FsmGraph *retFsm = 0;
+	FsmCtx *ctx = pd->fsmCtx;
+
+	/* FsmAp created to return. */
+	FsmAp *retFsm = 0;
 
 	switch ( builtin ) {
 	case BT_Any: {
 		/* All characters. */
-		retFsm = dotFsm( pd );
+		retFsm = FsmAp::dotFsm( ctx );
 		break;
 	}
 	case BT_Ascii: {
 		/* Ascii characters 0 to 127. */
-		retFsm = new FsmGraph();
-		retFsm->rangeFsm( 0, 127 );
+		retFsm = FsmAp::rangeFsm( ctx, 0, 127 );
 		break;
 	}
 	case BT_Extend: {
 		/* Ascii extended characters. This is the full byte range. Dependent
 		 * on signed, vs no signed. If the alphabet is one byte then just use
 		 * dot fsm. */
-		retFsm = new FsmGraph();
-		retFsm->rangeFsm( -128, 127 );
+		retFsm = FsmAp::rangeFsm( ctx, -128, 127 );
 		break;
 	}
 	case BT_Alpha: {
 		/* Alpha [A-Za-z]. */
-		FsmGraph *upper = new FsmGraph(), *lower = new FsmGraph();
-		upper->rangeFsm( 'A', 'Z' );
-		lower->rangeFsm( 'a', 'z' );
-		upper->unionOp( lower );
-		upper->minimizePartition2();
-		retFsm = upper;
+		FsmAp *upper = FsmAp::rangeFsm( ctx, 'A', 'Z' );
+		FsmAp *lower = FsmAp::rangeFsm( ctx, 'a', 'z' );
+		retFsm = FsmAp::unionOp( upper, lower );
 		break;
 	}
 	case BT_Digit: {
 		/* Digits [0-9]. */
-		retFsm = new FsmGraph();
-		retFsm->rangeFsm( '0', '9' );
+		retFsm = FsmAp::rangeFsm( ctx, '0', '9' );
 		break;
 	}
 	case BT_Alnum: {
 		/* Alpha numerics [0-9A-Za-z]. */
-		FsmGraph *digit = new FsmGraph(), *lower = new FsmGraph();
-		FsmGraph *upper = new FsmGraph();
-		digit->rangeFsm( '0', '9' );
-		upper->rangeFsm( 'A', 'Z' );
-		lower->rangeFsm( 'a', 'z' );
-		digit->unionOp( upper );
-		digit->unionOp( lower );
-		digit->minimizePartition2();
-		retFsm = digit;
+		FsmAp *digit = FsmAp::rangeFsm( ctx, '0', '9' );
+		FsmAp *upper = FsmAp::rangeFsm( ctx, 'A', 'Z' );
+		FsmAp *lower = FsmAp::rangeFsm( ctx, 'a', 'z' );
+		retFsm = FsmAp::unionOp( digit, upper );
+		retFsm = FsmAp::unionOp( retFsm, lower );
 		break;
 	}
 	case BT_Lower: {
 		/* Lower case characters. */
-		retFsm = new FsmGraph();
-		retFsm->rangeFsm( 'a', 'z' );
+		retFsm = FsmAp::rangeFsm( ctx, 'a', 'z' );
 		break;
 	}
 	case BT_Upper: {
 		/* Upper case characters. */
-		retFsm = new FsmGraph();
-		retFsm->rangeFsm( 'A', 'Z' );
+		retFsm = FsmAp::rangeFsm( ctx, 'A', 'Z' );
 		break;
 	}
 	case BT_Cntrl: {
 		/* Control characters. */
-		FsmGraph *cntrl = new FsmGraph();
-		FsmGraph *highChar = new FsmGraph();
-		cntrl->rangeFsm( 0, 31 );
-		highChar->concatFsm( 127 );
-		cntrl->unionOp( highChar );
-		cntrl->minimizePartition2();
-		retFsm = cntrl;
+		FsmAp *cntrl = FsmAp::rangeFsm( ctx, 0, 31 );
+		FsmAp *highChar = FsmAp::concatFsm( ctx, 127 );
+		retFsm = FsmAp::unionOp( cntrl, highChar );
 		break;
 	}
 	case BT_Graph: {
 		/* Graphical ascii characters [!-~]. */
-		retFsm = new FsmGraph();
-		retFsm->rangeFsm( '!', '~' );
+		retFsm = FsmAp::rangeFsm( ctx, '!', '~' );
 		break;
 	}
 	case BT_Print: {
 		/* Printable characters. Same as graph except includes space. */
-		retFsm = new FsmGraph();
-		retFsm->rangeFsm( ' ', '~' );
+		retFsm = FsmAp::rangeFsm( ctx, ' ', '~' );
 		break;
 	}
 	case BT_Punct: {
 		/* Punctuation. */
-		FsmGraph *range1 = new FsmGraph();
-		FsmGraph *range2 = new FsmGraph();
-		FsmGraph *range3 = new FsmGraph(); 
-		FsmGraph *range4 = new FsmGraph();
-		range1->rangeFsm( '!', '/' );
-		range2->rangeFsm( ':', '@' );
-		range3->rangeFsm( '[', '`' );
-		range4->rangeFsm( '{', '~' );
-		range1->unionOp( range2 );
-		range1->unionOp( range3 );
-		range1->unionOp( range4 );
-		range1->minimizePartition2();
-		retFsm = range1;
+		FsmAp *range1 = FsmAp::rangeFsm( ctx, '!', '/' );
+		FsmAp *range2 = FsmAp::rangeFsm( ctx, ':', '@' );
+		FsmAp *range3 = FsmAp::rangeFsm( ctx, '[', '`' );
+		FsmAp *range4 = FsmAp::rangeFsm( ctx, '{', '~' );
+		retFsm = FsmAp::unionOp( range1, range2 );
+		retFsm = FsmAp::unionOp( retFsm, range3 );
+		retFsm = FsmAp::unionOp( retFsm, range4 );
 		break;
 	}
 	case BT_Space: {
 		/* Whitespace: [\t\v\f\n\r ]. */
-		FsmGraph *cntrl = new FsmGraph();
-		FsmGraph *space = new FsmGraph();
-		cntrl->rangeFsm( '\t', '\r' );
-		space->concatFsm( ' ' );
-		cntrl->unionOp( space );
-		cntrl->minimizePartition2();
-		retFsm = cntrl;
+		FsmAp *cntrl = FsmAp::rangeFsm( ctx, '\t', '\r' );
+		FsmAp *space = FsmAp::concatFsm( ctx, ' ' );
+		retFsm = FsmAp::unionOp( cntrl, space );
 		break;
 	}
 	case BT_Xdigit: {
 		/* Hex digits [0-9A-Fa-f]. */
-		FsmGraph *digit = new FsmGraph();
-		FsmGraph *upper = new FsmGraph();
-		FsmGraph *lower = new FsmGraph();
-		digit->rangeFsm( '0', '9' );
-		upper->rangeFsm( 'A', 'F' );
-		lower->rangeFsm( 'a', 'f' );
-		digit->unionOp( upper );
-		digit->unionOp( lower );
-		digit->minimizePartition2();
-		retFsm = digit;
+		FsmAp *digit = FsmAp::rangeFsm( ctx, '0', '9' );
+		FsmAp *upper = FsmAp::rangeFsm( ctx, 'A', 'F' );
+		FsmAp *lower = FsmAp::rangeFsm( ctx, 'a', 'f' );
+		retFsm = FsmAp::unionOp( digit, upper );
+		retFsm = FsmAp::unionOp( retFsm, lower );
 		break;
 	}
 	case BT_Lambda: {
-		retFsm = new FsmGraph();
-		retFsm->lambdaFsm();
+		retFsm = FsmAp::lambdaFsm( ctx );
 		break;
 	}
 	case BT_Empty: {
-		retFsm = new FsmGraph();
-		retFsm->emptyFsm();
+		retFsm = FsmAp::emptyFsm( ctx );
 		break;
 	}}
 
@@ -341,17 +275,14 @@ FsmGraph *makeBuiltin( BuiltinMachine builtin, Compiler *pd )
  * machine. */
 Compiler::Compiler( )
 :	
-	nextPriorKey(0),
+	fsmGbl(new FsmGbl),
+	fsmCtx(new FsmCtx( fsmGbl )),
+	actionList(fsmCtx->actionList),
 	nextNameId(0),
-	alphTypeSet(false),
 	getKeyExpr(0),
 	accessExpr(0),
 	curStateExpr(0),
-	lowerNum(0),
-	upperNum(0),
 	errorCount(0),
-	curActionOrd(0),
-	curPriorOrd(0),
 	nextEpsilonResolvedLink(0),
 	nextTokenId(1),
 	rootCodeBlock(0),
@@ -411,8 +342,13 @@ Compiler::Compiler( )
 Compiler::~Compiler()
 {
 	/* Delete all the nodes in the action list. Will cause all the
-	 * string data that represents the actions to be deallocated. */
-	actionList.empty();
+	 * string data that represents the actions to be deallocated. Every
+	 * action is a LexAction, delete through that type. */
+	while ( actionList.head != 0 )
+		delete LexAction::cast( actionList.detachFirst() );
+
+	delete fsmCtx;
+	delete fsmGbl;
 
 	for ( CharVectVect::Iter fns = streamFileNames; fns.lte(); fns++ ) {
 		const char **ptr = *fns;
@@ -430,20 +366,6 @@ ostream &operator<<( ostream &out, const Token &token )
 	return out;
 }
 
-/* Write out a name reference. */
-ostream &operator<<( ostream &out, const NameRef &nameRef )
-{
-	int pos = 0;
-	if ( nameRef[pos] == 0 ) {
-		out << "::";
-		pos += 1;
-	}
-	out << nameRef[pos++];
-	for ( ; pos < nameRef.length(); pos++ )
-		out << "::" << nameRef[pos];
-	return out;
-}
-
 NameInst **Compiler::makeNameIndex()
 {
 	/* The number of nodes in the tree can now be given by nextNameId. Put a
@@ -451,8 +373,8 @@ NameInst **Compiler::makeNameIndex()
 	NameInst **nameIndex = new NameInst*[nextNameId+1];
 	memset( nameIndex, 0, sizeof(NameInst*)*(nextNameId+1) );
 
-	for ( NameInstList::Iter ni = nameInstList; ni.lte(); ni++ )
-		nameIndex[ni->id] = ni;
+	for ( NameVect::Iter ni = nameInstList; ni.lte(); ni++ )
+		nameIndex[(*ni)->id] = *ni;
 
 	return nameIndex;
 }
@@ -489,50 +411,36 @@ void Compiler::initGraphDict( )
 }
 
 /* Initialize the key operators object that will be referenced by all fsms
- * created. */
+ * created. Keys are signed with the bounds of the alphabet type: this is the
+ * comparison colm's scanners have always used. Minimization happens after
+ * every operation that ends a sequence and once more when the graph is
+ * finished. */
 void Compiler::initKeyOps( )
 {
-	/* Signedness and bounds. */
-	const HostType *alphType = alphTypeSet ? userAlphType :
-			&hostLang->hostTypes[hostLang->defaultHostType];
-	thisKeyOps.setAlphType( alphType );
+	fsmCtx->keyOps->isSigned = true;
+	fsmCtx->keyOps->minKey = Key( (long)colmAlphType.minVal );
+	fsmCtx->keyOps->maxKey = Key( (long)colmAlphType.maxVal );
 
-	if ( lowerNum != 0 ) {
-		/* If ranges are given then interpret the alphabet type. */
-		thisKeyOps.minKey = makeFsmKeyNum( lowerNum, rangeLowLoc, this );
-		thisKeyOps.maxKey = makeFsmKeyNum( upperNum, rangeHighLoc, this );
-	}
+	fsmCtx->minimizeLevel = MinimizePartition2;
+	fsmCtx->minimizeOpt = MinimizeMostOps;
 }
 
-/* Remove duplicates of unique actions from an action table. */
-void Compiler::removeDups( ActionTable &table )
+/* Report a failed state machine operation. */
+void Compiler::fsmFailure( const InputLoc &loc, const FsmRes &res )
 {
-	/* Scan through the table looking for unique actions to 
-	 * remove duplicates of. */
-	for ( int i = 0; i < table.length(); i++ ) {
-		/* Remove any duplicates ahead of i. */
-		for ( int r = i+1; r < table.length(); ) {
-			if ( table[r].value == table[i].value )
-				table.vremove(r);
-			else
-				r += 1;
-		}
-	}
-}
-
-/* Remove duplicates from action lists. This operates only on transition and
- * eof action lists and so should be called once all actions have been
- * transfered to their final resting place. */
-void Compiler::removeActionDups( FsmGraph *graph )
-{
-	/* Loop all states. */
-	for ( StateList::Iter state = graph->stateList; state.lte(); state++ ) {
-		/* Loop all transitions. */
-		for ( TransList::Iter trans = state->outList; trans.lte(); trans++ )
-			removeDups( trans->actionTable );
-		removeDups( state->toStateActionTable );
-		removeDups( state->fromStateActionTable );
-		removeDups( state->eofActionTable );
+	switch ( res.type ) {
+		case FsmRes::TypeTooManyStates:
+			error(loc) << "state machine has too many states" << endp;
+			break;
+		case FsmRes::TypePriorInteraction:
+			error(loc) << "priority interaction in state machine" << endp;
+			break;
+		case FsmRes::TypeCondCostTooHigh:
+			error(loc) << "condition cost too high in state machine" << endp;
+			break;
+		default:
+			error(loc) << "internal error building state machine" << endp;
+			break;
 	}
 }
 
@@ -543,7 +451,7 @@ Action *Compiler::newAction( const String &name, InlineList *inlineList )
 	loc.col = 1;
 	loc.fileName = 0;
 
-	Action *action = Action::cons( loc, name, inlineList );
+	Action *action = new LexAction( loc, name, inlineList );
 	actionList.append( action );
 	return action;
 }
@@ -552,32 +460,32 @@ void Compiler::initLongestMatchData()
 {
 	if ( regionSetList.length() > 0 ) {
 		/* The initActId action gives act a default value. */
-		InlineList *il4 = InlineList::cons();
-		il4->append( InlineItem::cons( InputLoc(), InlineItem::LmInitAct ) );
+		InlineList *il4 = new InlineList;
+		il4->append( new InlineItem( InputLoc(), InlineItem::LmInitAct ) );
 		initActId = newAction( "initact", il4 );
 		initActId->isLmAction = true;
 
 		/* The setTokStart action sets tokstart. */
-		InlineList *il5 = InlineList::cons();
-		il5->append( InlineItem::cons( InputLoc(), InlineItem::LmSetTokStart ) );
+		InlineList *il5 = new InlineList;
+		il5->append( new InlineItem( InputLoc(), InlineItem::LmSetTokStart ) );
 		setTokStart = newAction( "tokstart", il5 );
 		setTokStart->isLmAction = true;
 
 		/* The setTokEnd action sets tokend. */
-		InlineList *il3 = InlineList::cons();
-		il3->append( InlineItem::cons( InputLoc(), InlineItem::LmSetTokEnd ) );
+		InlineList *il3 = new InlineList;
+		il3->append( new InlineItem( InputLoc(), InlineItem::LmSetTokEnd ) );
 		setTokEnd = newAction( "tokend", il3 );
 		setTokEnd->isLmAction = true;
 
 		/* The action will also need an ordering: ahead of all user action
 		 * embeddings. */
-		initActIdOrd = curActionOrd++;
-		setTokStartOrd = curActionOrd++;
-		setTokEndOrd = curActionOrd++;
+		initActIdOrd = fsmCtx->curActionOrd++;
+		setTokStartOrd = fsmCtx->curActionOrd++;
+		setTokEndOrd = fsmCtx->curActionOrd++;
 	}
 }
 
-void Compiler::finishGraphBuild( FsmGraph *graph )
+void Compiler::finishGraphBuild( FsmAp *graph )
 {
 	/* Resolve any labels that point to multiple states. Any labels that are
 	 * still around are referenced only by gotos and calls and they need to be
@@ -592,7 +500,7 @@ void Compiler::finishGraphBuild( FsmGraph *graph )
 	for ( StateList::Iter state = graph->stateList; state.lte(); state++ )
 		graph->transferErrorActions( state, 0 );
 	
-	removeActionDups( graph );
+	graph->removeActionDups();
 
 	/* Remove unreachable states. There should be no dead end states. The
 	 * subtract and intersection operators are the only places where they may
@@ -614,7 +522,7 @@ void Compiler::finishGraphBuild( FsmGraph *graph )
 }
 
 /* Build the name tree and supporting data structures. */
-NameInst *Compiler::makeNameTree()
+void Compiler::makeNameTree()
 {
 	/* Create the root name. */
 	nextNameId = 1;
@@ -624,54 +532,50 @@ NameInst *Compiler::makeNameTree()
 		/* Recurse on the instance. */
 		rel->makeNameTree( rel->loc, this );
 	}
-
-	return 0;
 }
 
-FsmGraph *Compiler::makeAllRegions()
+FsmAp *Compiler::makeAllRegions()
 {
 	/* Build the name tree and supporting data structures. */
 	makeNameTree();
-	NameInst **nameIndex = makeNameIndex();
+	fsmCtx->nameIndex = makeNameIndex();
 
 	int numGraphs = 0;
-	FsmGraph **graphs = new FsmGraph*[regionImplList.length()];
+	FsmAp **graphs = new FsmAp*[regionImplList.length()];
 
 	/* Make all the instantiations, we know that main exists in this list. */
 	for ( RegionImplList::Iter rel = regionImplList; rel.lte(); rel++ ) {
 		/* Build the graph from a walk of the parse tree. */
-		FsmGraph *newGraph = rel->walk( this );
+		FsmRes res = rel->walk( this );
+		if ( !res.success() )
+			fsmFailure( rel->loc, res );
 
 		/* Wrap up the construction. */
-		finishGraphBuild( newGraph );
+		finishGraphBuild( res.fsm );
 
 		/* Save off the new graph. */
-		graphs[numGraphs++] = newGraph;
+		graphs[numGraphs++] = res.fsm;
 	}
 
 	/* NOTE: If putting in minimization here we need to include eofTarget
 	 * into the minimization algorithm. It is currently set by the longest
 	 * match operator and not considered anywhere else. */
 
-	FsmGraph *all;
-	if ( numGraphs == 0 ) {
-		all = new FsmGraph;
-		all->lambdaFsm();
-	}
+	FsmAp *all;
+	if ( numGraphs == 0 )
+		all = FsmAp::lambdaFsm( fsmCtx );
 	else {
 		/* Add all the other graphs into the first. */
 		all = graphs[0];
 		all->globOp( graphs+1, numGraphs-1 );
-		delete[] graphs;
 	}
+	delete[] graphs;
 
 	/* Go through all the token regions and check for lmRequiresErrorState. */
 	for ( RegionImplList::Iter reg = regionImplList; reg.lte(); reg++ ) {
 		if ( reg->lmSwitchHandlesError )
-			all->lmRequiresErrorState = true;
+			fsmCtx->lmRequiresErrorState = true;
 	}
-
-	all->nameIndex = nameIndex;
 
 	return all;
 }
@@ -685,7 +589,7 @@ void Compiler::analyzeAction( Action *action, InlineList *inlineList )
 
 		/* Need to recurse into longest match items. */
 		if ( item->type == InlineItem::LmSwitch ) {
-			RegionImpl *lm = item->tokenRegion;
+			RegionImpl *lm = RegionImpl::cast( item->longestMatch );
 			for ( TokenInstanceListReg::Iter lmi = lm->tokenInstanceList; lmi.lte(); lmi++ ) {
 				if ( lmi->action != 0 )
 					analyzeAction( action, lmi->action->inlineList );
@@ -696,7 +600,7 @@ void Compiler::analyzeAction( Action *action, InlineList *inlineList )
 				item->type == InlineItem::LmOnNext ||
 				item->type == InlineItem::LmOnLagBehind )
 		{
-			TokenInstance *lmi = item->longestMatchPart;
+			FsmLongestMatchPart *lmi = item->longestMatchPart;
 			if ( lmi->action != 0 )
 				analyzeAction( action, lmi->action->inlineList );
 		}
@@ -706,15 +610,16 @@ void Compiler::analyzeAction( Action *action, InlineList *inlineList )
 	}
 }
 
-void Compiler::analyzeGraph( FsmGraph *graph )
+void Compiler::analyzeGraph( FsmAp *graph )
 {
 	for ( ActionList::Iter act = actionList; act.lte(); act++ )
 		analyzeAction( act, act->inlineList );
 
 	for ( StateList::Iter st = graph->stateList; st.lte(); st++ ) {
-		/* The transition list. */
+		/* The transition list. Colm never embeds conditions, so every
+		 * transition is plain. */
 		for ( TransList::Iter trans = st->outList; trans.lte(); trans++ ) {
-			for ( ActionTable::Iter at = trans->actionTable; at.lte(); at++ )
+			for ( ActionTable::Iter at = trans->tdap()->actionTable; at.lte(); at++ )
 				at->value->numTransRefs += 1;
 		}
 
@@ -729,10 +634,10 @@ void Compiler::analyzeGraph( FsmGraph *graph )
 	}
 }
 
-FsmGraph *Compiler::makeScanner()
+FsmAp *Compiler::makeScanner()
 {
 	/* Make the graph, do minimization. */
-	FsmGraph *fsmGraph = makeAllRegions();
+	FsmAp *fsmGraph = makeAllRegions();
 
 	/* If any errors have occured in the input file then don't write anything. */
 	if ( gblErrorCount > 0 )
@@ -744,7 +649,7 @@ FsmGraph *Compiler::makeScanner()
 	 *  1. There is an error transition
 	 *  2. There is a gap in the transitions
 	 *  3. The longest match operator requires it. */
-	if ( fsmGraph->lmRequiresErrorState || fsmGraph->hasErrorTrans() )
+	if ( fsmCtx->lmRequiresErrorState || fsmGraph->hasErrorTrans() )
 		fsmGraph->errState = fsmGraph->addState();
 
 	/* State numbers need to be assigned such that all final states have a
@@ -1208,7 +1113,6 @@ void Compiler::prepGrammar()
 
 void Compiler::compile()
 {
-	beginProcessing();
 	initKeyOps();
 
 	/* Declare types. */
@@ -1226,7 +1130,7 @@ void Compiler::compile()
 
 	/* Init the longest match data */
 	initLongestMatchData();
-	FsmGraph *fsmGraph = makeScanner();
+	FsmAp *fsmGraph = makeScanner();
 
 	prepGrammar();
 

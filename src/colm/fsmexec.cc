@@ -49,14 +49,15 @@ void execAction( struct pda_run *pdaRun, GenAction *genAction )
 		case InlineItem::LmSetTokStart:
 			pdaRun->tokstart = pdaRun->p;
 			break;
-		case InlineItem::LmSwitch:
+		case InlineItem::LmSwitch: {
 			/* If the switch handles error then we also forced the error state. It
 			 * will exist. */
-			if ( item->tokenRegion->lmSwitchHandlesError && pdaRun->act == 0 ) {
+			RegionImpl *region = RegionImpl::cast( item->longestMatch );
+			if ( region->lmSwitchHandlesError && pdaRun->act == 0 ) {
 				pdaRun->fsm_cs = pdaRun->fsm_tables->error_state;
 			}
 			else {
-				for ( TokenInstanceListReg::Iter lmi = item->tokenRegion->tokenInstanceList; 
+				for ( TokenInstanceListReg::Iter lmi = region->tokenInstanceList;
 						lmi.lte(); lmi++ )
 				{
 					if ( lmi->inLmSelect && pdaRun->act == lmi->longestMatchId )
@@ -66,21 +67,31 @@ void execAction( struct pda_run *pdaRun, GenAction *genAction )
 			pdaRun->return_result = true;
 			pdaRun->skip_tokpref = true;
 			break;
-		case InlineItem::LmOnLast:
+		}
+		case InlineItem::LmOnLast: {
+			TokenInstance *token = TokenInstance::cast( item->longestMatchPart );
 			pdaRun->p += 1;
 			pdaRun->tokend = pdaRun->tokpref + ( pdaRun->p - pdaRun->start );
-			pdaRun->matched_token = item->longestMatchPart->tokenDef->tdLangEl->id;
+			pdaRun->matched_token = token->tokenDef->tdLangEl->id;
 			pdaRun->return_result = true;
 			break;
-		case InlineItem::LmOnNext:
+		}
+		case InlineItem::LmOnNext: {
+			TokenInstance *token = TokenInstance::cast( item->longestMatchPart );
 			pdaRun->tokend = pdaRun->tokpref + ( pdaRun->p - pdaRun->start );
-			pdaRun->matched_token = item->longestMatchPart->tokenDef->tdLangEl->id;
+			pdaRun->matched_token = token->tokenDef->tdLangEl->id;
 			pdaRun->return_result = true;
 			break;
-		case InlineItem::LmOnLagBehind:
-			pdaRun->matched_token = item->longestMatchPart->tokenDef->tdLangEl->id;
+		}
+		case InlineItem::LmOnLagBehind: {
+			TokenInstance *token = TokenInstance::cast( item->longestMatchPart );
+			pdaRun->matched_token = token->tokenDef->tdLangEl->id;
 			pdaRun->return_result = true;
 			pdaRun->skip_tokpref = true;
+			break;
+		}
+		default:
+			assert(false);
 			break;
 		}
 	}

@@ -16,7 +16,6 @@
 
 /working
 
-/gentests
 
 /.deps
 /trans
@@ -28,11 +27,4 @@
 /config.h.in~
 /stamp-h1
 
-/subject.mk
-/subject.sh
-
 /.libs
-
-/gentests.log
-/gentests.trs
-/test-suite.log

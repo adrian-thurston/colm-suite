@@ -12,7 +12,7 @@ noinst_PROGRAMS = \
 	cgil-ocaml cgil-ruby cgil-rust cgil-zig
 endif
 
-check_SCRIPTS = subject.mk subject.sh runtests
+check_SCRIPTS = runtests
 
 pkgdata_SCRIPTS = runtests
 
@@ -20,16 +20,10 @@ TESTS = runtests
 
 EXTRA_DIST = runtests.in cases
 
-subject.mk: $(top_srcdir)/test/subject.mk.in Makefile
-	@$(top_srcdir)/sedsubst $< $@ -w,+x $(SED_SUBST)
-
-subject.sh: $(top_srcdir)/test/subject.sh.in Makefile
-	@$(top_srcdir)/sedsubst $< $@ -w,+x $(SED_SUBST)
-
 runtests: runtests.in Makefile
 	@$(top_srcdir)/sedsubst $< $@ -w,+x $(SED_SUBST)
 
-CLEANFILES = subject.mk subject.sh runtests cgil-*.c
+CLEANFILES = runtests cgil-*.c
 
 cgil-c$(EXEEXT): $(top_srcdir)/src/cgil/rlhc-c.lm $(top_srcdir)/src/cgil/ril.lm $(SUBJ_COLM_BIN) 
 	$(SUBJ_COLM_BIN) -B '$(top_builddir)' -I $(top_srcdir)/src/cgil -o $@ $<

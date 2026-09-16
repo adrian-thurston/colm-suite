@@ -23,7 +23,7 @@ rlparse_LDFLAGS = -static
 EXTRA_DIST = \
 	reducer.lm rlparse.lm ragel.lm \
 	ragel-c.lm ragel-crack.lm ragel-ocaml.lm \
-	ragel-ruby.lm gentests \
+	ragel-ruby.lm \
 	case/rlparse.h case/rlscan.rl \
 	case/rlscan--colm-frontend.exp case/rlscan--reduce-frontend.exp
 
@@ -41,14 +41,3 @@ CLEANFILES = parse.c if.h if.cc commit.cc
 
 clean-local:
 	rm -Rf working
-	if test '$(builddir)' != '$(srcdir)'; then \
-		rm -Rf case; \
-		rm -f gentests; \
-	fi
-
-check-local:
-	if test '$(builddir)' != '$(srcdir)'; then \
-		$(LN_S) -f '$(srcdir)/gentests' '$(builddir)'; \
-		cp -pR -f '$(srcdir)/case' '$(builddir)' && chmod -R u+w case; \
-	fi
-	'$(top_srcdir)/test/runtests'

@@ -1,0 +1,25 @@
+README
+======
+
+This suite translates each language-independent case in case/ into every host
+language with ./trans and compares the emitted source against the checked-in
+case/<name>_<lang>.rl for that language. Unlike ragel.d, which runs the
+translated program, the comparison here is on the source text itself.
+
+What is under test is colm, not the translator. The twelve trans-*.lm
+backends and the local ragel.lm are a frozen copy of the translator, taken in
+2019 and deliberately not kept in step with the one ragel.d builds: that copy
+uses the grammar in src/ragel and has since gained print_off, NFA support and
+a renamed machine-name token. With the cases, the expected output and the
+translator all fixed, colm and libcolm are the only things that can vary
+between two runs, so a difference in the emitted text is a change in colm.
+
+The frozen program is the fixture. Do not regenerate the expected files
+against ragel.d's translator: the two would then move together whenever ragel
+work touches the backends, and the suite would stop saying anything about
+colm. Update the expected files only when a colm change is meant to alter the
+output, and read the diff as the record of what changed.
+
+The cost of the arrangement is that the colm language surface exercised here
+is whatever the 2019 program happens to use. Features added since are covered
+by colm.d, not by this suite.

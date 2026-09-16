@@ -12,7 +12,7 @@ RLHC_DEP = \
 	rlhc-julia.lm \
 	rlhc-js.lm
 
-EXTRA_DIST = rlhc.lm $(RLHC_DEP) $(CASES)
+EXTRA_DIST = README rlhc.lm $(RLHC_DEP) $(CASES)
 
 check_PROGRAMS = rlhc
 rlhc_SOURCES =

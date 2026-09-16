@@ -1,0 +1,25 @@
+README
+======
+
+This suite runs each case/<name>.in through ./rlhc for the host language
+encoded in the file name -- the letter between the first and second '-' -- and
+compares the result against the .exp beside it. The harness builds rlhc from
+the rlhc-*.lm in this directory; see the comment at the top of
+test/harness/rlhc.cc for the file name encoding.
+
+Those rlhc-*.lm are a frozen 2019 copy of the translators in src/cgil, not a
+second home for them, and the two have diverged by hundreds of lines apiece.
+The copy is not maintained, and cgil changes are not meant to be carried over.
+
+The effect is that colm is what this suite measures. The cases, the expected
+output and the translator are all fixed, so colm and libcolm are the only
+moving parts, and a difference in the emitted text is a change in colm. At
+1066 case files this is the largest colm workload in the tree.
+
+The live translators are tested separately, in src/cgil/test, which runs the
+current cgil-* binaries over cases/*.ri. The two suites are not redundant:
+that one tests cgil, this one tests colm.
+
+Update the expected files here only when a colm change is meant to alter the
+output. Regenerating them against the current src/cgil translators would
+couple the suite to cgil and lose what it measures.

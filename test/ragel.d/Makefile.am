@@ -23,6 +23,7 @@ RAGEL_LM = $(top_srcdir)/src/ragel
 noinst_PROGRAMS = trans
 
 EXTRA_DIST = \
+	README \
 	trans.lm \
 	trans-asm.lm     trans-d.lm      trans-ocaml.lm \
 	trans-c.lm       trans-go.lm     trans-ruby.lm \

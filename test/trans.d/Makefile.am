@@ -1,6 +1,7 @@
 check_PROGRAMS = trans
 
 EXTRA_DIST = \
+	README \
 	ragel.lm \
 	ragel-c.lm \
 	ragel-crack.lm \

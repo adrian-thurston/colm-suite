@@ -1132,6 +1132,10 @@ void Compiler::compile()
 	initLongestMatchData();
 	FsmAp *fsmGraph = makeScanner();
 
+	/* Lexer errors leave us with no scanner graph. Bail on them. */
+	if ( gblErrorCount > 0 )
+		exit(1);
+
 	prepGrammar();
 
 	placeAllLanguageObjects();

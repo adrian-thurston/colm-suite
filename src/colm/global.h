@@ -77,8 +77,9 @@ enum MarkType
 extern InputLoc internal;
 
 /* Error reporting. */
+const char *locFileName( const InputLoc &loc );
 std::ostream &error();
-std::ostream &error( const InputLoc &loc ); 
+std::ostream &error( const InputLoc &loc );
 std::ostream &warning( const InputLoc &loc ); 
 
 void scan( char *fileName, std::istream &input, std::ostream &output );

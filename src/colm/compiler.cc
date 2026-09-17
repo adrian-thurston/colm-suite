@@ -923,8 +923,7 @@ pda_run *Compiler::parsePattern( program_t *prg, tree_t **sp, const InputLoc &lo
 	long pcr = colm_parse_loop( prg, sp, pdaRun, sourceStream, PCR_START );
 	assert( pcr == PCR_DONE );
 	if ( pdaRun->parse_error ) {
-		cerr << ( loc.fileName != 0 ? loc.fileName : "<input>" ) <<
-				":" << loc.line << ":" << loc.col;
+		cerr << locFileName( loc ) << ":" << loc.line << ":" << loc.col;
 
 		if ( pdaRun->parse_error_text != 0 ) {
 			colm_data *tokdata = pdaRun->parse_error_text->tokdata;

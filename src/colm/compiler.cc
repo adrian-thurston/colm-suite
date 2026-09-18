@@ -580,40 +580,12 @@ FsmAp *Compiler::makeAllRegions()
 	return all;
 }
 
-void Compiler::analyzeAction( Action *action, InlineList *inlineList )
-{
-	/* FIXME: Actions used as conditions should be very constrained. */
-	for ( InlineList::Iter item = *inlineList; item.lte(); item++ ) {
-		//if ( item->type == InlineItem::Call || item->type == InlineItem::CallExpr )
-		//	action->anyCall = true;
-
-		/* Need to recurse into longest match items. */
-		if ( item->type == InlineItem::LmSwitch ) {
-			RegionImpl *lm = RegionImpl::cast( item->longestMatch );
-			for ( TokenInstanceListReg::Iter lmi = lm->tokenInstanceList; lmi.lte(); lmi++ ) {
-				if ( lmi->action != 0 )
-					analyzeAction( action, lmi->action->inlineList );
-			}
-		}
-
-		if ( item->type == InlineItem::LmOnLast || 
-				item->type == InlineItem::LmOnNext ||
-				item->type == InlineItem::LmOnLagBehind )
-		{
-			FsmLongestMatchPart *lmi = item->longestMatchPart;
-			if ( lmi->action != 0 )
-				analyzeAction( action, lmi->action->inlineList );
-		}
-
-		if ( item->children != 0 )
-			analyzeAction( action, item->children );
-	}
-}
-
+/* This stands in for FsmCtx::analyzeGraph, which walks the context's own
+ * action list. Colm keeps its actions in the compiler. */
 void Compiler::analyzeGraph( FsmAp *graph )
 {
 	for ( ActionList::Iter act = actionList; act.lte(); act++ )
-		analyzeAction( act, act->inlineList );
+		fsmCtx->analyzeAction( act, act->inlineList );
 
 	for ( StateList::Iter st = graph->stateList; st.lte(); st++ ) {
 		/* The transition list. Colm never embeds conditions, so every
@@ -893,7 +865,7 @@ void Compiler::initEmptyScanner( RegionSet *regionSet, TokenRegion *reg )
 				join, internal, nextTokenId++,
 				rootNamespace, reg );
 
-		reg->impl->tokenInstanceList.append( tokenInstance );
+		reg->impl->addToken( tokenInstance );
 
 		/* These do not go in the namespace so so they cannot get declared
 		 * in the declare pass. */

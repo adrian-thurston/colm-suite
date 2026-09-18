@@ -488,7 +488,6 @@ struct Compiler
 	/* Report a failed libfsm operation as a compile error. */
 	void fsmFailure( const InputLoc &loc, const FsmRes &res );
 
-	void analyzeAction( Action *action, InlineList *inlineList );
 	void analyzeGraph( FsmAp *graph );
 	void resolvePrecedence( PdaGraph *pdaGraph );
 	LangEl *predOf( PdaTrans *trans, long action );

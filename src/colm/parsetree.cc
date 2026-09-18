@@ -219,6 +219,14 @@ void RegionImpl::makeNameTree( const InputLoc &loc, Compiler *pd )
 	regionNameInst = nameInst;
 }
 
+/* Add a token to the region, for colm and for libfsm. */
+void RegionImpl::addToken( TokenInstance *tokenInstance )
+{
+	tokenInstance->longestMatch = this;
+	tokenInstanceList.append( tokenInstance );
+	lmPartList.append( tokenInstance );
+}
+
 InputLoc TokenInstance::getLoc()
 { 
 	return action != 0 ? action->loc : semiLoc;

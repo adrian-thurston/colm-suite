@@ -621,7 +621,7 @@ struct RegionImpl
 {
 	RegionImpl()
 	:
-		FsmLongestMatch( 0 ),
+		FsmLongestMatch( &lmPartList ),
 		regionNameInst(0),
 		lmActSelect(0),
 		defaultTokenInstance(0),
@@ -637,7 +637,14 @@ struct RegionImpl
 	 * regions are referenced once only. */
 	NameInst *regionNameInst;
 
+	/* The tokens of the region. Add them with addToken, which keeps the
+	 * libfsm view of the list in step. */
 	TokenInstanceListReg tokenInstanceList;
+
+	/* The same tokens as libfsm sees them. This is what the longest match
+	 * base points to. Neither list owns the tokens. */
+	FsmLmPartList lmPartList;
+
 	Action *lmActSelect;
 	TokenInstance *defaultTokenInstance;
 
@@ -647,6 +654,7 @@ struct RegionImpl
 
 	RegionImpl *prev, *next;
 
+	void addToken( TokenInstance *tokenInstance );
 	void runLongestMatch( Compiler *pd, FsmAp *graph );
 	void transferScannerLeavingActions( FsmAp *graph );
 	FsmRes walk( Compiler *pd );

@@ -1467,40 +1467,11 @@ FsmRes ReOrItem::walk( Compiler *pd, RegExpr *rootRegex )
 		}
 
 		/* Make the range machine. */
-		FsmRes rtnVal( FsmRes::Fsm(), FsmAp::rangeFsm( pd->fsmCtx, lowKey, highKey ) );
+		FsmAp *rtnVal = rootRegex != 0 && rootRegex->caseInsensitive ?
+				FsmAp::rangeFsmCI( pd->fsmCtx, lowKey, highKey ) :
+				FsmAp::rangeFsm( pd->fsmCtx, lowKey, highKey );
 
-		if ( rootRegex != 0 && rootRegex->caseInsensitive ) {
-			if ( keyOps->le( lowKey, 'Z' ) && keyOps->le( 'A', highKey ) ) {
-				Key otherLow = keyOps->lt( lowKey, 'A' ) ? Key('A') : lowKey;
-				Key otherHigh = keyOps->lt( 'Z', highKey ) ? Key('Z') : highKey;
-
-				otherLow = 'a' + ( otherLow.getVal() - 'A' );
-				otherHigh = 'a' + ( otherHigh.getVal() - 'A' );
-
-				FsmAp *otherRange = FsmAp::rangeFsm( pd->fsmCtx,
-						otherLow, otherHigh );
-				rtnVal = FsmAp::unionOp( rtnVal.fsm, otherRange, false );
-				if ( !rtnVal.success() )
-					return rtnVal;
-				rtnVal.fsm->minimizePartition2();
-			}
-			else if ( keyOps->le( lowKey, 'z' ) && keyOps->le( 'a', highKey ) ) {
-				Key otherLow = keyOps->lt( lowKey, 'a' ) ? Key('a') : lowKey;
-				Key otherHigh = keyOps->lt( 'z', highKey ) ? Key('z') : highKey;
-
-				otherLow = 'A' + ( otherLow.getVal() - 'a' );
-				otherHigh = 'A' + ( otherHigh.getVal() - 'a' );
-
-				FsmAp *otherRange = FsmAp::rangeFsm( pd->fsmCtx,
-						otherLow, otherHigh );
-				rtnVal = FsmAp::unionOp( rtnVal.fsm, otherRange, false );
-				if ( !rtnVal.success() )
-					return rtnVal;
-				rtnVal.fsm->minimizePartition2();
-			}
-		}
-
-		return rtnVal;
+		return FsmRes( FsmRes::Fsm(), rtnVal );
 	}}
 
 	return FsmRes( FsmRes::InternalError() );

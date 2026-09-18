@@ -1271,28 +1271,28 @@ FsmRes RegExpr::walk( Compiler *pd, RegExpr *rootRegex )
 
 	switch ( type ) {
 		case RecurseItem: {
-			/* Walk both items. The regex may be empty, which comes back as a
-			 * null machine rather than a failure. */
+			/* Every regex bottoms out in an empty one. There is nothing to
+			 * put ahead of the first item. */
+			if ( regExp->type == Empty )
+				return item->walk( pd, rootRegex );
+
+			/* Walk both items. */
 			FsmRes fsm1 = regExp->walk( pd, rootRegex );
-			if ( fsm1.type != FsmRes::TypeFsm )
+			if ( !fsm1.success() )
 				return fsm1;
 
 			FsmRes fsm2 = item->walk( pd, rootRegex );
 			if ( !fsm2.success() ) {
-				if ( fsm1.fsm != 0 )
-					delete fsm1.fsm;
+				delete fsm1.fsm;
 				return fsm2;
 			}
-
-			if ( fsm1.fsm == 0 )
-				return fsm2;
 
 			/* Minimized once the enclosing factor is complete. */
 			return FsmAp::concatOp( fsm1.fsm, fsm2.fsm, false );
 		}
 		case Empty: {
-			/* FIXME: Return something here. */
-			return FsmRes( FsmRes::Fsm(), 0 );
+			/* A regex with no items matches the zero length word. */
+			return FsmRes( FsmRes::Fsm(), FsmAp::lambdaFsm( pd->fsmCtx ) );
 		}
 	}
 

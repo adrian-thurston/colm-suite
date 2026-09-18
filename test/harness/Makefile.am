@@ -5,7 +5,7 @@ noinst_PROGRAMS = harness
 
 harness_SOURCES = \
 	main.cc run.cc process.cc casefile.cc diff.cc util.cc \
-	aapl.cc colm.cc ragel.cc rlhc.cc rlparse.cc trans.cc \
+	aapl.cc cgil.cc colm.cc ragel.cc rlhc.cc rlparse.cc trans.cc \
 	harness.h
 
 nodist_harness_SOURCES = config.h

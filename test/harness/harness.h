@@ -40,6 +40,9 @@ struct Config
 	Words colmCppflags;
 	Words colmLdflags;
 
+	/* The directory holding the cgil translators under test. */
+	std::string cgilDir;
+
 	/* Ragel under test: the main binary and the host-language frontends. */
 	std::string ragelBin;
 	std::string ragelC, ragelD, ragelJava, ragelRuby, ragelCsharp, ragelGo,
@@ -199,6 +202,7 @@ extern Suite suites[];
 extern const int numSuites;
 
 void enumerateAapl( const Config &config, const Selection &sel, JobList &jobs );
+void enumerateCgil( const Config &config, const Selection &sel, JobList &jobs );
 void enumerateRlhc( const Config &config, const Selection &sel, JobList &jobs );
 void enumerateRlparse( const Config &config, const Selection &sel, JobList &jobs );
 void enumerateTrans( const Config &config, const Selection &sel, JobList &jobs );

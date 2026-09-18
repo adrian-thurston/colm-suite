@@ -226,6 +226,8 @@ AC_ARG_WITH(subject,
 		SUBJ_RAGEL_LDFLAGS="-L$withval/lib -Wl,-rpath,${withval}/lib"
 		SUBJ_RAGEL_LM="${withval}/share"
 
+		SUBJ_CGIL_DIR="$withval/bin"
+
 		SUBJ_RAGEL_C_BIN="$withval/bin/ragel-c"
 		SUBJ_RAGEL_D_BIN="$withval/bin/ragel-d"
 		SUBJ_RAGEL_JAVA_BIN="$withval/bin/ragel-java"
@@ -251,6 +253,8 @@ AC_ARG_WITH(subject,
 		SUBJ_RAGEL_LDFLAGS='-L$(abs_top_builddir)/src/ragel/.libs -Wl,-rpath,$(abs_top_builddir)/src/ragel/.libs'
 		SUBJ_RAGEL_LM='$(abs_top_builddir)/src/ragel'
 
+		SUBJ_CGIL_DIR='$(abs_top_builddir)/src/cgil'
+
 		SUBJ_RAGEL_C_BIN='$(abs_top_builddir)/src/ragel/host-c/ragel-c'
 		SUBJ_RAGEL_D_BIN='$(abs_top_builddir)/src/ragel/host-d/ragel-d'
 		SUBJ_RAGEL_JAVA_BIN='$(abs_top_builddir)/src/ragel/host-java/ragel-java'
@@ -273,6 +277,7 @@ SED_SUBST="$SED_SUBST -e 's|@SUBJ_RAGEL_BIN@|${SUBJ_RAGEL_BIN}|g'"
 SED_SUBST="$SED_SUBST -e 's|@SUBJ_RAGEL_CPPFLAGS@|${SUBJ_RAGEL_CPPFLAGS}|g'"
 SED_SUBST="$SED_SUBST -e 's|@SUBJ_RAGEL_LDFLAGS@|${SUBJ_RAGEL_LDFLAGS}|g'"
 SED_SUBST="$SED_SUBST -e 's|@SUBJ_RAGEL_LM@|${SUBJ_RAGEL_LM}|g'"
+SED_SUBST="$SED_SUBST -e 's|@SUBJ_CGIL_DIR@|${SUBJ_CGIL_DIR}|g'"
 SED_SUBST="$SED_SUBST -e 's|@SUBJ_RAGEL_C_BIN@|${SUBJ_RAGEL_C_BIN}|g'"
 SED_SUBST="$SED_SUBST -e 's|@SUBJ_RAGEL_D_BIN@|${SUBJ_RAGEL_D_BIN}|g'"
 SED_SUBST="$SED_SUBST -e 's|@SUBJ_RAGEL_JAVA_BIN@|${SUBJ_RAGEL_JAVA_BIN}|g'"
@@ -542,12 +547,12 @@ AC_CONFIG_FILES([
 	src/aapl/Makefile
 	src/libfsm/Makefile
 	src/cgil/Makefile
-	src/cgil/test/Makefile
 	src/colm/Makefile
 	src/Makefile
 	test/Makefile
 	test/harness/Makefile
 	test/aapl.d/Makefile
+	test/cgil.d/Makefile
 	test/colm.d/Makefile
 	test/rlhc.d/Makefile
 	test/rlparse.d/Makefile

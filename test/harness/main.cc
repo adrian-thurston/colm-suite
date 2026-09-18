@@ -16,6 +16,7 @@
 
 Suite suites[] = {
 	{ "aapl.d", enumerateAapl },
+	{ "cgil.d", enumerateCgil },
 	{ "colm.d", enumerateColm },
 	{ "ragel.d", enumerateRagel },
 	{ "rlhc.d", enumerateRlhc },
@@ -199,6 +200,7 @@ int main( int argc, char **argv )
 	config.colmBin = HARNESS_COLM_BIN;
 	config.colmCppflags = splitWords( HARNESS_COLM_CPPFLAGS );
 	config.colmLdflags = splitWords( HARNESS_COLM_LDFLAGS );
+	config.cgilDir = HARNESS_CGIL_DIR;
 	config.ragelBin = HARNESS_RAGEL_BIN;
 	config.ragelC = HARNESS_RAGEL_C_BIN;
 	config.ragelD = HARNESS_RAGEL_D_BIN;

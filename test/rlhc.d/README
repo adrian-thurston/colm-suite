@@ -16,8 +16,8 @@ output and the translator are all fixed, so colm and libcolm are the only
 moving parts, and a difference in the emitted text is a change in colm. At
 1066 case files this is the largest colm workload in the tree.
 
-The live translators are tested separately, in src/cgil/test, which runs the
-current cgil-* binaries over cases/*.ri. The two suites are not redundant:
+The live translators are tested separately, in test/cgil.d, which runs the
+current cgil-* binaries over its own cases. The two suites are not redundant:
 that one tests cgil, this one tests colm.
 
 Update the expected files here only when a colm change is meant to alter the

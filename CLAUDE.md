@@ -107,7 +107,7 @@ cd test/ragel.d && ../harness/harness atoi1.rl     # from inside a suite
 ./test/harness/harness -v --tap results.tap        # every result, TAP output
 ```
 
-The harness (`test/harness/`) enumerates all six suites into one work queue
+The harness (`test/harness/`) enumerates all seven suites into one work queue
 and runs them in parallel. Failures leave a `.diff` file in the suite's
 `working/` directory with the differences and the commands run.
 

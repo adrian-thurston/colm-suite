@@ -1405,7 +1405,6 @@ struct Range
 
 	~Range();
 	FsmRes walk( Compiler *pd );
-	bool verifyRangeFsm( FsmAp *rangeEnd );
 
 	Literal *lowerLit;
 	Literal *upperLit;

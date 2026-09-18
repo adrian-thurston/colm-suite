@@ -1165,30 +1165,6 @@ Range::~Range()
 	delete upperLit;
 }
 
-bool Range::verifyRangeFsm( FsmAp *rangeEnd )
-{
-	/* Must have two states. */
-	if ( rangeEnd->stateList.length() != 2 )
-		return false;
-	/* The start state cannot be final. */
-	if ( rangeEnd->startState->isFinState() )
-		return false;
-	/* There should be only one final state. */
-	if ( rangeEnd->finStateSet.length() != 1 )
-		return false;
-	/* The final state cannot have any transitions out. */
-	if ( rangeEnd->finStateSet[0]->outList.length() != 0 )
-		return false;
-	/* The start state should have only one transition out. */
-	if ( rangeEnd->startState->outList.length() != 1 )
-		return false;
-	/* The singe transition out of the start state should not be a range. */
-	TransAp *startTrans = rangeEnd->startState->outList.head;
-	if ( rangeEnd->ctx->keyOps->ne( startTrans->lowKey, startTrans->highKey ) )
-		return false;
-	return true;
-}
-
 /* Evaluate a range. Gets the lower an upper key and makes an fsm range. */
 FsmRes Range::walk( Compiler *pd )
 {
@@ -1197,7 +1173,7 @@ FsmRes Range::walk( Compiler *pd )
 	if ( !lowerFsm.success() )
 		return lowerFsm;
 
-	if ( !verifyRangeFsm( lowerFsm.fsm ) ) {
+	if ( !lowerFsm.fsm->checkSingleCharMachine() ) {
 		error(lowerLit->loc) << 
 			"bad range lower end, must be a single character" << endl;
 	}
@@ -1209,7 +1185,7 @@ FsmRes Range::walk( Compiler *pd )
 		return upperFsm;
 	}
 
-	if ( !verifyRangeFsm( upperFsm.fsm ) ) {
+	if ( !upperFsm.fsm->checkSingleCharMachine() ) {
 		error(upperLit->loc) << 
 			"bad range upper end, must be a single character" << endl;
 	}

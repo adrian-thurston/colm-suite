@@ -28,7 +28,6 @@
 #include <string>
 #include <iostream>
 
-#include "keyops.h"
 #include "compiler.h"
 #include "redfsm.h"
 

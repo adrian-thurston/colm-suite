@@ -119,14 +119,16 @@ const char *defaultBuildDir();
  * connot be made to work with multiple alphabet types.
  */
 
-HostType hostTypesC[] =
+/* The file name to report for a location. A location with no file has a null
+ * file name, until it is copied. The InputLoc copy constructor, which we share
+ * with ragel, turns the null into "-". Colm gives "-" no meaning as a file
+ * name, so both forms mean no file. */
+const char *locFileName( const InputLoc &loc )
 {
-	{ "unsigned", "char", false, 0, UCHAR_MAX, sizeof(unsigned char) },
-};
-
-
-HostLang hostLangC = { hostTypesC, 1, 0 };
-HostLang *hostLang = &hostLangC;
+	if ( loc.fileName == 0 || strcmp( loc.fileName, "-" ) == 0 )
+		return "<input>";
+	return loc.fileName;
+}
 
 /* Print the opening to an error in the input, then return the error ostream. */
 ostream &error( const InputLoc &loc )
@@ -134,10 +136,7 @@ ostream &error( const InputLoc &loc )
 	/* Keep the error count. */
 	gblErrorCount += 1;
 
-	if ( loc.fileName != 0 )
-		cerr << loc.fileName << ":";
-	else
-		cerr << "<input>:";
+	cerr << locFileName( loc ) << ":";
 
 	if ( loc.line == -1 ) {
 		cerr << "INT: ";
@@ -152,7 +151,7 @@ ostream &error( const InputLoc &loc )
 ostream &error()
 {
 	gblErrorCount += 1;
-	cerr << "error: " PROGNAME ": ";
+	cerr << "error: colm: ";
 	return cerr;
 }
 

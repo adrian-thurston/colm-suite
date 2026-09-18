@@ -334,7 +334,7 @@ void BaseParser::defineToken( const InputLoc &loc, String name, LexJoin *join,
 			join, loc, pd->nextTokenId++, nspace, 
 			regionSet->tokenIgnore );
 
-	regionSet->tokenIgnore->impl->tokenInstanceList.append( tokenInstance );
+	regionSet->tokenIgnore->impl->addToken( tokenInstance );
 
 	tokenDef->noPreIgnore = noPreIgnore;
 	tokenDef->noPostIgnore = noPostIgnore;
@@ -346,7 +346,7 @@ void BaseParser::defineToken( const InputLoc &loc, String name, LexJoin *join,
 
 		tokenInstanceIgn->dupOf = tokenInstance;
 
-		regionSet->ignoreOnly->impl->tokenInstanceList.append( tokenInstanceIgn );
+		regionSet->ignoreOnly->impl->addToken( tokenInstanceIgn );
 	}
 	else {
 		/* The instance for the token-only. */
@@ -355,7 +355,7 @@ void BaseParser::defineToken( const InputLoc &loc, String name, LexJoin *join,
 
 		tokenInstanceTok->dupOf = tokenInstance;
 
-		regionSet->tokenOnly->impl->tokenInstanceList.append( tokenInstanceTok );
+		regionSet->tokenOnly->impl->addToken( tokenInstanceTok );
 	}
 
 	/* This is created and pushed in the name. */
@@ -430,7 +430,7 @@ void BaseParser::literalDef( const InputLoc &loc, const String &data,
 	TokenInstance *tokenInstance = TokenInstance::cons( tokenDef, join, 
 			loc, pd->nextTokenId++, nspace, regionSet->tokenIgnore );
 
-	regionSet->tokenIgnore->impl->tokenInstanceList.append( tokenInstance );
+	regionSet->tokenIgnore->impl->addToken( tokenInstance );
 
 	ldel = nspace->literalDict.insert( interp, tokenInstance );
 
@@ -445,7 +445,7 @@ void BaseParser::literalDef( const InputLoc &loc, const String &data,
 
 	tokenInstanceTok->dupOf = tokenInstance;
 
-	regionSet->tokenOnly->impl->tokenInstanceList.append( tokenInstanceTok );
+	regionSet->tokenOnly->impl->addToken( tokenInstanceTok );
 
 	if ( pushedRegion )
 		popRegionSet();
@@ -678,8 +678,8 @@ LexFactorAug *BaseParser::lexFactorLabel( const InputLoc &loc,
 			ObjectField::LexSubstrType, typeRef, data );
 
 	/* Create the enter and leaving actions that will mark the substring. */
-	Action *enter = Action::cons( MarkMark, pd->nextMatchEndNum++ );
-	Action *leave = Action::cons( MarkMark, pd->nextMatchEndNum++ );
+	Action *enter = new LexAction( MarkMark, pd->nextMatchEndNum++ );
+	Action *leave = new LexAction( MarkMark, pd->nextMatchEndNum++ );
 	pd->actionList.append( enter );
 	pd->actionList.append( leave );
 	
@@ -696,7 +696,7 @@ LexJoin *BaseParser::lexOptJoin( LexJoin *join, LexJoin *context )
 {
 	if ( context != 0 ) {
 		/* Create the enter and leaving actions that will mark the substring. */
-		Action *mark = Action::cons( MarkMark, pd->nextMatchEndNum++ );
+		LexAction *mark = new LexAction( MarkMark, pd->nextMatchEndNum++ );
 		pd->actionList.append( mark );
 
 		join->context = context;

@@ -49,6 +49,10 @@
 /libragel.la
 /libfsm.a
 /libfsm.la
+/libfsmgraph.a
+/libfsmgraph.la
+/libfsmgen.a
+/libfsmgen.la
 /.libs
 
 /CMakeFiles

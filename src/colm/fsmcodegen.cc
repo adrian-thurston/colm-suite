@@ -181,12 +181,13 @@ void FsmCodeGen::LM_SWITCH( ostream &ret, InlineItem *item,
 
 	/* If the switch handles error then we also forced the error state. It
 	 * will exist. */
-	if ( item->tokenRegion->lmSwitchHandlesError ) {
+	RegionImpl *region = RegionImpl::cast( item->longestMatch );
+	if ( region->lmSwitchHandlesError ) {
 		ret << "	case 0: " //<< P() << " = " << TOKSTART() << ";" <<
 				"goto st" << redFsm->errState->id << ";\n";
 	}
 
-	for ( TokenInstanceListReg::Iter lmi = item->tokenRegion->tokenInstanceList; lmi.lte(); lmi++ ) {
+	for ( TokenInstanceListReg::Iter lmi = region->tokenInstanceList; lmi.lte(); lmi++ ) {
 		if ( lmi->inLmSelect ) {
 			assert( lmi->tokenDef->tdLangEl != 0 );
 			ret << "	case " << lmi->longestMatchId << ":\n";
@@ -205,28 +206,31 @@ void FsmCodeGen::LM_SWITCH( ostream &ret, InlineItem *item,
 
 void FsmCodeGen::LM_ON_LAST( ostream &ret, InlineItem *item )
 {
-	assert( item->longestMatchPart->tokenDef->tdLangEl != 0 );
+	TokenInstance *token = TokenInstance::cast( item->longestMatchPart );
+	assert( token->tokenDef->tdLangEl != 0 );
 
 	ret << "	" << P() << " += 1;\n";
 	SET_TOKEND_0( ret, 0 );
-	EMIT_TOKEN( ret, item->longestMatchPart->tokenDef->tdLangEl );
+	EMIT_TOKEN( ret, token->tokenDef->tdLangEl );
 	ret << "	goto out;\n";
 }
 
 void FsmCodeGen::LM_ON_NEXT( ostream &ret, InlineItem *item )
 {
-	assert( item->longestMatchPart->tokenDef->tdLangEl != 0 );
+	TokenInstance *token = TokenInstance::cast( item->longestMatchPart );
+	assert( token->tokenDef->tdLangEl != 0 );
 
 	SET_TOKEND_0( ret, 0 );
-	EMIT_TOKEN( ret, item->longestMatchPart->tokenDef->tdLangEl );
+	EMIT_TOKEN( ret, token->tokenDef->tdLangEl );
 	ret << "	goto out;\n";
 }
 
 void FsmCodeGen::LM_ON_LAG_BEHIND( ostream &ret, InlineItem *item )
 {
-	assert( item->longestMatchPart->tokenDef->tdLangEl != 0 );
+	TokenInstance *token = TokenInstance::cast( item->longestMatchPart );
+	assert( token->tokenDef->tdLangEl != 0 );
 
-	EMIT_TOKEN( ret, item->longestMatchPart->tokenDef->tdLangEl );
+	EMIT_TOKEN( ret, token->tokenDef->tdLangEl );
 	ret << "	goto skip_tokpref;\n";
 
 	skipTokprefLabelNeeded = true;
@@ -269,6 +273,9 @@ void FsmCodeGen::INLINE_LIST( ostream &ret, InlineList *inlineList,
 			break;
 		case InlineItem::LmOnLagBehind:
 			LM_ON_LAG_BEHIND( ret, item );
+			break;
+		default:
+			assert( false );
 			break;
 		}
 	}
@@ -336,10 +343,10 @@ string FsmCodeGen::DATA_PREFIX()
 /* Emit the alphabet data type. */
 string FsmCodeGen::ALPH_TYPE()
 {
-	string ret = keyOps->alphType->data1;
-	if ( keyOps->alphType->data2 != 0 ) {
+	string ret = colmAlphType.data1;
+	if ( colmAlphType.data2 != 0 ) {
 		ret += " ";
-		ret += + keyOps->alphType->data2;
+		ret += + colmAlphType.data2;
 	}
 	return ret;
 }
@@ -478,8 +485,9 @@ void FsmCodeGen::emitRangeBSearch( RedState *state, int level, int low, int high
 	bool anyHigher = mid < high;
 
 	/* Determine if the keys at mid are the limits of the alphabet. */
-	bool limitLow = data[mid].lowKey == keyOps->minKey;
-	bool limitHigh = data[mid].highKey == keyOps->maxKey;
+	KeyOps *keyOps = redFsm->keyOps;
+	bool limitLow = keyOps->eq( data[mid].lowKey, keyOps->minKey );
+	bool limitHigh = keyOps->eq( data[mid].highKey, keyOps->maxKey );
 
 	if ( anyLower && anyHigher ) {
 		/* Can go lower and higher than mid. */

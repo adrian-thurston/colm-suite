@@ -197,7 +197,7 @@ FsmAp *makeBuiltin( BuiltinMachine builtin, Compiler *pd )
 		FsmAp *digit = FsmAp::rangeFsm( ctx, '0', '9' );
 		FsmAp *upper = FsmAp::rangeFsm( ctx, 'A', 'Z' );
 		FsmAp *lower = FsmAp::rangeFsm( ctx, 'a', 'z' );
-		retFsm = FsmAp::unionOp( digit, upper );
+		retFsm = FsmAp::unionOp( digit, upper, false );
 		retFsm = FsmAp::unionOp( retFsm, lower );
 		break;
 	}
@@ -234,8 +234,8 @@ FsmAp *makeBuiltin( BuiltinMachine builtin, Compiler *pd )
 		FsmAp *range2 = FsmAp::rangeFsm( ctx, ':', '@' );
 		FsmAp *range3 = FsmAp::rangeFsm( ctx, '[', '`' );
 		FsmAp *range4 = FsmAp::rangeFsm( ctx, '{', '~' );
-		retFsm = FsmAp::unionOp( range1, range2 );
-		retFsm = FsmAp::unionOp( retFsm, range3 );
+		retFsm = FsmAp::unionOp( range1, range2, false );
+		retFsm = FsmAp::unionOp( retFsm, range3, false );
 		retFsm = FsmAp::unionOp( retFsm, range4 );
 		break;
 	}
@@ -251,7 +251,7 @@ FsmAp *makeBuiltin( BuiltinMachine builtin, Compiler *pd )
 		FsmAp *digit = FsmAp::rangeFsm( ctx, '0', '9' );
 		FsmAp *upper = FsmAp::rangeFsm( ctx, 'A', 'F' );
 		FsmAp *lower = FsmAp::rangeFsm( ctx, 'a', 'f' );
-		retFsm = FsmAp::unionOp( digit, upper );
+		retFsm = FsmAp::unionOp( digit, upper, false );
 		retFsm = FsmAp::unionOp( retFsm, lower );
 		break;
 	}

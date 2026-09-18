@@ -586,7 +586,7 @@ FsmRes LexJoin::walk( Compiler *pd )
 			return contextGraph;
 		}
 
-		retFsm = FsmAp::concatOp( retFsm.fsm, contextGraph.fsm );
+		retFsm = FsmAp::concatOp( retFsm.fsm, contextGraph.fsm, false );
 	}
 
 	return retFsm;
@@ -677,14 +677,14 @@ FsmRes LexExpression::walk( Compiler *pd, bool lastInSeq )
 			FsmAp *leadAnyStar = FsmAp::dotStarFsm( pd->fsmCtx );
 			FsmAp *trailAnyStar = FsmAp::dotStarFsm( pd->fsmCtx );
 
-			FsmRes rhs = FsmAp::concatOp( leadAnyStar, termFsm.fsm );
+			FsmRes rhs = FsmAp::concatOp( leadAnyStar, termFsm.fsm, false );
 			if ( !rhs.success() ) {
 				delete exprFsm.fsm;
 				delete trailAnyStar;
 				return rhs;
 			}
 
-			rhs = FsmAp::concatOp( rhs.fsm, trailAnyStar );
+			rhs = FsmAp::concatOp( rhs.fsm, trailAnyStar, false );
 			if ( !rhs.success() ) {
 				delete exprFsm.fsm;
 				return rhs;
@@ -1303,7 +1303,8 @@ FsmRes RegExpr::walk( Compiler *pd, RegExpr *rootRegex )
 			if ( fsm1.fsm == 0 )
 				return fsm2;
 
-			return FsmAp::concatOp( fsm1.fsm, fsm2.fsm );
+			/* Minimized once the enclosing factor is complete. */
+			return FsmAp::concatOp( fsm1.fsm, fsm2.fsm, false );
 		}
 		case Empty: {
 			/* FIXME: Return something here. */
@@ -1423,7 +1424,8 @@ FsmRes ReOrBlock::walk( Compiler *pd, RegExpr *rootRegex )
 			if ( fsm1.fsm == 0 )
 				return fsm2;
 
-			return FsmAp::unionOp( fsm1.fsm, fsm2.fsm );
+			/* The item minimizes the finished block. */
+			return FsmAp::unionOp( fsm1.fsm, fsm2.fsm, false );
 		}
 		case Empty: {
 			return FsmRes( FsmRes::Fsm(), 0 );
@@ -1477,7 +1479,7 @@ FsmRes ReOrItem::walk( Compiler *pd, RegExpr *rootRegex )
 
 				FsmAp *otherRange = FsmAp::rangeFsm( pd->fsmCtx,
 						otherLow, otherHigh );
-				rtnVal = FsmAp::unionOp( rtnVal.fsm, otherRange );
+				rtnVal = FsmAp::unionOp( rtnVal.fsm, otherRange, false );
 				if ( !rtnVal.success() )
 					return rtnVal;
 				rtnVal.fsm->minimizePartition2();
@@ -1491,7 +1493,7 @@ FsmRes ReOrItem::walk( Compiler *pd, RegExpr *rootRegex )
 
 				FsmAp *otherRange = FsmAp::rangeFsm( pd->fsmCtx,
 						otherLow, otherHigh );
-				rtnVal = FsmAp::unionOp( rtnVal.fsm, otherRange );
+				rtnVal = FsmAp::unionOp( rtnVal.fsm, otherRange, false );
 				if ( !rtnVal.success() )
 					return rtnVal;
 				rtnVal.fsm->minimizePartition2();

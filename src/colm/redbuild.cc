@@ -378,7 +378,7 @@ void RedFsmBuild::makeTransList( StateAp *state )
 	finishTransList( curState );
 }
 
-void RedFsmBuild::newAction( int anum, char *name, int line, int col, Action *action )
+void RedFsmBuild::newAction( int anum, const char *name, int line, int col, Action *action )
 {
 	LexAction *lexAction = LexAction::cast( action );
 
@@ -397,9 +397,10 @@ void RedFsmBuild::makeAction( Action *action )
 	int line = action->loc.line;
 	int col = action->loc.col;
 
-	char *name = 0;
+	/* The action outlives the reduced machine. Borrow its name. */
+	const char *name = 0;
 	if ( !action->name.empty() )
-		name = strdup( action->name.c_str() );
+		name = action->name.c_str();
 
 	newAction( curAction++, name, line, col, action );
 }

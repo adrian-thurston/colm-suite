@@ -72,7 +72,7 @@ private:
 	void makeStateList();
 
 	void initActionList( unsigned long length );
-	void newAction( int anum, char *name, int line, int col, Action *action );
+	void newAction( int anum, const char *name, int line, int col, Action *action );
 	void initActionTableList( unsigned long length );
 	void initStateList( unsigned long length );
 	void addRegionToEntry( int regionId, int entryId );

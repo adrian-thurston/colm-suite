@@ -64,7 +64,7 @@ struct GenAction
 	/* Data collected during parse. */
 	int loc_line;
 	int loc_col;
-	char *name;
+	const char *name;
 	InlineList *inlineList;
 	int actionId;
 	MarkType markType;

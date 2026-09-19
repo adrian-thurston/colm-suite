@@ -341,7 +341,8 @@ void enumerateRagel( const Config &config, const Selection &sel, JobList &jobs )
 	rc.wk = config.working( suite );
 
 	std::vector<std::string> names;
-	listDir( rc.src, names );
+	if ( !listCaseDir( suite, rc.src, names, jobs ) )
+		return;
 
 	for ( size_t i = 0; i < names.size(); i++ ) {
 		if ( !hasSuffix( names[i], ".rl" ) )

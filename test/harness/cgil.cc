@@ -32,7 +32,8 @@ void enumerateCgil( const Config &config, const Selection &sel, JobList &jobs )
 	std::string caseDir = joinPath( src, "case" );
 
 	std::vector<std::string> names;
-	listDir( caseDir, names );
+	if ( !listCaseDir( suite, caseDir, names, jobs ) )
+		return;
 
 	for ( size_t i = 0; i < names.size(); i++ ) {
 		if ( !hasSuffix( names[i], ".ri" ) )

@@ -135,6 +135,20 @@ bool listDir( const std::string &path, std::vector<std::string> &names )
 	return true;
 }
 
+/* A case directory that cannot be read means a broken tree, not a suite with no
+ * cases. Record it as an error so that the run cannot come out green. */
+bool listCaseDir( const char *suite, const std::string &path,
+		std::vector<std::string> &names, JobList &jobs )
+{
+	if ( listDir( path, names ) )
+		return true;
+
+	Job *job = new Job( suite, "(cases)" );
+	job->error( "cannot read " + path + ": " + strerror( errno ) );
+	jobs.append( job );
+	return false;
+}
+
 Words splitWords( const std::string &s )
 {
 	Words words;

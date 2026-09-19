@@ -294,6 +294,8 @@ bool isDir( const std::string &path );
 bool mkdirp( const std::string &path );
 void clearDir( const std::string &path );
 bool listDir( const std::string &path, std::vector<std::string> &names );
+bool listCaseDir( const char *suite, const std::string &path,
+		std::vector<std::string> &names, JobList &jobs );
 Words splitWords( const std::string &s );
 std::string joinWords( const Words &w );
 std::string trim( const std::string &s );

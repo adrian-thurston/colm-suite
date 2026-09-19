@@ -86,7 +86,8 @@ void enumerateColm( const Config &config, const Selection &sel, JobList &jobs )
 		stage( src, build );
 
 	std::vector<std::string> names;
-	listDir( src, names );
+	if ( !listCaseDir( suite, src, names, jobs ) )
+		return;
 
 	for ( size_t i = 0; i < names.size(); i++ ) {
 		if ( !hasSuffix( names[i], ".lm" ) )

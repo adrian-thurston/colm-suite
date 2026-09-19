@@ -25,7 +25,8 @@ void enumerateTrans( const Config &config, const Selection &sel, JobList &jobs )
 	const int numLangs = sizeof(langs) / sizeof(langs[0]);
 
 	std::vector<std::string> names;
-	listDir( caseDir, names );
+	if ( !listCaseDir( suite, caseDir, names, jobs ) )
+		return;
 
 	for ( size_t i = 0; i < names.size(); i++ ) {
 		/* Translations carry an underscore; sources do not. */

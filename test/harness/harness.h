@@ -40,6 +40,9 @@ struct Config
 	Words colmCppflags;
 	Words colmLdflags;
 
+	/* The directory holding the cgil translators under test. */
+	std::string cgilDir;
+
 	/* Ragel under test: the main binary and the host-language frontends. */
 	std::string ragelBin;
 	std::string ragelC, ragelD, ragelJava, ragelRuby, ragelCsharp, ragelGo,
@@ -199,6 +202,7 @@ extern Suite suites[];
 extern const int numSuites;
 
 void enumerateAapl( const Config &config, const Selection &sel, JobList &jobs );
+void enumerateCgil( const Config &config, const Selection &sel, JobList &jobs );
 void enumerateRlhc( const Config &config, const Selection &sel, JobList &jobs );
 void enumerateRlparse( const Config &config, const Selection &sel, JobList &jobs );
 void enumerateTrans( const Config &config, const Selection &sel, JobList &jobs );
@@ -290,6 +294,8 @@ bool isDir( const std::string &path );
 bool mkdirp( const std::string &path );
 void clearDir( const std::string &path );
 bool listDir( const std::string &path, std::vector<std::string> &names );
+bool listCaseDir( const char *suite, const std::string &path,
+		std::vector<std::string> &names, JobList &jobs );
 Words splitWords( const std::string &s );
 std::string joinWords( const Words &w );
 std::string trim( const std::string &s );

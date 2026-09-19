@@ -1,4 +1,4 @@
-SUBDIRS = harness aapl.d colm.d ragel.d rlhc.d rlparse.d trans.d .
+SUBDIRS = harness aapl.d cgil.d colm.d ragel.d rlhc.d rlparse.d trans.d .
 
 EXTRA_DIST = dist.sh
 

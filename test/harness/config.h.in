@@ -11,6 +11,9 @@
 #define HARNESS_COLM_CPPFLAGS "@SUBJ_COLM_CPPFLAGS@"
 #define HARNESS_COLM_LDFLAGS "@SUBJ_COLM_LDFLAGS@"
 
+/* The cgil translators under test. */
+#define HARNESS_CGIL_DIR "@SUBJ_CGIL_DIR@"
+
 /* Ragel under test. */
 #define HARNESS_RAGEL_BIN "@SUBJ_RAGEL_BIN@"
 #define HARNESS_RAGEL_C_BIN "@SUBJ_RAGEL_C_BIN@"

@@ -26,6 +26,22 @@ else
 noinst_PROGRAMS = $(CGIL_TRANSLATORS)
 endif
 
+# Each translator is made from its .lm files by the rules below, not from C
+# that automake knows about. Declaring the sources empty keeps automake from
+# assuming a cgil-<lang>.c and shipping the generated file in the tarball.
+cgil_c_SOURCES =
+cgil_crack_SOURCES =
+cgil_csharp_SOURCES =
+cgil_d_SOURCES =
+cgil_go_SOURCES =
+cgil_java_SOURCES =
+cgil_js_SOURCES =
+cgil_julia_SOURCES =
+cgil_ocaml_SOURCES =
+cgil_ruby_SOURCES =
+cgil_rust_SOURCES =
+cgil_zig_SOURCES =
+
 CLEANFILES = cgil-*.c
 
 cgil-c$(EXEEXT): $(srcdir)/rlhc-c.lm $(srcdir)/ril.lm $(srcdir)/rlhc-main.lm $(SUBJ_COLM_BIN)

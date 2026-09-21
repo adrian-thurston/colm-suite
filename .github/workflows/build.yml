@@ -2,9 +2,9 @@ name: Build and Test
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
 
 jobs:
   build:
@@ -12,8 +12,63 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y autoconf automake libtool
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool
+
+      # The host language toolchains the ragel test suite drives. Without
+      # these every ragel.d case for a language other than C is a skip, so
+      # the D, Java, Ruby, C#, Go, OCaml, Rust and Julia backends go
+      # unexercised. The set matches the Dockerfile at the repository root,
+      # which is the same list for the same reason; see it for what each
+      # package buys and why mono comes from the archive rather than from
+      # mono-project.com. Not installed here either: crack, which is
+      # unpackaged, and asm, which needs no toolchain beyond $CC (the
+      # runners are x86-64, so the asm cases do run).
+      - name: Install host language toolchains
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            gobjc gnustep-make libgnustep-base-dev \
+            golang-go default-jdk ruby ocaml rustc gdc mono-devel
+
+      # Zig and Julia are not in the ubuntu archive, so they come from the
+      # upstream binary tarballs, sha256 pinned. The runners are x86-64
+      # only, so unlike the Dockerfile there is no aarch64 arm here.
+      # Bumping either version means bumping its shasum, published in
+      # ziglang.org/download/index.json and in
+      # julialang-s3.julialang.org/bin/checksums/julia-$VERSION.sha256.
+      - name: Install zig
+        env:
+          ZIG_VERSION: 0.16.0
+          ZIG_SHA256: 70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00
+        run: |
+          set -eux
+          tarball="zig-x86_64-linux-$ZIG_VERSION.tar.xz"
+          curl -fsSL -o "/tmp/$tarball" \
+            "https://ziglang.org/download/$ZIG_VERSION/$tarball"
+          echo "$ZIG_SHA256  /tmp/$tarball" | sha256sum -c -
+          sudo mkdir -p /opt/zig
+          sudo tar -xJf "/tmp/$tarball" -C /opt/zig --strip-components=1
+          sudo ln -s /opt/zig/zig /usr/local/bin/zig
+          zig version
+
+      - name: Install julia
+        env:
+          JULIA_VERSION: 1.12.7
+          JULIA_SHA256: 4e7e9e776634d24835250de67cde39b0d4af15bc432eb20697e6be6c28ea69e8
+        run: |
+          set -eux
+          tarball="julia-$JULIA_VERSION-linux-x86_64.tar.gz"
+          series="$(echo "$JULIA_VERSION" | sed 's/\.[0-9]*$//')"
+          curl -fsSL -o "/tmp/$tarball" \
+            "https://julialang-s3.julialang.org/bin/linux/x64/$series/$tarball"
+          echo "$JULIA_SHA256  /tmp/$tarball" | sha256sum -c -
+          sudo mkdir -p /opt/julia
+          sudo tar -xzf "/tmp/$tarball" -C /opt/julia --strip-components=1
+          sudo ln -s /opt/julia/bin/julia /usr/local/bin/julia
+          julia --version
 
       - name: autogen
         run: ./autogen.sh
@@ -21,8 +76,24 @@ jobs:
       - name: configure
         run: ./configure
 
+      # What configure found, so a backend that silently went missing is
+      # visible in the log rather than showing up as a drop in skips.
+      - name: report host languages
+        run: grep -E '^(D|JAVAC|RUBY|CSHARP|GO|OCAML|RUST|JULIA|ZIG)_BIN|^GNUSTEP_CONFIG' config.log | sort -u || true
+
       - name: make
         run: make -j$(nproc)
 
+      # The harness exits 2 when a case fails, so this fails the job.
       - name: make check
         run: make check
+
+      # A failing case leaves a .diff in its suite's working/ directory with
+      # the differences and the commands that produced them.
+      - name: collect failure diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diffs
+          path: test/*/working/*.diff
+          if-no-files-found: ignore

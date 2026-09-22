@@ -39,7 +39,7 @@ static void usage()
 "  --suite NAME      run only this suite; may be repeated or comma separated\n"
 "  --filter GLOB     run only cases whose suite/name matches GLOB\n"
 "  --lang L,...      ragel.d: only these host languages\n"
-"                    (c cg cv c++ obj-c asm d java ruby csharp go ocaml rust zig crack julia)\n"
+"                    (c cg cv c++ obj-c asm d java ruby csharp go ocaml rust zig crack julia js)\n"
 "  --genflags F,...  ragel.d: only these generation flags (default: -T0 -T1 -F0 -F1\n"
 "                    -W0 -W1 -G0 -G1 -G2 -n -m -e --string-tables)\n"
 "  --stress SECS     aapl.d: run each stress program for SECS seconds (default: 5;\n"
@@ -216,6 +216,7 @@ int main( int argc, char **argv )
 	config.ragelZig = HARNESS_RAGEL_ZIG_BIN;
 	config.ragelCrack = HARNESS_RAGEL_CRACK_BIN;
 	config.ragelJulia = HARNESS_RAGEL_JULIA_BIN;
+	config.ragelJs = HARNESS_RAGEL_JS_BIN;
 	config.dBin = HARNESS_D_BIN;
 	config.javacBin = HARNESS_JAVAC_BIN;
 	config.rubyBin = HARNESS_RUBY_BIN;
@@ -226,6 +227,7 @@ int main( int argc, char **argv )
 	config.zigBin = HARNESS_ZIG_BIN;
 	config.crackBin = HARNESS_CRACK_BIN;
 	config.juliaBin = HARNESS_JULIA_BIN;
+	config.nodeBin = HARNESS_NODE_BIN;
 	config.asmBin = HARNESS_ASM_BIN;
 	config.gnustepConfig = HARNESS_GNUSTEP_CONFIG;
 

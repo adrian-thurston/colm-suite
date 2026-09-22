@@ -173,6 +173,12 @@ static bool langOpts( const Config &config, const std::string &src,
 		lo.hostRagel.push_back( config.ragelJulia );
 		lo.prohibit = "-G0 -G1 -G2 --string-tables";
 	}
+	else if ( lang == "js" ) {
+		lo.suffix = "js"; lo.interpreted = true;
+		lo.compiler = config.nodeBin;
+		lo.hostRagel.push_back( config.ragelJs );
+		lo.prohibit = "-G0 -G1 -G2";
+	}
 	else {
 		return false;
 	}
@@ -312,6 +318,10 @@ static void runOptions( const RagelCase &rc, const std::string &lang,
 		}
 		else if ( lang == "julia" ) {
 			argv.push_back( config.juliaBin );
+			argv.push_back( code );
+		}
+		else if ( lang == "js" ) {
+			argv.push_back( config.nodeBin );
 			argv.push_back( code );
 		}
 		else {

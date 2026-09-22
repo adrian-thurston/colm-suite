@@ -48,7 +48,7 @@ EXTRA_DIST = \
 	import2.h import2.rl include1.rl include2.rl include3.rl \
 	include3/smtp_address.rl include3/smtp_addr_parser.rl \
 	include3/smtp_ip.rl include3/smtp_whitespace.rl \
-	java1.rl java2.rl julia1.rl keller1.rl lmgoto.rl lmnfa1.rl mailbox1.h \
+	java1.rl java2.rl js1.rl julia1.rl keller1.rl lmgoto.rl lmnfa1.rl mailbox1.h \
 	mailbox1.rl mailbox2.rl mailbox3.rl minimize1.rl ncall1.rl next1.rl \
 	next2.rl nfa1.rl nfa2.rl nfa3.rl noignore.rl patact.rl rangei.rl \
 	range.rl recdescent1.rl recdescent2.rl recdescent4.rl recdescent5.rl \

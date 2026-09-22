@@ -240,6 +240,7 @@ AC_ARG_WITH(subject,
 		SUBJ_RAGEL_ZIG_BIN="$withval/bin/ragel-zig"
 		SUBJ_RAGEL_CRACK_BIN="$withval/bin/ragel-crack"
 		SUBJ_RAGEL_JULIA_BIN="$withval/bin/ragel-julia"
+		SUBJ_RAGEL_JS_BIN="$withval/bin/ragel-js"
 	],
 	[
 		SUBJ_AAPL_CPPFLAGS='-I$(abs_top_srcdir)/src/aapl'
@@ -267,6 +268,7 @@ AC_ARG_WITH(subject,
 		SUBJ_RAGEL_ZIG_BIN='$(abs_top_builddir)/src/ragel/host-zig/ragel-zig'
 		SUBJ_RAGEL_CRACK_BIN='$(abs_top_builddir)/src/ragel/host-crack/ragel-crack'
 		SUBJ_RAGEL_JULIA_BIN='$(abs_top_builddir)/src/ragel/host-julia/ragel-julia'
+		SUBJ_RAGEL_JS_BIN='$(abs_top_builddir)/src/ragel/host-js/ragel-js'
 	]
 )
 
@@ -290,6 +292,7 @@ SED_SUBST="$SED_SUBST -e 's|@SUBJ_RAGEL_RUST_BIN@|${SUBJ_RAGEL_RUST_BIN}|g'"
 SED_SUBST="$SED_SUBST -e 's|@SUBJ_RAGEL_ZIG_BIN@|${SUBJ_RAGEL_ZIG_BIN}|g'"
 SED_SUBST="$SED_SUBST -e 's|@SUBJ_RAGEL_CRACK_BIN@|${SUBJ_RAGEL_CRACK_BIN}|g'"
 SED_SUBST="$SED_SUBST -e 's|@SUBJ_RAGEL_JULIA_BIN@|${SUBJ_RAGEL_JULIA_BIN}|g'"
+SED_SUBST="$SED_SUBST -e 's|@SUBJ_RAGEL_JS_BIN@|${SUBJ_RAGEL_JS_BIN}|g'"
 
 AC_SUBST(SUBJ_AAPL_CPPFLAGS)
 
@@ -348,6 +351,24 @@ AC_PATH_PROG([OCAML_BIN], [ocaml])
 AC_PATH_PROG([RUST_BIN], [rustc])
 AC_PATH_PROG([JULIA_BIN], [julia])
 AC_PATH_PROG([ZIG_BIN], [zig])
+AC_PATH_PROG([NODE_BIN], [node])
+
+dnl
+dnl The JavaScript cases run under node. Make sure the one found can run a
+dnl program, as with julia below.
+dnl
+
+if test "x$NODE_BIN" != x; then
+	echo 'console.log( "can run node programs" );' > conftest.js
+	AC_MSG_CHECKING([checking if node is able to run programs ... ])
+	if sh -c "$NODE_BIN conftest.js" >>config.log 2>&1; then
+		AC_MSG_RESULT([yes])
+	else
+		AC_MSG_RESULT([no])
+		NODE_BIN=""
+	fi
+	rm -f conftest.js
+fi
 
 dnl
 dnl Julia requires a large virtual address space. On systems where this is
@@ -431,6 +452,7 @@ SED_SUBST="$SED_SUBST -e 's|@OCAML_BIN@|${OCAML_BIN}|g'"
 SED_SUBST="$SED_SUBST -e 's|@RUST_BIN@|${RUST_BIN}|g'"
 SED_SUBST="$SED_SUBST -e 's|@JULIA_BIN@|${JULIA_BIN}|g'"
 SED_SUBST="$SED_SUBST -e 's|@ZIG_BIN@|${ZIG_BIN}|g'"
+SED_SUBST="$SED_SUBST -e 's|@NODE_BIN@|${NODE_BIN}|g'"
 SED_SUBST="$SED_SUBST -e 's|@GNUSTEP_CONFIG@|${GNUSTEP_CONFIG}|g'"
 SED_SUBST="$SED_SUBST -e 's|@ASM_BIN@|${ASM_BIN}|g'"
 

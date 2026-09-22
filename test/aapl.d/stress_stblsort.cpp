@@ -31,11 +31,11 @@
 #include "insertsort.h"
 #include "bubblesort.h"
 #include "compare.h"
+#include "util.h"
 
 using namespace std;
 
 #define TEST_SIZE 2000
-void processArgs( int argc, char** argv );
 
 struct TwoDouble
 {
@@ -58,8 +58,6 @@ struct TdCmp2
 int main( int argc, char **argv )
 {
 	processArgs( argc, argv );
-	srandom( time(0) );
-	srand48( time(0) );
 
 	static TwoDouble data1[TEST_SIZE];
 	static TwoDouble data2[TEST_SIZE];
@@ -68,7 +66,7 @@ int main( int argc, char **argv )
 	cout << "round        0";
 	cout.flush();
 
-	while ( true ) {
+	while ( !stopRequested ) {
 		/* Choose the first double. It has a more restricted range than
 		 * the second double so that we get lots of structs with the same
 		 * first key. This help in testing the stable-sort. */
@@ -130,4 +128,7 @@ int main( int argc, char **argv )
 		cout << "\b\b\b\b\b\b\b\b" << setw(8) << round++;
 		cout.flush();
 	}
+
+	cout << endl;
+	return 0;
 }

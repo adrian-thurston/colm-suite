@@ -102,7 +102,6 @@ void newIndex()
 int main( int argc, char **argv )
 {
 	processArgs( argc, argv );
-	srandom( time(0) );
 
 	/* Make the tree and element. */
 	AvlTreeVer< TreeEl, int > tree;
@@ -114,7 +113,7 @@ int main( int argc, char **argv )
 	expandTab( buf, "round\tinc\tins\trem\tindex\tels\theight" );
 	cout << buf << endl;
 
-	for ( curRound = 0; true; curRound++ ) {
+	for ( curRound = 0; !stopRequested; curRound++ ) {
 		/* Do we change our action? */
 		if ( curRound % ACTION_CHANGE_PERIOD == 0 ) {
 			increment = random() % 2;
@@ -177,6 +176,14 @@ int main( int argc, char **argv )
 			copy.verifyIntegrity();
 			copy.empty();
 		}
-	}	
+	}
+
+	/* Stopped: verify the final state. */
+	cout << endl;
+	tree.verifyIntegrity();
+	for ( int element = 0; element < (INITIAL_ENTRIES/2); element++ ) {
+		TreeEl *res = tree.find( allElements[element].key );
+		assert( allElements[element].inTree == (res != 0) );
+	}
 	return 0;
 }

@@ -31,17 +31,14 @@
 #include "insertsort.h"
 #include "bubblesort.h"
 #include "compare.h"
+#include "util.h"
 
 using namespace std;
-
-void processArgs( int argc, char** argv );
 
 #define TEST_SIZE 2000
 int main( int argc, char **argv )
 {
 	processArgs( argc, argv );
-	srandom( time(0) );
-	srand48( time(0) );
 
 	static int data1[TEST_SIZE];
 	static int data2[TEST_SIZE];
@@ -52,7 +49,7 @@ int main( int argc, char **argv )
 	cout << "round        0";
 	cout.flush();
 
-	while ( true ) {
+	while ( !stopRequested ) {
 		switch ( random() % 3 ) {
 		case 0:
 			for ( int i = 0; i < TEST_SIZE; i++ ) 
@@ -85,5 +82,7 @@ int main( int argc, char **argv )
 		cout << "\b\b\b\b\b\b\b\b" << setw(8) << round++;
 		cout.flush();
 	}
-}
 
+	cout << endl;
+	return 0;
+}

@@ -42,6 +42,8 @@ static void usage()
 "                    (c cg cv c++ obj-c asm d java ruby csharp go ocaml rust zig crack julia)\n"
 "  --genflags F,...  ragel.d: only these generation flags (default: -T0 -T1 -F0 -F1\n"
 "                    -W0 -W1 -G0 -G1 -G2 -n -m -e --string-tables)\n"
+"  --stress SECS     aapl.d: run each stress program for SECS seconds (default: 5;\n"
+"                    0 skips them)\n"
 "  --list            list the selected cases without running them\n"
 "  --commands        print the steps of the selected cases without running them\n"
 "  --keep            keep the generated files of passing cases\n"
@@ -234,8 +236,8 @@ int main( int argc, char **argv )
 		std::string arg = argv[i];
 		std::string value;
 		bool needValue = arg == "-j" || arg == "--suite" || arg == "--filter" ||
-				arg == "--lang" || arg == "--genflags" || arg == "--tap" ||
-				arg == "--srcdir" || arg == "--builddir";
+				arg == "--lang" || arg == "--genflags" || arg == "--stress" ||
+				arg == "--tap" || arg == "--srcdir" || arg == "--builddir";
 		if ( needValue ) {
 			if ( i + 1 >= argc ) {
 				fprintf( stderr, "harness: %s needs a value\n", arg.c_str() );
@@ -271,6 +273,8 @@ int main( int argc, char **argv )
 		}
 		else if ( arg == "--genflags" )
 			splitList( value, config.genflags );
+		else if ( arg == "--stress" )
+			config.stressSecs = atoi( value.c_str() );
 		else if ( arg == "--tap" )
 			config.tapFile = value;
 		else if ( arg == "--srcdir" )

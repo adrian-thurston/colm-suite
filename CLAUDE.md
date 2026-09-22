@@ -104,6 +104,7 @@ make check
 ./test/harness/harness colm.d/argv1.lm ragel.d/atoi1.rl
 cd test/ragel.d && ../harness/harness atoi1.rl     # from inside a suite
 ./test/harness/harness --lang java --genflags -T0  # ragel.d matrix selection
+./test/harness/harness --suite aapl.d --stress 60  # aapl.d stress programs, 60s each
 ./test/harness/harness -v --tap results.tap        # every result, TAP output
 ```
 

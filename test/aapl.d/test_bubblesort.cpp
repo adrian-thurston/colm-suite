@@ -94,7 +94,7 @@ int main()
 {
 	srandom( time(0) );
 	srand48( time(0) );
-	testBubbleSort1();
+	testBubbleSort3();
 	return 0;
 }
 

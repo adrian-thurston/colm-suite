@@ -27,7 +27,6 @@
 
 struct LangOpts
 {
-	std::string langOpt;
 	std::string suffix;
 	bool interpreted;
 	std::string compiler;
@@ -63,34 +62,34 @@ static bool langOpts( const Config &config, const std::string &src,
 	lo.libs.clear();
 
 	if ( lang == "c" ) {
-		lo.langOpt = "-C"; lo.suffix = "c"; lo.compiler = config.cc;
+		lo.suffix = "c"; lo.compiler = config.cc;
 		lo.hostRagel.push_back( config.ragelBin );
 		lo.flags = splitWords( cflags );
 		lo.prohibit = "";
 	}
 	else if ( lang == "cg" ) {
 		/* ragel-c, goto based. */
-		lo.langOpt = "-C"; lo.suffix = "c"; lo.compiler = config.cc;
+		lo.suffix = "c"; lo.compiler = config.cc;
 		lo.hostRagel.push_back( config.ragelC );
 		lo.flags = splitWords( cflags );
 		lo.prohibit = "--string-tables";
 	}
 	else if ( lang == "cv" ) {
 		/* ragel-c, var based. */
-		lo.langOpt = "-C"; lo.suffix = "c"; lo.compiler = config.cc;
+		lo.suffix = "c"; lo.compiler = config.cc;
 		lo.hostRagel.push_back( config.ragelC );
 		lo.hostRagel.push_back( "--var-backend" );
 		lo.flags = splitWords( cflags );
 		lo.prohibit = "-G0 -G1 -G2 --string-tables";
 	}
 	else if ( lang == "c++" ) {
-		lo.langOpt = "-C"; lo.suffix = "cpp"; lo.compiler = config.cxx;
+		lo.suffix = "cpp"; lo.compiler = config.cxx;
 		lo.hostRagel.push_back( config.ragelBin );
 		lo.flags = splitWords( cflags );
 		lo.prohibit = "";
 	}
 	else if ( lang == "obj-c" ) {
-		lo.langOpt = "-C"; lo.suffix = "m";
+		lo.suffix = "m";
 		lo.compiler = config.gnustepConfig.empty() ? "" : config.cc;
 		lo.hostRagel.push_back( config.ragelBin );
 		if ( !config.gnustepConfig.empty() ) {
@@ -110,66 +109,66 @@ static bool langOpts( const Config &config, const std::string &src,
 		lo.prohibit = "";
 	}
 	else if ( lang == "d" ) {
-		lo.langOpt = "-D"; lo.suffix = "d"; lo.compiler = config.dBin;
+		lo.suffix = "d"; lo.compiler = config.dBin;
 		lo.hostRagel.push_back( config.ragelD );
 		lo.flags = splitWords( "-Wall -O3" );
 		lo.prohibit = "--string-tables";
 	}
 	else if ( lang == "java" ) {
-		lo.langOpt = "-J"; lo.suffix = "java"; lo.compiler = config.javacBin;
+		lo.suffix = "java"; lo.compiler = config.javacBin;
 		lo.hostRagel.push_back( config.ragelJava );
 		lo.prohibit = "-G0 -G1 -G2 --string-tables";
 	}
 	else if ( lang == "ruby" ) {
-		lo.langOpt = "-R"; lo.suffix = "rb"; lo.interpreted = true;
+		lo.suffix = "rb"; lo.interpreted = true;
 		lo.compiler = config.rubyBin;
 		lo.hostRagel.push_back( config.ragelRuby );
 		lo.prohibit = "-G0 -G1 -G2 --string-tables";
 	}
 	else if ( lang == "csharp" ) {
-		lo.langOpt = "-A"; lo.suffix = "cs"; lo.compiler = config.csharpBin;
+		lo.suffix = "cs"; lo.compiler = config.csharpBin;
 		lo.hostRagel.push_back( config.ragelCsharp );
 		lo.prohibit = "-G2 --string-tables";
 	}
 	else if ( lang == "go" ) {
-		lo.langOpt = "-Z"; lo.suffix = "go"; lo.compiler = config.goBin;
+		lo.suffix = "go"; lo.compiler = config.goBin;
 		lo.hostRagel.push_back( config.ragelGo );
 		lo.flags.push_back( "build" );
 		lo.prohibit = "--string-tables";
 	}
 	else if ( lang == "ocaml" ) {
-		lo.langOpt = "-O"; lo.suffix = "ml"; lo.interpreted = true;
+		lo.suffix = "ml"; lo.interpreted = true;
 		lo.compiler = config.ocamlBin;
 		lo.hostRagel.push_back( config.ragelOcaml );
 		lo.prohibit = "-G0 -G1 -G2 --string-tables";
 	}
 	else if ( lang == "asm" ) {
-		lo.langOpt = "--asm"; lo.suffix = "s"; lo.compiler = config.asmBin;
+		lo.suffix = "s"; lo.compiler = config.asmBin;
 		lo.hostRagel.push_back( config.ragelAsm );
 		lo.flags.push_back( "-no-pie" );
 		lo.prohibit = "-T0 -T1 -F0 -F1 -W0 -W1 -G0 -G1 --string-tables";
 	}
 	else if ( lang == "rust" ) {
-		lo.langOpt = "-U"; lo.suffix = "rs"; lo.compiler = config.rustBin;
+		lo.suffix = "rs"; lo.compiler = config.rustBin;
 		lo.hostRagel.push_back( config.ragelRust );
 		lo.flags = splitWords( "-A non_upper_case_globals -A dead_code "
 				"-A unused_variables -A unused_assignments -A unused_mut -A unused_parens" );
 		lo.prohibit = "-G0 -G1 -G2 --string-tables";
 	}
 	else if ( lang == "zig" ) {
-		lo.langOpt = "-B"; lo.suffix = "zig"; lo.compiler = config.zigBin;
+		lo.suffix = "zig"; lo.compiler = config.zigBin;
 		lo.hostRagel.push_back( config.ragelZig );
 		lo.flags.push_back( "build-exe" );
 		lo.prohibit = "--string-tables";
 	}
 	else if ( lang == "crack" ) {
-		lo.langOpt = "-K"; lo.suffix = "crk"; lo.interpreted = true;
+		lo.suffix = "crk"; lo.interpreted = true;
 		lo.compiler = config.crackBin;
 		lo.hostRagel.push_back( config.ragelCrack );
 		lo.prohibit = "-G0 -G1 -G2 --string-tables";
 	}
 	else if ( lang == "julia" ) {
-		lo.langOpt = "-Y"; lo.suffix = "jl"; lo.interpreted = true;
+		lo.suffix = "jl"; lo.interpreted = true;
 		lo.compiler = config.juliaBin;
 		lo.hostRagel.push_back( config.ragelJulia );
 		lo.prohibit = "-G0 -G1 -G2 --string-tables";

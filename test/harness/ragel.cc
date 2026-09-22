@@ -38,7 +38,7 @@ struct LangOpts
 
 static const char *indepLangs[] = {
 	"c", "cg", "cv", "asm", "d", "csharp", "go", "java", "ruby",
-	"ocaml", "rust", "crack", "julia", "zig"
+	"ocaml", "rust", "crack", "julia", "zig", "js"
 };
 static const int numIndepLangs = sizeof(indepLangs) / sizeof(indepLangs[0]);
 

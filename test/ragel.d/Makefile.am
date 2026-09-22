@@ -28,6 +28,7 @@ EXTRA_DIST = \
 	trans-asm.lm     trans-d.lm      trans-ocaml.lm \
 	trans-c.lm       trans-go.lm     trans-ruby.lm \
 	trans-crack.lm   trans-java.lm   trans-rust.lm trans-zig.lm \
+	trans-js.lm \
 	trans-csharp.lm  trans-julia.lm \
 	any1.rl args1.rl args2.rl argsinc.rl atoi1.rl atoi2.rl atoi3.rl \
 	atoi4.rl atoi5.rl awkemu.rl buffer.h builtin.rl call1.rl call2.rl \
@@ -70,7 +71,7 @@ TRANS_DEPS = \
 	trans-d.lm trans-go.lm \
 	trans-java.lm trans-julia.lm \
 	trans-ocaml.lm trans-ruby.lm \
-	trans-rust.lm trans-zig.lm
+	trans-rust.lm trans-zig.lm trans-js.lm
 
 trans_CPPFLAGS = $(LIBCOLM_CPPFLAGS)
 trans_SOURCES = trans.c main.c

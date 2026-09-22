@@ -351,7 +351,7 @@ AC_PATH_PROG([OCAML_BIN], [ocaml])
 AC_PATH_PROG([RUST_BIN], [rustc])
 AC_PATH_PROG([JULIA_BIN], [julia])
 AC_PATH_PROG([ZIG_BIN], [zig])
-AC_PATH_PROG([NODE_BIN], [node])
+AC_PATH_PROGS([NODE_BIN], [node nodejs])
 
 dnl
 dnl The JavaScript cases run under node. Make sure the one found can run a

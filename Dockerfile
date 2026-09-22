@@ -31,13 +31,13 @@
 #                  does not build against anything newer
 #
 # Host languages covered, as the test suite exercises them: C, C++, Objective-C
-# (gnustep), D, Java, Ruby, C#, Go, OCaml, Rust, Julia and Zig everywhere, plus
-# crack on x86-64, where it is built from source because no distribution
-# packages it. An arm64 image gets neither crack, whose LLVM is configured for
-# the x86 target here, nor asm, which needs no toolchain beyond $CC but is
-# x86-64 only. Configure and the test suite skip both silently when they are
-# absent. The documentation toolchain and gpg are installed too, so release
-# work can happen in the container: building the manuals, signing and
+# (gnustep), D, Java, Ruby, C#, Go, OCaml, Rust, Julia, Zig and JavaScript
+# everywhere, plus crack on x86-64, where it is built from source because no
+# distribution packages it. An arm64 image gets neither crack, whose LLVM is
+# configured for the x86 target here, nor asm, which needs no toolchain beyond
+# $CC but is x86-64 only. Configure and the test suite skip both silently when
+# they are absent. The documentation toolchain and gpg are installed too, so
+# release work can happen in the container: building the manuals, signing and
 # verifying tarballs (a key must be mounted in; the image carries none).
 
 ARG UBUNTU_TAG=26.04
@@ -73,6 +73,7 @@ RUN set -eux; \
 #   golang-go       go
 #   default-jdk     java: javac to compile, the java launcher to run
 #   ruby            ruby
+#   nodejs          javascript: node, which runs the js cases
 #   ocaml           the ocaml toplevel; the tests are interpreted, not compiled
 #   rustc           rust
 #   gdc             d. The archive ships gdc-11 through gdc-16 plus this
@@ -87,7 +88,7 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         gobjc gnustep-make libgnustep-base-dev \
-        golang-go default-jdk ruby ocaml rustc gdc mono-devel; \
+        golang-go default-jdk ruby nodejs ocaml rustc gdc mono-devel; \
     rm -rf /var/lib/apt/lists/*
 
 # Documentation toolchain and release tooling.

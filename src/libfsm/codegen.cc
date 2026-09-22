@@ -776,8 +776,17 @@ void CodeGen::INLINE_LIST( ostream &ret, GenInlineList *inlineList,
 		case GenInlineItem::Text:
 			if ( backend == Direct )
 				ret << item->data;
-			else
-				translatedHostData( ret, item->data );
+			else {
+				/* The action block arrives one token per item. Escaping
+				 * looks at character pairs, so join the run of text before
+				 * handing it over: an opener such as ${ is two items. */
+				std::string text = item->data;
+				while ( item->next != 0 && item->next->type == GenInlineItem::Text ) {
+					item++;
+					text += item->data;
+				}
+				translatedHostData( ret, text );
+			}
 			break;
 		case GenInlineItem::Goto:
 			GOTO( ret, item->targState->id, inFinish );

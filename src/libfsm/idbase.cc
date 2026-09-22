@@ -332,16 +332,12 @@ void translatedHostData( ostream &out, const std::string &data )
 			out << "@@";
 			c += 1;
 		}
-		// Have some escaping issues that these fix, but they lead to other problems.
-		// Can be reproduced by passing "={}" through ragel and adding --colm-backend
-		// else if ( c[0] == '=' ) {
-		//	out << "@=";
-		//	c += 1;
-		//}
-		// else if ( c[0] == '$' ) {
-		//	out << "@$";
-		//	c += 1;
-		//}
+		else if ( ( c[0] == '=' || c[0] == '$' ) && c[1] == '{' ) {
+			/* The embedded code openers. Only the pair is ambiguous: the
+			 * host text may contain either character elsewhere as it is. */
+			out << '@' << c[0];
+			c += 1;
+		}
 		else {
 			out << c[0];
 			c += 1;

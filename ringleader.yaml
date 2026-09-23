@@ -1,9 +1,8 @@
 # Ringleader configuration for a colm-suite development box.
 #
 # This is the Ringleader counterpart of the Dockerfile beside it: the same Ubuntu 26.04
-# toolchain, plus crack, which the image leaves out. Ringleader
-# (https://docs.ringleader.dev/) runs it as a virtual machine and keeps that machine
-# converged to what this file declares.
+# toolchain, crack included. Ringleader (https://docs.ringleader.dev/) runs it as a
+# virtual machine and keeps that machine converged to what this file declares.
 #
 # Apply the configuration once, then create a box that carries its label:
 #

@@ -1,0 +1,312 @@
+# Ringleader configuration for a colm-suite development box.
+#
+# This is the Ringleader counterpart of the Dockerfile beside it: the same Ubuntu 26.04
+# toolchain, plus crack, which the image leaves out. Ringleader
+# (https://docs.ringleader.dev/) runs it as a virtual machine and keeps that machine
+# converged to what this file declares.
+#
+# Apply the configuration once, then create a box that carries its label:
+#
+#   rl apply -f ringleader.yaml
+#   rl workstation create colm --labels project=colm-suite
+#   rl shell colm
+#
+# Make one box per architecture if you work on the code generators. The ragel test
+# suite runs its asm host language only on x86-64, and crack as built here likewise, so
+# only an x86-64 box covers every host language. The two architectures also exercise
+# different code paths in colm.
+#
+# Nothing here is personal. The login user is dev, Ringleader's default, and the file
+# declares no priority, so it resolves at the default of 50. A configuration of your own
+# at a higher priority can set your login user, add your editor and tools, and forward
+# your GitHub key, without editing this one.
+#
+# Everything sits in the `local` namespace, the one namespace every Ringleader
+# installation has. It never leaves the machine it is applied on.
+---
+apiVersion: workstations.ringleader.dev/v1
+kind: WorkstationConfig
+metadata:
+  name: colm-suite
+  namespace: local
+spec:
+  selector:
+    matchLabels:
+      project: colm-suite
+
+  # Ubuntu 26.04, the Dockerfile's UBUNTU_TAG default.
+  image:
+    os: linux
+    distribution: ubuntu
+    version: "26.04"
+
+  # dev is the account Ringleader assumes when a configuration names none. Naming it
+  # here matters: with no login user declared, no account is created, and the checkout
+  # below would be cloned by root instead.
+  identity:
+    user: dev
+    shell: /bin/bash
+    sudo: true
+
+  # The Dockerfile's `ENV LANG=C.UTF-8`. Some ragel contributions are in other
+  # charsets and must display correctly. C.UTF-8 is built into glibc, so no
+  # `locales` package is needed; LC_ALL is deliberately left unset so individual
+  # categories can still be overridden.
+  environment:
+    LANG: C.UTF-8
+
+  # Ringleader installs `packages` with --no-install-recommends, which is what
+  # the Dockerfile's first two RUN groups ask for. The documentation toolchain
+  # WANTS its recommends and is installed by a script below instead.
+  packages:
+    # Build the tree either way: autotools (./autogen.sh && ./configure && make)
+    # or cmake (cmake -S . -B build). colm builds first and then generates
+    # ragel's parsers, which are written in colm. There is no bootstrap ragel
+    # and no kelbt to install.
+    - build-essential
+    - autoconf
+    - automake
+    - libtool
+    - cmake
+    - git
+    - ca-certificates
+    - curl
+    - xz-utils
+
+    # Test-suite host languages available from the ubuntu archive.
+    #
+    #   gobjc, gnustep-make, libgnustep-base-dev
+    #       objective-c: the cc1obj front end, gnustep-config (which configure
+    #       probes for) and the gnustep-base headers and library the tests link.
+    #   golang-go       go
+    #   default-jdk     java: javac to compile, the java launcher to run
+    #   ruby            ruby
+    #   ocaml           the ocaml toplevel; the tests are interpreted
+    #   rustc           rust
+    #   gdc             d. The archive ships gdc-11..gdc-16 plus this unversioned
+    #                   front, which is what configure's fallback probe picks up.
+    #   mono-devel      c#: mcs to compile; pulls in mono-runtime to run. Ubuntu
+    #                   26.04 repackaged mono (6.14) under these names; the old
+    #                   mono-mcs is gone. Do NOT add the mono-project.com repo:
+    #                   it is frozen at 6.12 and conflicts with the archive's.
+    #
+    # Not covered: asm, which needs no toolchain beyond $CC but is x86-64 only, so
+    # it never runs on an arm64 box. Crack is covered, but not from a package: there
+    # is none, so a script below builds it, on x86-64 boxes only.
+    - gobjc
+    - gnustep-make
+    - libgnustep-base-dev
+    - golang-go
+    - default-jdk
+    - ruby
+    - ocaml
+    - rustc
+    - gdc
+    - mono-devel
+
+    # What the crack build below needs: patch applies crack's python3 fixups to the
+    # LLVM 3.3 source, configure probes for pcre2 through pkg-config, and libtirpc
+    # carries the XDR functions crack's runtime links. Declared for every box,
+    # although only an x86-64 box runs that build, because they are small and the
+    # list is meant to read as what the toolchain needs.
+    - patch
+    - pkg-config
+    - libpcre2-dev
+    - libtirpc-dev
+
+
+  scripts:
+    # Documentation toolchain and release tooling. This is a script rather than a
+    # `packages` entry for one reason: recommends must stay ON. dblatex and
+    # asciidoc lean on recommended tex and font packages that are painful to
+    # enumerate by hand, and Ringleader's package phase installs with
+    # --no-install-recommends.
+    #
+    #   asciidoc          asciidoc and a2x, plus the icons the colm manual pulls
+    #                     from /usr/share/asciidoc/icons; configure requires it
+    #                     for --enable-manual
+    #   python3-pygments  pygmentize, the manual's source highlighter; also
+    #                     required by configure for --enable-manual
+    #   fig2dev           the .fig diagrams in the ragel guide
+    #   dblatex           the a2x pdf backend, for ragel-guide.pdf; by far the
+    #                     largest piece, it pulls in tex live
+    #   gnupg             gpg, for signing and verifying release tarballs (a key
+    #                     must be forwarded or mounted in; the box carries none)
+    - name: doc-toolchain
+      phase: system
+      timeoutSeconds: 3600
+      content: |
+        set -eux
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update
+        apt-get install -y asciidoc dblatex fig2dev python3-pygments gnupg
+
+    # Zig, from the upstream binary tarballs. Not needed to build the tree; it is
+    # here as a host language toolchain (and as a drop-in C/C++ cross compiler via
+    # "zig cc"). Shasums are those published in ziglang.org/download/index.json
+    # for ZIG_VERSION, so bumping the version means bumping these too. Editing
+    # this script's body re-runs it, which is how a version bump lands.
+    - name: zig
+      phase: system
+      timeoutSeconds: 1800
+      env:
+        ZIG_VERSION: "0.16.0"
+        ZIG_SHA256_X86_64: "70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00"
+        ZIG_SHA256_AARCH64: "ea4b09bfb22ec6f6c6ceac57ab63efb6b46e17ab08d21f69f3a48b38e1534f17"
+      content: |
+        set -eux
+        arch="$(uname -m)"
+        case "$arch" in
+            x86_64)  sha="$ZIG_SHA256_X86_64" ;;
+            aarch64) sha="$ZIG_SHA256_AARCH64" ;;
+            *) echo "no zig binary release for $arch" >&2; exit 1 ;;
+        esac
+        tarball="zig-$arch-linux-$ZIG_VERSION.tar.xz"
+        curl -fsSL -o "/tmp/$tarball" \
+            "https://ziglang.org/download/$ZIG_VERSION/$tarball"
+        echo "$sha  /tmp/$tarball" | sha256sum -c -
+        rm -rf /opt/zig
+        mkdir -p /opt/zig
+        tar -xJf "/tmp/$tarball" -C /opt/zig --strip-components=1
+        rm -f "/tmp/$tarball"
+        ln -sf /opt/zig/zig /usr/local/bin/zig
+        zig version
+
+    # Julia, from the upstream generic linux tarballs; ubuntu dropped its julia
+    # package in 26.04. Shasums are those published in
+    # julialang-s3.julialang.org/bin/checksums/julia-JULIA_VERSION.sha256, so
+    # bumping the version means bumping these too.
+    - name: julia
+      phase: system
+      timeoutSeconds: 1800
+      env:
+        JULIA_VERSION: "1.12.7"
+        JULIA_SHA256_X86_64: "4e7e9e776634d24835250de67cde39b0d4af15bc432eb20697e6be6c28ea69e8"
+        JULIA_SHA256_AARCH64: "9243c0b524c7f300883240a1ee5ea3916a30e070bff718acf8ccaee31a731ef2"
+      content: |
+        set -eux
+        arch="$(uname -m)"
+        case "$arch" in
+            x86_64)  sha="$JULIA_SHA256_X86_64";  dir=x64 ;;
+            aarch64) sha="$JULIA_SHA256_AARCH64"; dir=aarch64 ;;
+            *) echo "no julia binary release for $arch" >&2; exit 1 ;;
+        esac
+        tarball="julia-$JULIA_VERSION-linux-$arch.tar.gz"
+        series="$(echo "$JULIA_VERSION" | sed 's/\.[0-9]*$//')"
+        curl -fsSL -o "/tmp/$tarball" \
+            "https://julialang-s3.julialang.org/bin/linux/$dir/$series/$tarball"
+        echo "$sha  /tmp/$tarball" | sha256sum -c -
+        rm -rf /opt/julia
+        mkdir -p /opt/julia
+        tar -xzf "/tmp/$tarball" -C /opt/julia --strip-components=1
+        rm -f "/tmp/$tarball"
+        ln -sf /opt/julia/bin/julia /usr/local/bin/julia
+        julia --version
+
+    # Crack, the ragel test suite's -K host language, on x86-64 boxes only.
+    #
+    # Crack 1.7 (July 2026) ended a long release gap but did not move off LLVM 3.3
+    # from 2013: the executor asks llvm-config for the `jit` component, which LLVM
+    # removed after 3.5. So this builds that LLVM first, into /opt/llvm-3.3, where it
+    # stays clear of the system one. It is a build dependency only, because crack
+    # links the LLVM libraries statically. Both builds together took 5m14s on a
+    # 6-vCPU x86-64 box: LLVM 3.3 restricted to the X86 target, with no clang and no
+    # bindings, is a small build by modern standards.
+    #
+    # Two fixes carry 2013 sources onto a 2026 toolchain. crack publishes
+    # update_llvm_python.patch for LLVM's python2 build scripts, in its git repository
+    # rather than in the release tarball, which is why it is fetched on its own. The
+    # other is the bool typedef in X86DisassemblerDecoder.c, because gcc 15 defaults
+    # to C23, where bool is a keyword.
+    #
+    # Crack installs at /usr/local rather than under /opt like zig and julia above:
+    # its native builder passes -lCrackNativeRuntime with no -L, so the library has to
+    # sit on the linker's default search path.
+    #
+    # The shasums are of the artifacts fetched on 2026-09-22. Neither project
+    # publishes a checksum manifest, so these pin what was downloaded rather than an
+    # upstream claim, and a version bump means replacing both. Bumping a version here
+    # re-runs the script, because the ledger hashes a script's env along with its body.
+    #
+    # fatal: false because upstream calls 1.7 "very well the last version of Crack"
+    # they will release. A break in a dependency this old should cost the box its
+    # crack tests, which configure and the suite already skip when crack is absent,
+    # rather than its whole converge.
+    - name: crack
+      phase: system
+      fatal: false
+      timeoutSeconds: 3600
+      env:
+        CRACK_VERSION: "1.7"
+        CRACK_SHA256: "15c2d64c99564c1d05ebd6a9885e51b4552a449aa9eddc473510a917227509ed"
+        LLVM_VERSION: "3.3"
+        LLVM_SHA256: "68766b1e70d05a25e2f502e997a3cb3937187a3296595cf6e0977d5cd6727578"
+      content: |
+        set -eux
+
+        # LLVM is configured for the x86 target, so an arm64 box gets no crack, the
+        # same way it gets no asm.
+        if [ "$(uname -m)" != x86_64 ]; then
+            echo "crack: skipped on $(uname -m); the LLVM 3.3 build here targets x86-64"
+            exit 0
+        fi
+
+        installed=$(crack --help 2>/dev/null | head -1 || true)
+        if [ "$installed" = "crack $CRACK_VERSION" ]; then
+            echo "crack $CRACK_VERSION already installed"
+            exit 0
+        fi
+
+        work=$(mktemp -d /var/tmp/crack-build-XXXXXX)
+        trap 'rm -rf "$work"' EXIT
+        cd "$work"
+
+        curl -fsSL -o llvm.tar.gz \
+            "https://releases.llvm.org/$LLVM_VERSION/llvm-$LLVM_VERSION.src.tar.gz"
+        echo "$LLVM_SHA256  llvm.tar.gz" | sha256sum -c -
+        curl -fsSL -o crack.tar.gz \
+            "https://crack-lang.org/downloads/crack-$CRACK_VERSION.tar.gz"
+        echo "$CRACK_SHA256  crack.tar.gz" | sha256sum -c -
+        tag=https://raw.githubusercontent.com/crack-lang/crack/rel-$CRACK_VERSION
+        curl -fsSL -o llvm-python.patch "$tag/update_llvm_python.patch"
+
+        tar -xzf llvm.tar.gz
+        tar -xzf crack.tar.gz
+        patch -p0 < llvm-python.patch
+        guard='#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L'
+        sed -i "s@^typedef int8_t bool;\$@$guard\ntypedef int8_t bool;\n#endif@" \
+            "llvm-$LLVM_VERSION.src/lib/Target/X86/Disassembler/X86DisassemblerDecoder.c"
+
+        mkdir llvm-build
+        cd llvm-build
+        "../llvm-$LLVM_VERSION.src/configure" --prefix="/opt/llvm-$LLVM_VERSION" \
+            --enable-optimized --disable-assertions --enable-targets=x86
+        make REQUIRES_RTTI=1 BINDINGS_TO_BUILD= -j"$(nproc)"
+        # OCAMLDOC=: the docs install regenerates the ocaml binding documentation
+        # whenever configure found ocamldoc, which the ocaml package above provides,
+        # and the bindings themselves were never built.
+        make install OCAMLDOC= BINDINGS_TO_BUILD=
+        cd ..
+
+        cd "crack-$CRACK_VERSION"
+        PATH="/opt/llvm-$LLVM_VERSION/bin:$PATH" ./configure --prefix=/usr/local
+        make -j"$(nproc)"
+        make install
+        ldconfig
+
+        printf 'import crack.io cout;\ncout `crack ok\\n`;\n' > smoke.crk
+        crack smoke.crk
+
+  # The checkout, over HTTPS so the clone needs no GitHub key. A relative path lands in
+  # the login user's home. To push, point origin at your fork or at the SSH URL.
+  sources:
+    - name: colm-suite
+      path: devel/colm-suite
+      git:
+        url: https://github.com/adrian-thurston/colm-suite.git
+        ref: main
+        fullHistory: true
+
+  # GitHub's host keys go into known_hosts, so a push over SSH does not stop at a prompt.
+  sshKnownHosts:
+    - github.com

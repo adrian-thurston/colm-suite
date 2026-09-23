@@ -25,19 +25,26 @@
 #                  0.16.0); pin with e.g. --build-arg ZIG_VERSION=0.15.1
 #   JULIA_VERSION  julia release to install from julialang.org/downloads
 #                  (default 1.12.7)
+#   CRACK_VERSION  crack release to build from crack-lang.org/download.html
+#                  (default 1.7); built on x86-64 only
+#   LLVM_VERSION   llvm release to build crack against (default 3.3); crack
+#                  does not build against anything newer
 #
 # Host languages covered, as the test suite exercises them: C, C++, Objective-C
-# (gnustep), D, Java, Ruby, C#, Go, OCaml, Rust, Julia and Zig. Not covered:
-# crack, which is unpackaged and whose upstream is dormant (configure and the
-# test suite skip it silently when it is absent), and asm, which needs no
-# toolchain beyond $CC but is x86-64 only, so it never runs on arm64. The
-# documentation toolchain and gpg are installed too, so release work can
-# happen in the container: building the manuals, signing and verifying
-# tarballs (a key must be mounted in; the image carries none).
+# (gnustep), D, Java, Ruby, C#, Go, OCaml, Rust, Julia and Zig everywhere, plus
+# crack on x86-64, where it is built from source because no distribution
+# packages it. An arm64 image gets neither crack, whose LLVM is configured for
+# the x86 target here, nor asm, which needs no toolchain beyond $CC but is
+# x86-64 only. Configure and the test suite skip both silently when they are
+# absent. The documentation toolchain and gpg are installed too, so release
+# work can happen in the container: building the manuals, signing and
+# verifying tarballs (a key must be mounted in; the image carries none).
 
 ARG UBUNTU_TAG=26.04
 ARG ZIG_VERSION=0.16.0
 ARG JULIA_VERSION=1.12.7
+ARG CRACK_VERSION=1.7
+ARG LLVM_VERSION=3.3
 
 # No platform pin: unlike ragel 6.x, mainline builds natively on both amd64
 # and arm64.
@@ -151,3 +158,90 @@ RUN set -eux; \
     rm -f "/tmp/$tarball"; \
     ln -s /opt/julia/bin/julia /usr/local/bin/julia; \
     julia --version
+
+# What the crack build below needs: patch applies crack's python3 fixups to the
+# LLVM source, pkg-config is how crack's configure probes for pcre2, and
+# libtirpc carries the XDR functions its runtime links. Installed on every
+# architecture, although only x86-64 runs the build, because they are small and
+# the list is meant to read as what the toolchain needs.
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        patch pkg-config libpcre2-dev libtirpc-dev; \
+    rm -rf /var/lib/apt/lists/*
+
+# Crack, the ragel test suite's -K host language, on x86-64 only.
+#
+# Crack 1.7 (July 2026) ended a long release gap but did not move off LLVM 3.3
+# from 2013: the executor asks llvm-config for the `jit` component, which LLVM
+# removed after 3.5. So this builds that LLVM first. Restricted to the X86
+# target, with no clang and no bindings, it is a small build by modern
+# standards: both builds together took about five minutes on a 6-vCPU box.
+#
+# Two fixes carry 2013 sources onto a 2026 toolchain. crack publishes
+# update_llvm_python.patch for LLVM's python2 build scripts, in its git
+# repository rather than in the release tarball, which is why it is fetched on
+# its own. The other is the bool typedef in X86DisassemblerDecoder.c, because
+# gcc 15 defaults to C23, where bool is a keyword.
+#
+# Crack installs at /usr/local rather than under /opt like zig and julia above:
+# its native builder passes -lCrackNativeRuntime with no -L, so the library has
+# to sit on the linker's default search path. LLVM is a build dependency only,
+# because crack links its libraries statically: the tree is deleted once crack
+# is built, and the smoke test below runs against an image that no longer has
+# it. The executor and crackc -B llvm-native were both checked that way. The
+# loose end is the libtool .la files crack installs, which still name the LLVM
+# libdir; that matters only to someone relinking crack's own libraries in
+# here. This is the one place the image differs from the ringleader.yaml
+# beside it, which keeps the tree on a box that has room for it.
+#
+# The shasums are of the artifacts fetched on 2026-09-22. Neither project
+# publishes a checksum manifest, so these pin what was downloaded rather than
+# an upstream claim, and bumping either version means replacing its shasum too.
+#
+# Ringleader marks this script non-fatal, on the grounds that a break in a
+# dependency this old should cost a box its crack tests rather than its whole
+# converge. An image has no such halfway state, so a break fails the build. No
+# workflow builds this image, so that costs a developer a local docker build,
+# which beats shipping an image that silently has no crack in it.
+ARG CRACK_VERSION
+ARG LLVM_VERSION
+ARG CRACK_SHA256=15c2d64c99564c1d05ebd6a9885e51b4552a449aa9eddc473510a917227509ed
+ARG LLVM_SHA256=68766b1e70d05a25e2f502e997a3cb3937187a3296595cf6e0977d5cd6727578
+RUN set -eux; \
+    if [ "$(uname -m)" != x86_64 ]; then \
+        echo "crack: skipped on $(uname -m); the LLVM build here targets x86-64"; \
+        exit 0; \
+    fi; \
+    work="$(mktemp -d /tmp/crack-build-XXXXXX)"; \
+    cd "$work"; \
+    curl -fsSL -o llvm.tar.gz \
+        "https://releases.llvm.org/$LLVM_VERSION/llvm-$LLVM_VERSION.src.tar.gz"; \
+    echo "$LLVM_SHA256  llvm.tar.gz" | sha256sum -c -; \
+    curl -fsSL -o crack.tar.gz \
+        "https://crack-lang.org/downloads/crack-$CRACK_VERSION.tar.gz"; \
+    echo "$CRACK_SHA256  crack.tar.gz" | sha256sum -c -; \
+    tag="https://raw.githubusercontent.com/crack-lang/crack/rel-$CRACK_VERSION"; \
+    curl -fsSL -o llvm-python.patch "$tag/update_llvm_python.patch"; \
+    tar -xzf llvm.tar.gz; \
+    tar -xzf crack.tar.gz; \
+    patch -p0 < llvm-python.patch; \
+    guard='#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L'; \
+    sed -i "s@^typedef int8_t bool;\$@$guard\ntypedef int8_t bool;\n#endif@" \
+        "llvm-$LLVM_VERSION.src/lib/Target/X86/Disassembler/X86DisassemblerDecoder.c"; \
+    mkdir llvm-build; \
+    cd llvm-build; \
+    "../llvm-$LLVM_VERSION.src/configure" --prefix="/opt/llvm-$LLVM_VERSION" \
+        --enable-optimized --disable-assertions --enable-targets=x86; \
+    make REQUIRES_RTTI=1 BINDINGS_TO_BUILD= -j"$(nproc)"; \
+    make install OCAMLDOC= BINDINGS_TO_BUILD=; \
+    cd "$work/crack-$CRACK_VERSION"; \
+    PATH="/opt/llvm-$LLVM_VERSION/bin:$PATH" ./configure --prefix=/usr/local; \
+    make -j"$(nproc)"; \
+    make install; \
+    ldconfig; \
+    cd /; \
+    rm -rf "$work" "/opt/llvm-$LLVM_VERSION"; \
+    printf 'import crack.io cout;\ncout `crack ok\\n`;\n' > /tmp/smoke.crk; \
+    crack /tmp/smoke.crk; \
+    rm -f /tmp/smoke.crk

@@ -497,6 +497,14 @@ void InputData::makeTranslateOutputFileName()
 	origOutputFileName = outputFileName;
 	outputFileName = fileNameFromStem( outputFileName, ".ri" );
 	genOutputFileName = outputFileName;
+
+	/* The intermediate name is the output name with the extension replaced by
+	 * .ri, so an output file already ending in .ri names the same file and the
+	 * translation would read what it is writing. */
+	if ( genOutputFileName == origOutputFileName ) {
+		error() << "output file \"" << origOutputFileName <<
+				"\" is the same as the intermediate file" << endp;
+	}
 }
 
 #ifdef WITH_RAGEL_KELBT
@@ -1372,12 +1380,23 @@ int InputData::rlhcMain( int argc, const char **argv )
 		if ( es != 0 )
 			return es;
 
+		/* Stop with the intermediate file in place, as asked. */
+		if ( noIntermediate )
+			return 0;
+
 		/* rlhc <input> <output> */
 		const char *_argv[] = { "rlhc",
 				genOutputFileName.c_str(),
 				origOutputFileName.c_str(), 0 };
 
-		return runJob( "rlhc", &InputData::runRlhc, 3, _argv );
+		es = runJob( "rlhc", &InputData::runRlhc, 3, _argv );
+
+		/* The intermediate file is the thing to look at when the translation
+		 * fails, so it is removed only on success. */
+		if ( es == 0 && !saveTemps )
+			unlink( genOutputFileName.c_str() );
+
+		return es;
 	}
 	catch ( const AbortCompile &ac ) {
 		code = ac.code;

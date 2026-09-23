@@ -33,8 +33,6 @@
 
 using namespace std;
 
-void processArgs( int argc, char** argv );
-
 template class SVector< int, ResizeExpn >;
 template class SVector< int, ResizeLin >;
 template class SVector< int, ResizeConst >;
@@ -149,7 +147,7 @@ int main( int argc, char **argv )
 	srandom(time(0));
 	printHeader();
 
-	for ( curRound = 0; ; curRound++ ) {
+	for ( curRound = 0; !stopRequested; curRound++ ) {
 		/* Choose an action. */
 		int action = random() % 7;
 		/* 0: remove

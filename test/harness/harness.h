@@ -65,8 +65,12 @@ struct Config
 	std::set<std::string> langs;
 	std::vector<std::string> genflags;
 
+	/* aapl.d: how long each stress program runs. Zero skips them. */
+	int stressSecs;
+
 	Config()
-		: jobs(0), verbose(false), keep(false), list(false), commands(false) {}
+		: jobs(0), verbose(false), keep(false), list(false), commands(false),
+		stressSecs(5) {}
 
 	std::string suiteSrc( const char *suite ) const;
 	std::string suiteBuild( const char *suite ) const;

@@ -25,24 +25,52 @@
 #include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <time.h>
+
+#include "util.h"
+
 #define TAB_WIDTH 10
+
+/* Once a stop is requested the test has this long to finish its round and the
+ * final verification before the default SIGALRM action kills it. */
+#define GRACE_SECS 30
 
 using namespace std;
 
-void handleAlarm( int )
+volatile sig_atomic_t stopRequested = 0;
+
+static void requestStop( int )
 {
-	cout << endl;
-	exit(0);
+	stopRequested = 1;
+
+	/* From here a second interrupt kills the process, as does the grace alarm
+	 * if the test fails to exit in time. */
+	signal( SIGINT, SIG_DFL );
+	signal( SIGTERM, SIG_DFL );
+	signal( SIGALRM, SIG_DFL );
+	alarm( GRACE_SECS );
 }
 
 void processArgs( int argc, char** argv )
 {
-	if ( argc > 1 ) {
-		int secs = atoi( argv[1] );
-		if ( secs > 0 ) {
-			signal( SIGALRM, &handleAlarm );
-			alarm( secs );
-		}
+	int secs = argc > 1 ? atoi( argv[1] ) : 0;
+	unsigned seed = argc > 2 ? strtoul( argv[2], 0, 10 ) :
+			(unsigned) time(0) ^ ( (unsigned) getpid() << 16 );
+
+	srandom( seed );
+	srand48( seed );
+
+	if ( secs > 0 )
+		fprintf( stderr, "seed %u, running for %d seconds\n", seed, secs );
+	else
+		fprintf( stderr, "seed %u, running until interrupted\n", seed );
+
+	signal( SIGINT, &requestStop );
+	signal( SIGTERM, &requestStop );
+	if ( secs > 0 ) {
+		signal( SIGALRM, &requestStop );
+		alarm( secs );
 	}
 }
 

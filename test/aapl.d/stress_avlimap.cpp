@@ -99,14 +99,13 @@ void printHeader()
 int main( int argc, char **argv )
 {
 	processArgs( argc, argv );
-	srandom( time(0) );
 
 	typedef AvliMapEl< int, int > TreeEl;
 	AvliMapVer< int, int > tree;
 
 	printHeader();
 
-	for ( curRound = 0; true; curRound++ ) {
+	for ( curRound = 0; !stopRequested; curRound++ ) {
 		/* Do we change our action? */
 		if ( curRound % ACTION_CHANGE_PERIOD == 0 ) {
 			increment = random() % 2;
@@ -144,6 +143,10 @@ int main( int argc, char **argv )
 			copy.empty();
 		}
 
-	}	
+	}
+
+	/* Stopped: verify the final state. */
+	cout << endl;
+	tree.verifyIntegrity();
 	return 0;
 }

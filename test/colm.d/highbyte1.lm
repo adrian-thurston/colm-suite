@@ -1,0 +1,45 @@
+# Scanner patterns holding bytes 0x80..0xff, written as UTF-8: a literal
+# token, a double-quoted string in a regex, and a single-quoted one under
+# repetition. Each must match the same bytes in the input.
+lex
+	literal `café
+	token naive /"naïve"/
+	token enye /'ñ'+/
+	token word /[a-z]+/
+	ignore /space+/
+end
+
+def item
+	[`café]
+|	[naive]
+|	[enye]
+|	[word]
+
+def start
+	[item*]
+
+parse S: start[ stdin ]
+if ( !S ) {
+	print( "fail: ", error, "\n" )
+}
+else {
+	for I: item in S {
+		switch I
+		case [`café]
+			print( "literal: ", ^I, "\n" )
+		case [naive]
+			print( "string:  ", ^I, "\n" )
+		case [enye]
+			print( "repeat:  ", ^I, "\n" )
+		default
+			print( "word:    ", ^I, "\n" )
+	}
+}
+##### IN #####
+abc café naïve ññ xyz
+##### EXP #####
+word:    abc
+literal: café
+string:  naïve
+repeat:  ññ
+word:    xyz

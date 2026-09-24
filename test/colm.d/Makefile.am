@@ -64,6 +64,9 @@ EXTRA_DIST = \
 	generate1.lm \
 	generate2.lm \
 	heredoc.lm \
+	highbyte1.lm \
+	highbyte2.lm \
+	highbyte3.lm \
 	ifblock1.lm \
 	ignore1.lm \
 	ignore2.lm \

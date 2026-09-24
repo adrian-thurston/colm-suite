@@ -1,0 +1,19 @@
+# extend is the full byte range, 0x00..0xff; ascii is 0x00..0x7f. The token
+# takes the whole input, the final newline included, hence the blank line.
+lex
+	token ext /extend+/
+end
+
+def start
+	[ext]
+
+parse S: start[ stdin ]
+if ( !S )
+	print( "fail: ", error, "\n" )
+else
+	print( "matched: ", S, "\n" )
+##### IN #####
+abcéü
+##### EXP #####
+matched: abcéü
+

@@ -1,6 +1,5 @@
 /*
  * @LANG: c++
- * @PROHIBIT_FLAGS: --var-backend
  */
 
 #include <stdio.h>

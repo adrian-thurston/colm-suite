@@ -28,6 +28,7 @@ EXTRA_DIST = \
 	trans-asm.lm     trans-d.lm      trans-ocaml.lm \
 	trans-c.lm       trans-go.lm     trans-ruby.lm \
 	trans-crack.lm   trans-java.lm   trans-rust.lm trans-zig.lm \
+	trans-js.lm \
 	trans-csharp.lm  trans-julia.lm \
 	any1.rl args1.rl args2.rl argsinc.rl atoi1.rl atoi2.rl atoi3.rl \
 	atoi4.rl atoi5.rl awkemu.rl buffer.h builtin.rl call1.rl call2.rl \
@@ -43,12 +44,12 @@ EXTRA_DIST = \
 	export2.rl export3.rl export4.rl fnext1.rl fnext2.rl fnext3.rl forder1.rl \
 	forder2.rl forder3.rl genrep1.rl genrep2.rl genrep3.rl genrep4.rl \
 	genrep5.rl genrep6.rl genrep7.rl genrep8.rl goto1.rl gotocallret1.rl \
-	hosttext1.rl hosttext2.rl hosttext3.rl hosttext4.rl \
+	hosttext1.rl hosttext2.rl hosttext3.rl hosttext4.rl hosttext5.rl \
 	gotocallret2.rl gotocallret3.rl high1.rl high2.rl high3.rl import1.rl \
 	import2.h import2.rl include1.rl include2.rl include3.rl \
 	include3/smtp_address.rl include3/smtp_addr_parser.rl \
 	include3/smtp_ip.rl include3/smtp_whitespace.rl \
-	java1.rl java2.rl julia1.rl keller1.rl lmgoto.rl lmnfa1.rl mailbox1.h \
+	java1.rl java2.rl js1.rl js2.rl js3.rl js4.rl js5.rl julia1.rl keller1.rl lmgoto.rl lmnfa1.rl mailbox1.h \
 	mailbox1.rl mailbox2.rl mailbox3.rl minimize1.rl ncall1.rl next1.rl \
 	next2.rl nfa1.rl nfa2.rl nfa3.rl noignore.rl patact.rl rangei.rl \
 	range.rl recdescent1.rl recdescent2.rl recdescent4.rl recdescent5.rl \
@@ -70,7 +71,7 @@ TRANS_DEPS = \
 	trans-d.lm trans-go.lm \
 	trans-java.lm trans-julia.lm \
 	trans-ocaml.lm trans-ruby.lm \
-	trans-rust.lm trans-zig.lm
+	trans-rust.lm trans-zig.lm trans-js.lm
 
 trans_CPPFLAGS = $(LIBCOLM_CPPFLAGS)
 trans_SOURCES = trans.c main.c

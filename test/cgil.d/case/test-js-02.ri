@@ -1,0 +1,89 @@
+host( "test.rl", 1 ) @{}@host( "test.rl", 4 ) @{
+
+}@
+array s8 _test_actions( 0, 1 ) = { 0, 1, 0, 0 };
+
+array u8 _test_trans_keys( 0, 1 ) = { u(1), u(0), u(0), u(0), u(0), u(1), u(1), u(0), u(0) };
+
+array s8 _test_char_class( 0, 1 ) = { 0, 1, 0 };
+
+array s8 _test_index_offsets( 0, 3 ) = { 0, 0, 1, 3, 0 };
+
+array s8 _test_indices( 0, 3 ) = { 2, 2, 3, 0 };
+
+array s8 _test_index_defaults( 0, 0 ) = { 0, 0, 0, 0, 0 };
+
+array s8 _test_cond_targs( 0, 3 ) = { 0, 1, 2, 3, 3, 0 };
+
+array s8 _test_cond_actions( 0, 1 ) = { 0, 0, 0, 1, 0, 0 };
+
+value int test_start = 1;
+value int test_first_final = 3;
+value int test_error = 0;
+
+value int test_en_main = 1;
+
+host( "test.rl", 6 ) @{
+}@
+	{
+	cs = cast(int)test_start;
+}
+host( "test.rl", 7 ) @{
+}@
+	{
+	uint _trans = 0;
+	index u8  _keys;
+	index s8  _acts;
+	index s8  _inds;
+	uint _nacts;
+	int _ic;
+	_resume::
+	while ( p != pe ) {
+		_again::
+		while ( TRUE ) {
+			_keys = offset( _test_trans_keys, (cs<<1) );
+			_inds = offset( _test_indices, _test_index_offsets[cs] );
+			
+			if ( ( deref( data, p )) <= 98 && ( deref( data, p )) >= 97 ) {
+				_ic = cast(int)_test_char_class[cast(int)( deref( data, p )) - 97];
+				if ( _ic <= cast(int)deref( _test_trans_keys, _keys+1 ) && _ic >= cast(int)deref( _test_trans_keys, _keys ) )
+					_trans = cast(uint)deref( _test_indices, _inds + cast(int)( _ic - cast(int)deref( _test_trans_keys, _keys ) )  ); 
+				else
+					_trans = cast(uint)_test_index_defaults[cs];
+			}
+			else {
+				_trans = cast(uint)_test_index_defaults[cs];
+			}
+			
+			cs = cast(int)_test_cond_targs[_trans];
+			
+			if ( _test_cond_actions[_trans] != 0 ) {
+				
+				_acts = offset( _test_actions, _test_cond_actions[_trans] );
+				_nacts = cast(uint)deref( _test_actions, _acts );
+				_acts += 1;
+				while ( _nacts > 0 ) {
+					switch ( deref( _test_actions, _acts ) )
+					{
+						case 0 {
+								host( "test.rl", 3 ) ${ n += 1; }$
+							
+							
+						}
+					}
+					_nacts -= 1;
+					_acts += 1;
+				}
+				
+			}
+			break _again;
+		}
+		if ( cs != 0 ) {
+			p += 1;
+			continue _resume;
+		}
+		break _resume;
+	}
+}
+host( "test.rl", 8 ) @{
+}@

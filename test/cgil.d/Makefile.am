@@ -36,6 +36,8 @@ CASES = \
 	case/test-js-00.ri \
 	case/test-js-01.js \
 	case/test-js-01.ri \
+	case/test-js-02.js \
+	case/test-js-02.ri \
 	case/test-julia-00.julia \
 	case/test-julia-00.ri \
 	case/test-julia-01.julia \

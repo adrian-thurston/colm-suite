@@ -456,6 +456,7 @@ include 'trans-rust.lm'
 include 'trans-julia.lm'
 include 'trans-crack.lm'
 include 'trans-zig.lm'
+include 'trans-js.lm'
 
 str argvPop()
 {
@@ -523,6 +524,8 @@ elsif ( Lang == 'crack' )
 	trans_crack::crack( Output )
 elsif ( Lang == 'zig' )
 	trans_zig::zig( Output )
+elsif ( Lang == 'js' )
+	trans_js::js( Output )
 else {
 	print( 'trans: unrecognized language: ', Lang, '\n' )
 }

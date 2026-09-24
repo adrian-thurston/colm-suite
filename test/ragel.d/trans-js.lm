@@ -1,0 +1,302 @@
+namespace trans_js
+
+int factor( Factor: indep::factor )
+{
+	switch Factor
+	case [`first_token_char] {
+		send Out "data.charCodeAt( ts )"
+	}
+	case [tk_ident `[ expr `]] {
+		send Out
+			"[$Factor.tk_ident]\[ [expr(Factor.expr)] \]
+	}
+	case [tk_ident `( expr `)] {
+		send Out
+			"[$Factor.tk_ident]( [expr(Factor.expr)] )
+	}
+	case [`< type `> `( expr `)] {
+		send Out
+			"( [expr(Factor.expr)] )
+	}
+	case [`( expr `)] {
+		send Out
+			"( [expr(Factor.expr)] )
+	}
+	case [`buffer] {
+		send Out
+			"String.fromCharCode.apply( null, buffer.slice( 0, blen ) )"
+	}
+	case [S: string] {
+		# A single-quoted string is a character literal, compared against fc,
+		# so it becomes the char code. Double-quoted strings stay strings.
+		Text: str = $S
+		if ( Text.prefix( 1 ) == "'" ) {
+			send Out
+				"[Text].charCodeAt( 0 )"
+		}
+		else {
+			send Out [Text]
+		}
+	}
+	default {
+		send Out [$Factor]
+	}
+}
+
+void abs_expr( Expr: indep::abs_expr )
+{
+	if ( Expr.Op ) {
+		send Out
+			"[abs_expr(Expr.E1)] [$Expr.Op] [abs_expr( Expr.E2 )]"
+	}
+	else {
+		factor( Expr.factor )
+	}
+}
+
+void expr( Expr: indep::expr )
+{
+	AbsExpr: indep::abs_expr = indep::abs_comparative( Expr.comparative )
+	abs_expr( AbsExpr )
+}
+
+int var_decl( VarDecl: indep::var_decl )
+{
+	if VarDecl.opt_arr.expr {
+		send Out
+			"var [VarDecl.tk_ident] = new Array( [expr( VarDecl.opt_arr.expr )] ).fill( 0 );
+	}
+	else if match VarDecl.type [`bool] {
+		send Out
+			"var [VarDecl.tk_ident] = false;
+	}
+	else {
+		send Out
+			"var [VarDecl.tk_ident] = 0;
+	}
+}
+
+void opt_sub( OptSub: indep::opt_sub )
+{
+	if ( OptSub.expr )
+		send Out "\[[expr(OptSub.expr)]\]"
+}
+
+int expr_stmt( ExprStmt: indep::expr_stmt )
+{
+	if match ExprStmt [tk_ident opt_sub `= expr `;]
+	{
+		send Out
+			"[$ExprStmt.tk_ident opt_sub(ExprStmt.opt_sub)] = [expr(ExprStmt.expr)];
+	}
+	else if match ExprStmt [expr `;]
+	{
+		send Out
+			"[expr(ExprStmt.expr)];
+	}
+}
+
+int if_stmt( IfStmt: indep::if_stmt )
+{
+	send Out
+		"if ( [expr( IfStmt.expr )] ) {
+		"	[stmt_list( IfStmt._repeat_stmt )]
+		"}
+
+	if ( IfStmt.opt_else._repeat_stmt ) {
+		send Out
+			"else {
+			"	[stmt_list( IfStmt.opt_else._repeat_stmt )]
+			"}
+	}
+}
+
+int print_stmt( Stmt: indep::print_stmt )
+{
+	switch Stmt
+	case [`print_int expr `;] {
+		send Out
+			"process.stdout.write( String( [expr(Stmt.expr)] ) );
+	}
+	case [`print_buf `;] {
+		send Out
+			"process.stdout.write( String.fromCharCode.apply( null, buffer.slice( 0, blen ) ) );
+	}
+	case [`print_str expr `;] {
+		send Out
+			"process.stdout.write( [expr( Stmt.expr )] );
+	}
+	case [`print_token `;] {
+		send Out
+			"process.stdout.write( data.substring( ts, te ) );
+	}
+	case [`print_off `;] {
+		send Out
+			"process.stdout.write( String( p ) );
+	}
+}
+
+void buf_stmt( BufStmt: indep::buf_stmt )
+{
+	switch BufStmt
+	case [`buf_clear `( `) `;] {
+		send Out
+			"	blen = 0;
+	}
+	case [`buf_append `( `) `;] {
+		send Out
+			"	buffer\[blen\] = fc;
+			"	blen += 1;
+	}
+}
+
+int ragel_stmt( Stmt: indep::ragel_stmt )
+{
+	send Out
+		[$Stmt]
+}
+
+int stmt( Stmt: indep::stmt )
+{
+	switch Stmt
+	case [var_decl]
+		var_decl( Stmt.var_decl )
+	case [expr_stmt]
+		expr_stmt( Stmt.expr_stmt )
+	case [if_stmt]
+		if_stmt( Stmt.if_stmt )
+	case [print_stmt]
+		print_stmt( Stmt.print_stmt )
+	case [buf_stmt]
+		buf_stmt( Stmt.buf_stmt )
+	case [ragel_stmt]
+		ragel_stmt( Stmt.ragel_stmt )
+}
+
+void stmt_list( StmtList: indep::stmt* )
+{
+	for Stmt: indep::stmt in repeat( StmtList )
+		stmt( Stmt )
+}
+
+int action_block( ActionBlock: indep::action_block )
+{
+	Out = new parser<out_code::lines>()
+	if match ActionBlock [`{ stmt* `}] {
+		send Out
+			"{[stmt_list( ActionBlock._repeat_stmt )]}
+	}
+	else if match ActionBlock [`{ expr `}] {
+		send Out
+			"{[expr( ActionBlock.expr )]}
+	}
+	send Out [] eos
+}
+
+void js( Output: stream )
+{
+	# Translate action blocks.
+	Section: indep::section = RagelTree.section
+	for Action: ragel::action_block in Section {
+		# Reparse as lang-independent code.
+		parse IndepActionBlock: indep::action_block[$Action]
+		if ( !IndepActionBlock ) {
+			print( error, '\n', Action )
+			exit(1)
+		}
+
+		action_block( IndepActionBlock )
+
+		# Reparse back to ragel action block.
+		Action = parse ragel::action_block[$Out->tree]
+		if ( !Action ) {
+			print( error, '\n' )
+			exit(1)
+		}
+	}
+
+	send Output
+		"/*
+		" * @LANG: js
+		" * @GENERATED: true
+
+	if ProhibitGenflags {
+		send Output
+			" * @PROHIBIT_GENFLAGS:[ProhibitGenflags]
+	}
+
+	send Output
+		" */
+		"
+
+	# The data is a string and the machine indexes it, so p, pe, eof and the
+	# scanner's ts and te are offsets. The character at p is
+	# data.charCodeAt( p ), which is what the js backend emits for fc.
+	send Output
+		"
+		"[Section]
+		"
+		"%% write data;
+		"
+		"function run( data )
+		"{
+		"	var p = 0;
+		"	var pe = data.length;
+
+	if NeedsEof {
+		send Output
+			"	var eof = data.length;
+	}
+	else {
+		send Output
+			"	var eof = -1;
+	}
+
+	send Output
+		"	var cs = 0;
+		"	var buffer = new Array( 1024 );
+		"	var blen = 0;
+		"	var nfa_len = 0;
+		"	var nfa_count = 0;
+		"	var nfa_bp = new Array( 20 );
+		"	for ( var i = 0; i < nfa_bp.length; i++ )
+		"		nfa_bp\[i\] = {};
+
+	Init: indep::stmt* = RagelTree.Init
+	for Stmt: indep::stmt in Init {
+		if match Stmt [Decl: var_decl] {
+			Out = new parser<out_code::lines>()
+			var_decl( Decl )
+			send Out [] eos
+			send Output [Out->tree]
+		}
+	}
+
+	for Stmt: indep::stmt in Init {
+		if match Stmt [ExprStmt: expr_stmt] {
+			Out = new parser<out_code::lines>()
+			expr_stmt( ExprStmt )
+			send Out [] eos
+			send Output [Out->tree]
+		}
+	}
+
+	send Output
+		"
+		"	%% write init;
+		"	%% write exec;
+		"
+		"	if ( cs >= [MachineName.mn_word]_first_final )
+		"		console.log( \"ACCEPT\" );
+		"	else
+		"		console.log( \"FAIL\" );
+		"}
+		"
+
+	for InputString: indep::input_string in RagelTree {
+		send Output
+			"run( [^InputString] );
+	}
+}
+
+end

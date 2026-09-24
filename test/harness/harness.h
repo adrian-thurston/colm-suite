@@ -46,11 +46,12 @@ struct Config
 	/* Ragel under test: the main binary and the host-language frontends. */
 	std::string ragelBin;
 	std::string ragelC, ragelD, ragelJava, ragelRuby, ragelCsharp, ragelGo,
-			ragelOcaml, ragelAsm, ragelRust, ragelZig, ragelCrack, ragelJulia;
+			ragelOcaml, ragelAsm, ragelRust, ragelZig, ragelCrack, ragelJulia,
+			ragelJs;
 
 	/* Host language toolchains. Empty when not found by configure. */
 	std::string dBin, javacBin, rubyBin, csharpBin, goBin, ocamlBin, rustBin,
-			zigBin, crackBin, juliaBin, asmBin, gnustepConfig;
+			zigBin, crackBin, juliaBin, nodeBin, asmBin, gnustepConfig;
 
 	/* Options. */
 	int jobs;

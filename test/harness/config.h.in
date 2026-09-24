@@ -28,6 +28,7 @@
 #define HARNESS_RAGEL_ZIG_BIN "@SUBJ_RAGEL_ZIG_BIN@"
 #define HARNESS_RAGEL_CRACK_BIN "@SUBJ_RAGEL_CRACK_BIN@"
 #define HARNESS_RAGEL_JULIA_BIN "@SUBJ_RAGEL_JULIA_BIN@"
+#define HARNESS_RAGEL_JS_BIN "@SUBJ_RAGEL_JS_BIN@"
 
 /* Host language toolchains, empty when configure did not find them. */
 #define HARNESS_D_BIN "@D_BIN@"
@@ -40,5 +41,6 @@
 #define HARNESS_ZIG_BIN "@ZIG_BIN@"
 #define HARNESS_CRACK_BIN "@CRACK_BIN@"
 #define HARNESS_JULIA_BIN "@JULIA_BIN@"
+#define HARNESS_NODE_BIN "@NODE_BIN@"
 #define HARNESS_ASM_BIN "@ASM_BIN@"
 #define HARNESS_GNUSTEP_CONFIG "@GNUSTEP_CONFIG@"

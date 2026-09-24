@@ -10,7 +10,7 @@ cgil-go and checked against case/test-go-02.go.
 The translators are the ones built from src/cgil, the live sources that ragel's
 host backends share. This suite is what holds them to their output: the cases
 and the expected text are fixed, so a difference in what comes out is a change
-in cgil. There are 28 cases over the twelve languages.
+in cgil. There are 29 cases over the twelve languages.
 
 The rlhc.d suite looks similar and measures something else. Its translators are
 a frozen 2019 copy of these, kept so that colm is the only moving part; see the

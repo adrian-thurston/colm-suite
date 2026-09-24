@@ -1,0 +1,41 @@
+# An OR block and a range holding bytes 0x80..0xff. The OR block [äöü] is
+# the set of the bytes of those three characters' UTF-8 encodings; the range
+# [À-ÿ] reads as the byte 0xc3, the range 0x80..0xc3 and the byte 0xbf,
+# which together cover every UTF-8 character from U+00C0 to U+00FF.
+lex
+	token umlaut /[äöü]+/
+	token latin /[À-ÿ]+/
+	token word /[a-z]+/
+	ignore /space+/
+end
+
+def item
+	[umlaut]
+|	[latin]
+|	[word]
+
+def start
+	[item*]
+
+parse S: start[ stdin ]
+if ( !S ) {
+	print( "fail: ", error, "\n" )
+}
+else {
+	for I: item in S {
+		switch I
+		case [umlaut]
+			print( "or:    ", ^I, "\n" )
+		case [latin]
+			print( "range: ", ^I, "\n" )
+		default
+			print( "word:  ", ^I, "\n" )
+	}
+}
+##### IN #####
+abc üöä ÀÉÎõ xyz
+##### EXP #####
+word:  abc
+or:    üöä
+range: ÀÉÎõ
+word:  xyz

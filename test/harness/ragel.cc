@@ -9,9 +9,13 @@
  * once per code generation flag, compiled or interpreted, executed, and its
  * output compared against the text after the ##### OUTPUT ##### header.
  *
+ * A graphviz case is instead run through every ragel binary with -V, and the
+ * dot written to standard out is compared against the OUTPUT section. The
+ * case holds no host code, so each binary must produce the same graph.
+ *
  * Directives:
  *
- *   @LANG:               indep, or the host language
+ *   @LANG:               indep, graphviz, or the host language
  *   @PROHIBIT_LANGUAGES: indep only: languages not to translate into
  *   @PROHIBIT_FLAGS:     generation flags not to test, added to the
  *                        language's own list
@@ -47,6 +51,27 @@ static const char *defaultGenflags[] = {
 	"-n", "-m", "-e", "--string-tables"
 };
 static const int numDefaultGenflags = sizeof(defaultGenflags) / sizeof(defaultGenflags[0]);
+
+/* The ragel binary for each host language, under the name --lang selects it
+ * by. The generic ragel stands for c, and ragel-c for cg. */
+static void hostBinaries( const Config &config,
+		std::vector< std::pair<std::string, std::string> > &bins )
+{
+	bins.push_back( std::make_pair( "c", config.ragelBin ) );
+	bins.push_back( std::make_pair( "cg", config.ragelC ) );
+	bins.push_back( std::make_pair( "asm", config.ragelAsm ) );
+	bins.push_back( std::make_pair( "d", config.ragelD ) );
+	bins.push_back( std::make_pair( "csharp", config.ragelCsharp ) );
+	bins.push_back( std::make_pair( "go", config.ragelGo ) );
+	bins.push_back( std::make_pair( "java", config.ragelJava ) );
+	bins.push_back( std::make_pair( "ruby", config.ragelRuby ) );
+	bins.push_back( std::make_pair( "ocaml", config.ragelOcaml ) );
+	bins.push_back( std::make_pair( "rust", config.ragelRust ) );
+	bins.push_back( std::make_pair( "crack", config.ragelCrack ) );
+	bins.push_back( std::make_pair( "julia", config.ragelJulia ) );
+	bins.push_back( std::make_pair( "zig", config.ragelZig ) );
+	bins.push_back( std::make_pair( "js", config.ragelJs ) );
+}
 
 static Words objcFlags;
 static bool objcFlagsLoaded = false;
@@ -340,6 +365,38 @@ static void runOptions( const RagelCase &rc, const std::string &lang,
 	}
 }
 
+/* The dot from -V, from every binary. */
+static void runGraphviz( const RagelCase &rc, const std::string &translated,
+		const std::string &root, int depIdx, JobList &jobs )
+{
+	const Config &config = *rc.config;
+	const char *suite = "ragel.d";
+
+	std::vector< std::pair<std::string, std::string> > bins;
+	hostBinaries( config, bins );
+
+	for ( size_t b = 0; b < bins.size(); b++ ) {
+		const std::string &lang = bins[b].first;
+		if ( !langSelected( config, lang ) )
+			continue;
+
+		std::string stem = root + "_" + lang;
+		Job *job = new Job( suite, stem );
+		job->reportPath = joinPath( rc.wk, stem + ".diff" );
+		if ( depIdx >= 0 )
+			job->deps.push_back( depIdx );
+		jobs.append( job );
+
+		Words argv;
+		argv.push_back( bins[b].second );
+		argv.push_back( "-V" );
+		argv.push_back( translated );
+		job->steps.push_back( Step::exec( Step::Run, argv, rc.build )
+				.capture( CaptureOutput ).exit( 0 ) );
+		job->steps.push_back( Step::compare( rc.expected, "" ) );
+	}
+}
+
 void enumerateRagel( const Config &config, const Selection &sel, JobList &jobs )
 {
 	const char *suite = "ragel.d";
@@ -451,7 +508,10 @@ void enumerateRagel( const Config &config, const Selection &sel, JobList &jobs )
 				depIdx = jobs.length() - 1;
 			}
 
-			runOptions( rc, lang, translated, lroot, depIdx, jobs );
+			if ( lang == "graphviz" )
+				runGraphviz( rc, translated, lroot, depIdx, jobs );
+			else
+				runOptions( rc, lang, translated, lroot, depIdx, jobs );
 		}
 	}
 }

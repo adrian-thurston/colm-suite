@@ -20,8 +20,8 @@ jobs:
 
       # The host language toolchains the ragel test suite drives. Without
       # these every ragel.d case for a language other than C is a skip, so
-      # the D, Java, Ruby, C#, Go, OCaml, Rust and Julia backends go
-      # unexercised. The set matches the Dockerfile at the repository root,
+      # the D, Java, Ruby, C#, Go, OCaml, Rust, Julia and JavaScript backends
+      # go unexercised. The set matches the Dockerfile at the repository root,
       # which is the same list for the same reason; see it for what each
       # package buys and why mono comes from the archive rather than from
       # mono-project.com. Not installed here either: crack, which is
@@ -31,7 +31,7 @@ jobs:
         run: |
           sudo apt-get install -y --no-install-recommends \
             gobjc gnustep-make libgnustep-base-dev \
-            golang-go default-jdk ruby ocaml rustc gdc mono-devel
+            golang-go default-jdk ruby nodejs ocaml rustc gdc mono-devel
 
       # Zig and Julia are not in the ubuntu archive, so they come from the
       # upstream binary tarballs, sha256 pinned. The runners are x86-64

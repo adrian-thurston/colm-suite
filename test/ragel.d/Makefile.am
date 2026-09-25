@@ -45,8 +45,8 @@ EXTRA_DIST = \
 	forder2.rl forder3.rl genrep1.rl genrep2.rl genrep3.rl genrep4.rl \
 	genrep5.rl genrep6.rl genrep7.rl genrep8.rl goto1.rl gotocallret1.rl \
 	hosttext1.rl hosttext2.rl hosttext3.rl hosttext4.rl hosttext5.rl \
-	gotocallret2.rl gotocallret3.rl high1.rl high2.rl high3.rl import1.rl \
-	import2.h import2.rl include1.rl include2.rl include3.rl \
+	gotocallret2.rl gotocallret3.rl graphviz1.rl high1.rl high2.rl high3.rl \
+	import1.rl import2.h import2.rl include1.rl include2.rl include3.rl \
 	include3/smtp_address.rl include3/smtp_addr_parser.rl \
 	include3/smtp_ip.rl include3/smtp_whitespace.rl \
 	java1.rl java2.rl js1.rl js2.rl js3.rl js4.rl js5.rl julia1.rl keller1.rl lmgoto.rl lmnfa1.rl mailbox1.h \

@@ -1372,6 +1372,12 @@ int InputData::rlhcMain( int argc, const char **argv )
 	try {
 		parseArgs( argc, argv );
 		checkArgs();
+
+		/* Graphviz output comes from the frontend alone. There is no host
+		 * code to translate, so it goes straight to -o, or standard out. */
+		if ( generateDot )
+			return runJob( "frontend", &InputData::runFrontend, 0, 0 );
+
 		makeDefaultFileName();
 		makeTranslateOutputFileName();
 

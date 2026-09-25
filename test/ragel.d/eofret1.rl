@@ -2,7 +2,6 @@
  * @LANG: indep
  * @NEEDS_EOF: yes
  * @PROHIBIT_LANGUAGES: cv ruby ocaml rust crack
- * @PROHIBIT_FLAGS: --var-backend
  *
  * Testing fret in an EOF action.
  */

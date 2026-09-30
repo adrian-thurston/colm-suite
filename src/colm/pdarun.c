@@ -1108,13 +1108,52 @@ static void new_token( program_t *prg, struct pda_run *pda_run )
 	memset( pda_run->mark, 0, sizeof(pda_run->mark) );
 }
 
-static void push_bt_point( program_t *prg, struct pda_run *pda_run )
+/* Find the last token in a tree that has a location. Ignores are skipped.
+ * Trees still to search go on the stack, the children of a tree in order, so
+ * that its last child is searched first. */
+static tree_t *last_located_token( program_t *prg, tree_t **sp, tree_t *tree )
+{
+	tree_t **top = vm_ptop();
+	tree_t *res = 0;
+
+	while ( true ) {
+		if ( tree->tokdata != 0 && tree->tokdata->location != 0 ) {
+			res = tree;
+			break;
+		}
+
+		kid_t *child = tree_child( prg, tree );
+		while ( child != 0 ) {
+			vm_push_tree( child->tree );
+			child = child->next;
+		}
+
+		if ( sp == top )
+			break;
+
+		tree = vm_pop_tree();
+	}
+
+	/* Drop the trees not searched. */
+	while ( sp != top )
+		vm_pop_ignore();
+
+	return res;
+}
+
+static void push_bt_point( program_t *prg, tree_t **sp, struct pda_run *pda_run )
 {
 	tree_t *tree = 0;
 	if ( pda_run->accum_ignore != 0 ) 
 		tree = pda_run->accum_ignore->shadow->tree;
 	else if ( pda_run->token_list != 0 )
 		tree = pda_run->token_list->kid->tree;
+
+	/* A tree that a token action pushed, such as a parsed comment, has no
+	 * location of its own. Record its last token instead. It has to be found
+	 * now, since undoing the parse that built the tree takes it apart. */
+	if ( tree != 0 )
+		tree = last_located_token( prg, sp, tree );
 
 	if ( tree != 0 ) {
 		debug( prg, REALM_PARSE, "pushing bt point with location byte %d\n", 
@@ -1476,7 +1515,7 @@ again:
 			pda_run->lel->id > pda_run->pda_tables->keys[(pda_run->cur_state<<1)+1] )
 	{
 		debug( prg, REALM_PARSE, "parse error, no transition 1\n" );
-		push_bt_point( prg, pda_run );
+		push_bt_point( prg, sp, pda_run );
 		goto parse_error;
 	}
 
@@ -1486,14 +1525,14 @@ again:
 	owner = pda_run->pda_tables->owners[ind_pos];
 	if ( owner != pda_run->cur_state ) {
 		debug( prg, REALM_PARSE, "parse error, no transition 2\n" );
-		push_bt_point( prg, pda_run );
+		push_bt_point( prg, sp, pda_run );
 		goto parse_error;
 	}
 
 	pos = pda_run->pda_tables->indices[ind_pos];
 	if ( pos < 0 ) {
 		debug( prg, REALM_PARSE, "parse error, no transition 3\n" );
-		push_bt_point( prg, pda_run );
+		push_bt_point( prg, sp, pda_run );
 		goto parse_error;
 	}
 
@@ -1719,7 +1758,7 @@ again:
 			pda_run->red_lel->next = pda_run->stack_top;
 			pda_run->stack_top = pda_run->red_lel;
 			/* FIXME: What is the right argument here? */
-			push_bt_point( prg, pda_run );
+			push_bt_point( prg, sp, pda_run );
 			goto parse_error;
 		}
 
@@ -2090,7 +2129,7 @@ long colm_parse_loop( program_t *prg, tree_t **sp, struct pda_run *pda_run,
 				debug( prg, REALM_PARSE, "invoking parse error from the scanner\n" );
 
 				/* Fall through to send null (error). */
-				push_bt_point( prg, pda_run );
+				push_bt_point( prg, sp, pda_run );
 			}
 #if 0
 			else {
@@ -2099,7 +2138,7 @@ long colm_parse_loop( program_t *prg, tree_t **sp, struct pda_run *pda_run,
 				/* There are no alternative scanning regions to try, nor are
 				 * there any alternatives stored in the current parse tree. No
 				 * choice but to end the parse. */
-				push_bt_point( prg, pda_run );
+				push_bt_point( prg, sp, pda_run );
 
 				report_parse_error( prg, sp, pda_run );
 				pda_run->parse_error = 1;

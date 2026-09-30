@@ -1,0 +1,75 @@
+#
+# A parse error at the end of the input, just after a comment that a token
+# action pushed as a token. The comment has no location of its own, and
+# backtracking over the action takes it apart, so the error point must be its
+# last token, taken when the error is found.
+#
+
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+	literal `; `!
+
+	# Parse the comment after a ^ and push it as a token.
+	token caret /'^'/
+	{
+		input->pull( match_length )
+		parse_stop NC: nested_comment[ stdin ]
+		input->push( NC )
+	}
+end
+
+lex
+	literal `( `)
+	token nc_data /[^()]+/
+end
+
+def nc_item
+	[nc_data]
+|	[nested_comment]
+
+def nested_comment
+	[`( nc_item* `)]
+
+def item
+	[id]
+|	[nested_comment]
+
+# At the end of the input the parser backs up over all of the items taken as
+# an ia and tries them again as an ib.
+def ia
+	[item]
+
+def ib
+	[item]
+
+def start
+	[ia* `;]
+|	[ib* `!]
+
+parse S: start[ stdin ]
+if S
+	print( 'ok: ', S, '\n' )
+else
+	print( 'error: ', error, '\n' )
+##### IN #####
+^(c)--noeol
+##### EXP #####
+error: <stdin>:1:5: parse error
+##### IN #####
+a ^(b (c))--noeol
+##### EXP #####
+error: <stdin>:1:11: parse error
+##### IN #####
+a (b) ^(c)--noeol
+##### EXP #####
+error: <stdin>:1:11: parse error
+##### IN #####
+^(c
+d)--noeol
+##### EXP #####
+error: <stdin>:2:3: parse error
+##### IN #####
+a (b) ^(c) !--noeol
+##### EXP #####
+ok: a (b) (c) !

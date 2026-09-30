@@ -27,6 +27,36 @@ rl s_literal
 rl d_literal
 	/ '"' ([^"\\] | NL | '\\' (any | NL))* '"' /
 
+# A template literal. A substitution inside it is taken along with the rest of
+# the literal. A template nested inside a substitution is not modelled.
+rl tmpl_literal
+	/ '`' ([^`\\] | NL | '\\' (any | NL))* '`' /
+
+# A regular expression literal. The body cannot begin with * or /, which open
+# a comment, and a slash inside a class does not end it.
+rl re_class
+	/ '[' ([^\]\\\n] | '\\' [^\n])* ']' /
+
+rl re_char
+	/ [^/\\\n\[] | '\\' [^\n] | re_class /
+
+rl re_literal
+	/ '/' (re_char - '*') re_char* '/' [a-z]* /
+
+# After these words a slash opens a regular expression.
+rl re_keyword
+	/ 'return' | 'typeof' | 'instanceof' | 'in' | 'of' | 'new' | 'delete' |
+	  'void' | 'throw' | 'case' | 'do' | 'else' | 'yield' | 'await' /
+
+# A slash after an operand is division. The match runs to the character after
+# the slash, so that the slash of a comment is left alone.
+rl div_operand
+	/ ( ( alpha | '_' | '$' ) ( alpha | digit | '_' | '$' )* ) - re_keyword |
+	  digit+ | hex_number | ')' | ']' /
+
+rl div
+	/ div_operand ( [ \t] | NL )* '/' [^/*] /
+
 namespace inline
 	lex 
 		literal `fpc `fc  `fcurs `ftargs
@@ -42,7 +72,19 @@ namespace inline
 			/ c_comment | cpp_comment /
 
 		token string
-			/ s_literal | d_literal /
+			/ s_literal | d_literal | tmpl_literal | re_literal /
+
+		# Sends the slash on its own and gives the operand and the character
+		# after the slash back to be scanned again.
+		token div_slash / div /
+		{
+			Pre: str = input->pull( match_length - 2 )
+			Slash: str = input->pull( 1 )
+			Post: str = input->pull( 1 )
+			input->push( Post )
+			input->push( make_token( typeid<c_any>, Slash ) )
+			input->push( Pre )
+		}
 
 		token whitespace
 			/ ( [ \t] | NL )+ /
@@ -118,6 +160,20 @@ namespace host
 		token string
 			/ s_literal | d_literal /
 
+		# Kept apart from string, which an import takes for a literal.
+		token template / tmpl_literal /
+		token regex / re_literal /
+
+		token div_slash / div /
+		{
+			Pre: str = input->pull( match_length - 2 )
+			Slash: str = input->pull( 1 )
+			Post: str = input->pull( 1 )
+			input->push( Post )
+			input->push( make_token( typeid<c_any>, Slash ) )
+			input->push( Pre )
+		}
+
 		token whitespace
 			/ ( [ \t] | NL )+ /
 
@@ -136,6 +192,8 @@ namespace host
 	|	[hex_number] :HexNumber
 	|	[comment] :Comment
 	|	[string] :String
+	|	[template] :Template
+	|	[regex] :Regex
 	|	[whitespace] :Whitespace
 	|	[c_any] :Any
 end

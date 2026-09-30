@@ -20,9 +20,35 @@ namespace js_out
 			[0-9]+
 		/
 
-		# Backslash begins a unicode escape in an identifier, and escapes
-		# inside a regular expression literal, which is otherwise scanned as
-		# the symbols and names it is made of.
+		# A slash after an operand is division, and the start of a regular
+		# expression otherwise. The match runs to the character after the
+		# slash, so that the slash of a comment is left alone. The slash goes
+		# on as a symbol, and the rest is given back to be scanned again.
+		rl re_keyword /
+			'return' | 'typeof' | 'instanceof' | 'in' | 'of' | 'new' |
+			'delete' | 'void' | 'throw' | 'case' | 'do' | 'else' | 'yield' |
+			'await'
+		/
+
+		rl div_operand /
+			( ( [a-zA-Z_$] | 0x80..0xff ) ( [a-zA-Z_0-9$] | 0x80..0xff )* ) -
+				re_keyword |
+			[0-9]+ | ')' | ']'
+		/
+
+		token div_slash /
+			div_operand [ \t\v\f\r\n]* '/' [^/*]
+		/
+		{
+			Pre: str = input->pull( match_length - 2 )
+			Slash: str = input->pull( 1 )
+			Post: str = input->pull( 1 )
+			input->push( Post )
+			input->push( make_token( typeid<symbol>, Slash ) )
+			input->push( Pre )
+		}
+
+		# Backslash begins a unicode escape in an identifier.
 		token symbol /
 			'!' | '#' | '$' | '%' | '&' | '(' | ')' | '*' |
 			'+' | ',' | '-' | '.' | '/' | ':' | ';' | '<' |
@@ -31,6 +57,16 @@ namespace js_out
 
 		literal `{ `}
 
+		# A regular expression literal. The body cannot begin with * or /,
+		# which open a comment, and a slash inside a class does not end it.
+		rl re_class /
+			'[' ( [^\]\\\n] | '\\' [^\n] ) * ']'
+		/
+
+		rl re_char /
+			[^/\\\n\[] | '\\' [^\n] | re_class
+		/
+
 		# The backtick form is the template literal. A substitution inside it
 		# is hidden along with the rest of the literal; its braces pair on their
 		# own, so the brace matching loses nothing. A template nested inside a
@@ -38,7 +74,8 @@ namespace js_out
 		token string /
 				'"' ( [^"\\] | '\\' any ) * '"' |
 				"'" ( [^'\\] | '\\' any ) * "'" |
-				'`' ( [^`\\] | '\\' any ) * '`'
+				'`' ( [^`\\] | '\\' any ) * '`' |
+				'/' ( re_char - '*' ) re_char * '/' [a-z] *
 			/
 
 		ignore

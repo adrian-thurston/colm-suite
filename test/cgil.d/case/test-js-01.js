@@ -2,6 +2,8 @@
 
 let s = `it's a "template" {`;
 let re = /\d+\s*/;
+let q = /"/, b = /}/, a = /'/, c = /[/]/, d = 12 / 3 / 2;
+function f( s ) { return /}/.test( s ) ? `}` : `{`; }
 let café = 1;
 let \u0041 = 2;
 

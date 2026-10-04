@@ -1,0 +1,90 @@
+#
+# Undoing sends into a parser whose reductions were rejected. Each id the
+# inner parser takes costs one rejected reduction. When the outer parser
+# backtracks it undoes the sends, and the inner parser backs up over every
+# item it parsed. Unless pushing a rejected reduction adds to the shift count
+# as backing up takes away, the count reaches the no-commit value before the
+# undo is done, and the inner parser fails.
+#
+
+context ctx
+	lex
+		ignore /[ \t\n]+/
+		token id1 /[a-z]+/
+	end
+
+	# Both take an id1. The parser tries r first, which always rejects.
+	def r
+		[id1]
+		{ reject }
+
+	def s
+		[id1]
+
+	def thing
+		[r]
+	|	[s]
+
+	def one
+		[thing*]
+
+	Inner: accum<one>
+
+	lex
+		ignore /[ \t]+/
+		token id2 /[a-z]+/
+		literal `! `;
+		token NL /'\n'/
+	end
+
+	def a1
+		[]
+
+	def a2
+		[]
+
+	# Sent while a1 is tried, undone when the parser backs up to take a2.
+	def item
+		[id2]
+		{
+			send Inner [' x ']
+			send Inner [$r1]
+		}
+
+	def two
+		[a1 item* `! NL]
+	|	[a2 item* `; NL]
+end
+
+C: ctx = new ctx()
+C->Inner = new parser<ctx::one>( C )
+
+parse Two: ctx::two( C )[ stdin ]
+send C->Inner ['\n'] eos
+
+print( Two )
+One: ctx::one = C->Inner->tree
+if One
+	print( ^One, '\n' )
+else
+	print( 'inner error: ', C->Inner->error, '\n' )
+##### IN #####
+a ;
+##### EXP #####
+a ;
+x a
+##### IN #####
+a b ;
+##### EXP #####
+a b ;
+x a x b
+##### IN #####
+a b c ;
+##### EXP #####
+a b c ;
+x a x b x c
+##### IN #####
+a b !
+##### EXP #####
+a b !
+x a x b

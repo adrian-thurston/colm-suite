@@ -123,6 +123,7 @@ EXTRA_DIST = \
 	ntrejbt2.lm \
 	ntrejbt3.lm \
 	ntrejbt4.lm \
+	ntrejbt5.lm \
 	open1.lm \
 	open2.lm \
 	order1.lm \

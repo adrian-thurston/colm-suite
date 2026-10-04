@@ -1359,19 +1359,6 @@ tree_t *set_list_mem( list_t *list, half_t field, tree_t *value )
 	return existing;
 }
 
-struct tree_pair map_remove( program_t *prg, map_t *map, tree_t *key )
-{
-	map_el_t *map_el = map_impl_find( prg, map, key );
-	struct tree_pair result = { 0, 0 };
-	if ( map_el != 0 ) {
-		map_detach( prg, map, map_el );
-		result.key = map_el->key;
-		//mapElFree( prg, mapEl );
-	}
-
-	return result;
-}
-
 tree_t *map_find( program_t *prg, map_t *map, tree_t *key )
 {
 //	map_el_t *mapEl = mapImplFind( prg, map, key );

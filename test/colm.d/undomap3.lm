@@ -1,0 +1,89 @@
+#
+# A map's remove and detach_el in reduction actions, and backtracking over
+# them. The undo of each must put back the element it took out. Input ending
+# in "; ^" is parsed as A1, keeping what the actions did. Input ending in ";"
+# is parsed as A1 first, reducing every item, then backs up to A2, whose
+# items have no actions, so the map must come out as it went in.
+#
+
+global M: map<str, str> = new map<str, str>()
+
+lex
+	ignore /[ \t]+/
+	literal `- `* `= `^ `;
+	token NL /'\n'/
+	token id /[a-z]+/
+end
+
+def A1 []
+def A2 []
+
+def item
+	# Remove by key. A key not in the map removes nothing.
+	[`- id]
+	{
+		E: map_el<str, str> = M->remove( $r2 )
+		if ( E )
+			print "removed [E->key] [E->value]\n"
+		else
+			print "no [$r2]\n"
+	}
+
+	# Detach by element.
+|	[`* id]
+	{
+		E: map_el<str, str> = M->find_el( $r2 )
+		if ( E ) {
+			D: map_el<str, str> = M->detach_el( E )
+			print "detached [D->key] [D->value]\n"
+		}
+	}
+
+	# Replace. Undoing it takes the new element out before putting the old
+	# one back.
+|	[`= id]
+	{
+		M->remove( $r2 )
+		M->insert( $r2, "new" )
+	}
+
+def plain_item
+	[`- id]
+|	[`* id]
+|	[`= id]
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 plain_item* `; NL]
+
+M->insert( "a", "1" )
+M->insert( "b", "2" )
+M->insert( "c", "3" )
+M->insert( "d", "4" )
+
+parse S: start[ stdin ]
+print( S )
+
+for E: map_el<str, str> in M
+	print "[E->key] [E->value]\n"
+
+##### IN #####
+-a *b -zz =c ; ^
+##### EXP #####
+removed a 1
+detached b 2
+no zz
+-a *b -zz =c ; ^
+c new
+d 4
+##### IN #####
+-a *b -zz =c ;
+##### EXP #####
+removed a 1
+detached b 2
+no zz
+-a *b -zz =c ;
+a 1
+b 2
+c 3
+d 4

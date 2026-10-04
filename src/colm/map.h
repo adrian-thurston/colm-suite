@@ -49,8 +49,6 @@ map_el_t *map_impl_find( program_t *prg, map_t *map, tree_t *key );
 map_el_t *map_detach_by_key( program_t *prg, map_t *map, tree_t *key );
 map_el_t *map_detach( program_t *prg, map_t *map, map_el_t *element );
 
-struct tree_pair map_remove( program_t *prg, map_t *map, tree_t *key );
-
 tree_t *map_find( program_t *prg, map_t *map, tree_t *key );
 long map_length( map_t *map );
 

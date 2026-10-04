@@ -405,6 +405,7 @@ typedef unsigned char uchar;
 #define FN_VMAP_INSERT_BKT       0x3d
 #define FN_VMAP_REMOVE_WC        0x27
 #define FN_VMAP_REMOVE_WV        0x28
+#define FN_VMAP_REMOVE_BKT       0x3f
 
 #define FN_VLIST_PUSH_TAIL_WV    0x2a
 #define FN_VLIST_PUSH_TAIL_WC    0x2b

@@ -4358,46 +4358,45 @@ again:
 
 				colm_map_detach( prg, map, map_el );
 
-				//colm_tree_upref( prg, prg->trueVal );
-				vm_push_tree( prg->true_val );
+				vm_push_struct( s );
 				break;
 			}
 			case FN_MAP_DETACH_WV: {
-				debug( prg, REALM_BYTECODE, "FN_MAP_DETACH_WV\n" );
+				short gen_id;
+				read_half( gen_id );
 
-				tree_t *obj = vm_pop_tree();
-				tree_t *key = vm_pop_tree();
-				struct tree_pair pair = map_remove( prg, (map_t*)obj, key );
+				debug( prg, REALM_BYTECODE, "FN_MAP_DETACH_WV %hd\n", gen_id );
 
-				colm_tree_upref( prg, pair.val );
-				vm_push_tree( pair.val );
+				map_t *map = vm_pop_map();
+				struct_t *s = vm_pop_struct();
 
-				/* Reverse instruction. */
+				map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+
+				colm_map_detach( prg, map, map_el );
+
+				vm_push_struct( s );
+
+				/* Reverse instruction. Puts the element back. */
 				rcode_code( exec, IN_FN );
 				rcode_code( exec, FN_MAP_DETACH_BKT );
-				rcode_word( exec, (word_t)pair.key );
-				rcode_word( exec, (word_t)pair.val );
+				rcode_half( exec, gen_id );
+				rcode_word( exec, (word_t)map_el );
 				rcode_unit_term( exec );
-
-				colm_tree_downref( prg, sp, obj );
-				colm_tree_downref( prg, sp, key );
 				break;
 			}
 			case FN_MAP_DETACH_BKT: {
-				tree_t *key, *val;
-				read_tree( key );
-				read_tree( val );
+				word_t wmap_el;
+
+				consume_half(); //( gen_id );
+				read_word( wmap_el );
+
+				map_el_t *map_el = (map_el_t*)wmap_el;
 
 				debug( prg, REALM_BYTECODE, "FN_MAP_DETACH_BKT\n" );
 
-				/* Either both or neither. Only the assert reads them. */
-				assert( ( key == 0 ) ^ ( val != 0 ) );
-				(void)key;
-				(void)val;
+				map_t *map = vm_pop_map();
 
-				tree_t *obj = vm_pop_tree();
-
-				colm_tree_downref( prg, sp, obj );
+				colm_map_insert( prg, map, map_el );
 				break;
 			}
 			case FN_VMAP_INSERT_WC: {
@@ -4459,21 +4458,68 @@ again:
 				break;
 			}
 			case FN_VMAP_REMOVE_WC: {
-				debug_decl( short, gen_id );
-				debug_read_half( gen_id );
+				short gen_id;
+				read_half( gen_id );
 
 				debug( prg, REALM_BYTECODE, "FN_VMAP_REMOVE_WC %hd\n", gen_id );
 
 				map_t *map = vm_pop_map();
 				tree_t *key = vm_pop_tree();
 
-				colm_vmap_remove( prg, map, key );
+				map_el_t *map_el = colm_vmap_remove( prg, map, key );
 
-				//colm_tree_upref( prg, prg->trueVal );
-				vm_push_tree( prg->true_val );
+				struct colm_struct *strct = map_el != 0 ?
+						colm_generic_el_container( prg, map_el, gen_id ) : 0;
+
+				vm_push_struct( strct );
 
 				if ( map->generic_info->key_type == TYPE_TREE )
 					colm_tree_downref( prg, sp, key );
+				break;
+			}
+			case FN_VMAP_REMOVE_WV: {
+				short gen_id;
+				read_half( gen_id );
+
+				debug( prg, REALM_BYTECODE, "FN_VMAP_REMOVE_WV %hd\n", gen_id );
+
+				map_t *map = vm_pop_map();
+				tree_t *key = vm_pop_tree();
+
+				map_el_t *map_el = colm_vmap_remove( prg, map, key );
+
+				struct colm_struct *strct = map_el != 0 ?
+						colm_generic_el_container( prg, map_el, gen_id ) : 0;
+
+				vm_push_struct( strct );
+
+				if ( map->generic_info->key_type == TYPE_TREE )
+					colm_tree_downref( prg, sp, key );
+
+				/* Reverse instruction. Puts back the element, if one was
+				 * removed. */
+				rcode_code( exec, IN_FN );
+				rcode_code( exec, FN_VMAP_REMOVE_BKT );
+				rcode_half( exec, gen_id );
+				rcode_word( exec, (word_t)map_el );
+				rcode_unit_term( exec );
+				break;
+			}
+			case FN_VMAP_REMOVE_BKT: {
+				word_t wmap_el;
+
+				consume_half(); //( gen_id );
+				read_word( wmap_el );
+
+				map_el_t *map_el = (map_el_t*)wmap_el;
+
+				debug( prg, REALM_BYTECODE, "FN_VMAP_REMOVE_BKT %d\n",
+						map_el != 0 ? 1 : 0 );
+
+				map_t *map = vm_pop_map();
+
+				if ( map_el != 0 )
+					colm_map_insert( prg, map, map_el );
 				break;
 			}
 			case FN_VMAP_FIND: {
@@ -4985,14 +5031,17 @@ again:
 				break;
 			}
 			case FN_MAP_DETACH_BKT: {
-				tree_t *key, *val;
-				read_tree( key );
-				read_tree( val );
+				consume_half(); //( gen_id );
+				consume_word(); //( wmap_el );
 
 				debug( prg, REALM_BYTECODE, "FN_MAP_DETACH_BKT\n" );
+				break;
+			}
+			case FN_VMAP_REMOVE_BKT: {
+				consume_half(); //( gen_id );
+				consume_word(); //( wmap_el );
 
-				colm_tree_downref( prg, sp, key );
-				colm_tree_downref( prg, sp, val );
+				debug( prg, REALM_BYTECODE, "FN_VMAP_REMOVE_BKT\n" );
 				break;
 			}
 

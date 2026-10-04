@@ -564,7 +564,7 @@ map_el_t *colm_vmap_remove( program_t *prg, map_t *map, tree_t *key )
 	map_el_t *map_el = colm_map_find( prg, map, key );
 	if ( map_el != 0 )
 		colm_map_detach( prg, map, map_el );
-	return 0;
+	return map_el;
 }
 
 tree_t *colm_vmap_find( program_t *prg, map_t *map, tree_t *key )

@@ -10,15 +10,27 @@
 # the colm it was built against. Asking for that version passes over any other
 # colm that comes first on the search path. A colm the project has already
 # loaded can't be swapped out, because colm::libcolm stays defined, so a
-# different version of it is refused here.
+# different version of it is refused here. The loaded version is the one
+# colm::libcolm records, not colm_VERSION: that is gone once a function that
+# found colm returns, and find_package(Colm) sets Colm_VERSION instead. A
+# colm::libcolm that records no version is from an older colm, and is refused.
 include(CMakeFindDependencyMacro)
-if(DEFINED colm_VERSION AND NOT colm_VERSION VERSION_EQUAL "@COLM_VERSION_NUMERIC@")
-	set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
-	string(CONCAT ${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE
-		"ragel was built against colm @COLM_VERSION_NUMERIC@, "
-		"but colm ${colm_VERSION} is already loaded")
-	return()
+if(TARGET colm::libcolm)
+	get_target_property(_ragel_colm_loaded colm::libcolm COLM_VERSION)
+	if(NOT _ragel_colm_loaded
+			OR NOT _ragel_colm_loaded VERSION_EQUAL "@COLM_VERSION_NUMERIC@")
+		if(NOT _ragel_colm_loaded)
+			set(_ragel_colm_loaded "of unknown version")
+		endif()
+		set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
+		string(CONCAT ${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE
+			"ragel was built against colm @COLM_VERSION_NUMERIC@, "
+			"but colm ${_ragel_colm_loaded} is already loaded")
+		unset(_ragel_colm_loaded)
+		return()
+	endif()
 endif()
+unset(_ragel_colm_loaded)
 find_dependency(colm @COLM_VERSION_NUMERIC@ EXACT
 	HINTS "${CMAKE_CURRENT_LIST_DIR}"
 		"${CMAKE_CURRENT_LIST_DIR}/@COLM_CMAKEDIR_FROM_RAGEL@")

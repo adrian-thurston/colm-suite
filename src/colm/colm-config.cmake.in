@@ -1,3 +1,24 @@
 # @_PACKAGE_NAME@-config.cmake Generated from colm-config.cmake.in by cmake
 
+# The targets file keeps any colm targets that are already defined, so once a
+# project has loaded one colm, by finding colm or ragel, it can't load
+# another. A different version is refused, so that the project never believes
+# it has a colm it isn't using. The loaded version is the one colm::libcolm
+# records. A colm::libcolm that records none comes from an older colm, or from
+# no colm package at all, and is refused too.
+if(TARGET colm::libcolm)
+	get_target_property(_colm_loaded colm::libcolm COLM_VERSION)
+	if(NOT _colm_loaded OR NOT _colm_loaded VERSION_EQUAL "@COLM_VERSION_NUMERIC@")
+		if(NOT _colm_loaded)
+			set(_colm_loaded "of unknown version")
+		endif()
+		set(${CMAKE_FIND_PACKAGE_NAME}_FOUND FALSE)
+		set(${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE
+			"colm ${_colm_loaded} is already loaded")
+		unset(_colm_loaded)
+		return()
+	endif()
+endif()
+unset(_colm_loaded)
+
 include("${CMAKE_CURRENT_LIST_DIR}/@_PACKAGE_NAME@-targets.cmake")

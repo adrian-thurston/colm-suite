@@ -63,10 +63,17 @@ target_include_directories(libcolm
 # and changes every release, as the libtool -release name in Makefile.am does.
 # The library keeps the plain name colm so that the -lcolm colm passes when it
 # links a program still finds it.
+#
+# COLM_VERSION goes out with the exported target, so the colm and ragel
+# packages can tell which colm a project has already loaded. colm_VERSION
+# can't tell them: it is gone once a function that found colm returns, and
+# find_package(Colm) sets Colm_VERSION instead, while colm::libcolm stays.
 set_target_properties(libcolm PROPERTIES
 	OUTPUT_NAME colm
 	VERSION ${COLM_VERSION_NUMERIC}
-	SOVERSION ${COLM_VERSION_NUMERIC})
+	SOVERSION ${COLM_VERSION_NUMERIC}
+	COLM_VERSION ${COLM_VERSION_NUMERIC}
+	EXPORT_PROPERTIES COLM_VERSION)
 
 add_library(colm::libcolm ALIAS libcolm)
 

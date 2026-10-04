@@ -262,14 +262,19 @@ jobs:
       # package, one minor version up, stands in for another colm installed
       # elsewhere. find_package(ragel) has to pass over it when it comes
       # first on the search path, and refuse it when the project has already
-      # loaded it. Found through ragel_DIR alone, in the install or in the
-      # build tree, ragel has to find the colm beside it. The last case
-      # reconfigures the build tree, so it comes after the build tree case:
-      # it sets colm's and ragel's package directories apart, gives a
-      # relative prefix typed as a STRING, which CMake keeps as given, and
-      # installs under another prefix. Each case configures a project of its
-      # own, and nothing is built, so the copied library keeps its old
-      # soname.
+      # loaded it: at the top level, inside a function, or as Colm. When the
+      # project has already loaded the right colm, by finding colm or ragel,
+      # find_package(colm) has to refuse the other one, and ragel has to be
+      # found after that. A colm that records no version, from before colm
+      # recorded one, is refused by both, and neither package leaves the
+      # variable its check uses set. Found through ragel_DIR alone, in the
+      # install or in the build tree, ragel has to find the colm beside it.
+      # The last case reconfigures the build tree, so it comes after the
+      # build tree case: it sets colm's and ragel's package directories
+      # apart, gives a relative prefix typed as a STRING, which CMake keeps
+      # as given, and installs under another prefix. Each case configures a
+      # project of its own, and nothing is built, so the copied library keeps
+      # its old soname.
       - name: check ragel loads the colm it was built against
         run: |
           set -eu
@@ -291,10 +296,35 @@ jobs:
           cat > ragelcolm/CMakeLists.txt <<'EOF'
           cmake_minimum_required(VERSION 3.16)
           project(ragelcolm NONE)
-          if(PRELOAD)
-            find_package(colm ${PRELOAD} EXACT REQUIRED)
+          macro(check_unset)
+            foreach(var _colm_loaded _ragel_colm_loaded)
+              if(DEFINED ${var})
+                message(FATAL_ERROR "${var} left set: ${${var}}")
+              endif()
+            endforeach()
+          endmacro()
+          function(preload_in_function)
+            find_package(${PRELOAD} REQUIRED)
+          endfunction()
+          if(PRELOAD AND IN_FUNCTION)
+            preload_in_function()
+          elseif(PRELOAD)
+            find_package(${PRELOAD} REQUIRED)
+          endif()
+          if(AGAIN)
+            find_package(colm ${AGAIN} EXACT QUIET)
+            check_unset()
+            if(colm_FOUND)
+              set(got found)
+            else()
+              set(got "${colm_NOT_FOUND_MESSAGE}")
+            endif()
+            if(NOT got STREQUAL WANT_AGAIN)
+              message(FATAL_ERROR "colm ${AGAIN} got: ${got}\nwant: ${WANT_AGAIN}")
+            endif()
           endif()
           find_package(ragel QUIET)
+          check_unset()
           if(ragel_FOUND)
             get_target_property(libcolm colm::libcolm LOCATION)
             get_filename_component(got "${libcolm}" DIRECTORY)
@@ -309,20 +339,46 @@ jobs:
             -DCMAKE_PREFIX_PATH="$PWD/other;$PWD/inst" \
             -DWANT="$PWD/inst/lib" > /dev/null
           echo "colm $other first on the search path: passed over"
+          refused="ragel was built against colm $numeric, but colm $other is already loaded"
           cmake -S ragelcolm -B ragelcolm/build2 \
-            -DCMAKE_PREFIX_PATH="$PWD/inst;$PWD/other" -DPRELOAD=$other \
-            -DWANT="ragel was built against colm $numeric, but colm $other is already loaded" \
-            > /dev/null
+            -DCMAKE_PREFIX_PATH="$PWD/inst;$PWD/other" -DPRELOAD="colm;$other;EXACT" \
+            -DWANT="$refused" > /dev/null
           echo "colm $other already loaded: refused"
           cmake -S ragelcolm -B ragelcolm/build3 \
+            -DCMAKE_PREFIX_PATH="$PWD/inst;$PWD/other" -DPRELOAD="colm;$other;EXACT" \
+            -DIN_FUNCTION=ON -DWANT="$refused" > /dev/null
+          echo "colm $other already loaded inside a function: refused"
+          cmake -S ragelcolm -B ragelcolm/build4 \
+            -DCMAKE_PREFIX_PATH="$PWD/inst;$PWD/other" -DPRELOAD="Colm;$other;EXACT" \
+            -DWANT="$refused" > /dev/null
+          echo "colm $other already loaded as Colm: refused"
+          cmake -S ragelcolm -B ragelcolm/build5 \
+            -DCMAKE_PREFIX_PATH="$PWD/inst;$PWD/other" -DPRELOAD="colm;$numeric;EXACT" \
+            -DAGAIN=$other -DWANT_AGAIN="colm $numeric is already loaded" \
+            -DWANT="$PWD/inst/lib" > /dev/null
+          echo "colm $numeric already loaded: colm $other refused, ragel found"
+          cmake -S ragelcolm -B ragelcolm/build6 \
+            -DCMAKE_PREFIX_PATH="$PWD/inst;$PWD/other" -DPRELOAD=ragel \
+            -DAGAIN=$other -DWANT_AGAIN="colm $numeric is already loaded" \
+            -DWANT="$PWD/inst/lib" > /dev/null
+          echo "ragel already loaded: colm $other refused, ragel found"
+          cp -r other old
+          sed -i '/^  COLM_VERSION /d' old/lib/cmake/colm/colm-targets.cmake
+          unknown="colm of unknown version is already loaded"
+          cmake -S ragelcolm -B ragelcolm/build7 \
+            -DCMAKE_PREFIX_PATH="$PWD/inst;$PWD/old" -DPRELOAD="colm;$other;EXACT" \
+            -DAGAIN=$numeric -DWANT_AGAIN="$unknown" \
+            -DWANT="ragel was built against colm $numeric, but $unknown" > /dev/null
+          echo "colm that records no version already loaded: refused by colm and ragel"
+          cmake -S ragelcolm -B ragelcolm/build8 \
             -Dragel_DIR="$PWD/inst/lib/cmake/ragel" \
             -DWANT="$PWD/inst/lib" > /dev/null
           echo "ragel_DIR alone: colm beside ragel found"
-          cmake -S ragelcolm -B ragelcolm/build4 \
+          cmake -S ragelcolm -B ragelcolm/build9 \
             -Dragel_DIR="$PWD/inst/lib/cmake/ragel" -DCMAKE_PREFIX_PATH="$PWD/other" \
             -DWANT="$PWD/inst/lib" > /dev/null
           echo "ragel_DIR, colm $other on the search path: colm beside ragel found"
-          cmake -S ragelcolm -B ragelcolm/build5 \
+          cmake -S ragelcolm -B ragelcolm/build10 \
             -Dragel_DIR="$PWD/build" -DCMAKE_PREFIX_PATH="$PWD/other" \
             -DWANT="$PWD/build/src/colm" > /dev/null
           echo "build tree ragel_DIR, colm $other on the search path: colm beside ragel found"
@@ -330,7 +386,7 @@ jobs:
             -DCMAKE_INSTALL_CMAKEDIR=share/cmake/colm \
             -DCMAKE_INSTALL_CMAKEDIR_RAGEL=lib/cmake/ragel-7 > /dev/null
           cmake --install build --prefix "$PWD/alt" > /dev/null
-          cmake -S ragelcolm -B ragelcolm/build6 \
+          cmake -S ragelcolm -B ragelcolm/build11 \
             -Dragel_DIR="$PWD/alt/lib/cmake/ragel-7" -DCMAKE_PREFIX_PATH="$PWD/other" \
             -DWANT="$PWD/alt/lib" > /dev/null
           echo "package directories set apart, ragel_DIR: colm beside ragel found"

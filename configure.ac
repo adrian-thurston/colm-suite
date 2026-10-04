@@ -119,40 +119,12 @@ AC_ARG_ENABLE(manual,
 	[
 		if test "x$enableval" = "xyes"; then
 			build_manual=yes;
-
-			dnl The colm manual is built with Asciidoctor. The ragel guide
-			dnl is still built with asciidoc (asciidoc-py).
-			AC_CHECK_PROG([ASCIIDOCTOR], [asciidoctor], [asciidoctor])
-			AC_CHECK_PROG([ASCIIDOC], [asciidoc], [asciidoc])
-
-			if test "x$ASCIIDOCTOR" = x; then
-				AC_MSG_ERROR([must have asciidoctor to build the colm manual])
-			fi
-			if test "x$ASCIIDOC" = x; then
-				AC_MSG_ERROR([must have asciidoc to build the ragel guide])
-			fi
 		fi
 	],
 )
 
-dnl Checks to carry out if we are building the manual.
-dnl if test "x$build_manual" = "xyes"; then
-dnl	AC_CHECK_PROG(FIG2DEV, fig2dev, fig2dev)
-dnl	if test -z "$FIG2DEV"; then
-dnl		echo
-dnl		echo "error: fig2dev is required to build the manual (maybe use --disable-manual)"
-dnl		echo
-dnl		exit 1
-dnl	fi
-dnl
-dnl	AC_CHECK_PROG(PDFLATEX, pdflatex, pdflatex)
-dnl	if test -z "$PDFLATEX"; then
-dnl		echo
-dnl		echo "error: pdflatex is required to build the manual (maybe use --disable-manual)"
-dnl		echo
-dnl		exit 1
-dnl	fi
-dnl fi
+dnl The tools each manual needs are checked for below, once it is known which
+dnl halves of the suite are installed.
 
 dnl Set to true if the manual should be built.
 AM_CONDITIONAL(BUILD_MANUAL, [test "x$build_manual" = "xyes"])
@@ -204,6 +176,42 @@ fi
 
 AM_CONDITIONAL([INSTALL_COLM],  [test "x$install_colm"  = "xyes"])
 AM_CONDITIONAL([INSTALL_RAGEL], [test "x$install_ragel" = "xyes"])
+
+dnl
+dnl Tools for the manuals. The colm manual is built only when colm is
+dnl installed, and the ragel guide only when ragel is, so check only for the
+dnl tools of the manuals that will be built.
+dnl
+if test "x$build_manual" = "xyes"; then
+	dnl The colm manual is built with Asciidoctor.
+	if test "x$install_colm" = "xyes"; then
+		AC_CHECK_PROG([ASCIIDOCTOR], [asciidoctor], [asciidoctor])
+		if test "x$ASCIIDOCTOR" = x; then
+			AC_MSG_ERROR([must have asciidoctor to build the colm manual])
+		fi
+	fi
+
+	dnl The ragel guide is still built with asciidoc (asciidoc-py). Its figures
+	dnl are drawn with fig2dev, and a2x makes its PDF with dblatex.
+	if test "x$install_ragel" = "xyes"; then
+		AC_CHECK_PROG([ASCIIDOC], [asciidoc], [asciidoc])
+		if test "x$ASCIIDOC" = x; then
+			AC_MSG_ERROR([must have asciidoc to build the ragel guide])
+		fi
+		AC_CHECK_PROG([A2X], [a2x], [a2x])
+		if test "x$A2X" = x; then
+			AC_MSG_ERROR([must have a2x to build the ragel guide])
+		fi
+		AC_CHECK_PROG([FIG2DEV], [fig2dev], [fig2dev])
+		if test "x$FIG2DEV" = x; then
+			AC_MSG_ERROR([must have fig2dev to build the ragel guide])
+		fi
+		AC_CHECK_PROG([DBLATEX], [dblatex], [dblatex])
+		if test "x$DBLATEX" = x; then
+			AC_MSG_ERROR([must have dblatex to build the ragel guide])
+		fi
+	fi
+fi
 
 dnl This is from ragel, but already have one above from colm. Need to merge.
 dnl AM_CONDITIONAL([BUILD_MANUAL],     [test "x$build_manual" = "xyes"])

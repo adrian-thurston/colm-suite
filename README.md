@@ -162,8 +162,13 @@ See the [`examples/`](examples/) directory for sample Ragel programs.
 
 For the documentation (`./configure --enable-manual`), install
 [Asciidoctor](https://asciidoctor.org/) for the colm manual, and
-[`asciidoc`](https://asciidoc-py.github.io/) and
-[`fig2dev`](https://github.com/getlarky/fig2dev) for the ragel guide, as well.
+[`asciidoc`](https://asciidoc-py.github.io/),
+[`fig2dev`](https://github.com/getlarky/fig2dev) and
+[dblatex](https://dblatex.sourceforge.net/) for the ragel guide, as well. The
+guide's PDF is made by `a2x`, which comes with `asciidoc`, using dblatex. Each
+manual is built only when its half of the suite is installed (see [Installing
+one half of the suite](#installing-one-half-of-the-suite)), and configure checks
+only for the tools of the manuals it will build.
 With [Rouge](https://rouge.jneen.net/) (`ruby-rouge`) installed, the manual's
 shell and vim examples are highlighted. Rouge has no lexer for colm, so the
 colm examples are not.

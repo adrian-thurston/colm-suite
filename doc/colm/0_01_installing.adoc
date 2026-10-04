@@ -1,41 +1,134 @@
-Installing
-=========
+= Installing
+:suite-release: 2026.08
 
-Installing on a linux system is a breeze
+Colm is distributed in the Colm Suite, along with the Ragel State Machine
+Compiler. Suite releases are named for the year and month they were made, and
+the components in them carry their own version numbers. Release
+{suite-release} contains colm 0.15.0.
+
+== Getting the source
+
+The releases are listed on the https://www.colm.net/open-source/colm/[colm page]
+at colm.net, each with a PGP signature and a SHA-256 checksum.
+
+[source,bash,subs="attributes+"]
+----
+wget https://www.colm.net/files/colm-suite/{suite-release}/colm-suite-{suite-release}.tar.gz
+wget https://www.colm.net/files/colm-suite/{suite-release}/colm-suite-{suite-release}.tar.gz.sha256
+sha256sum -c colm-suite-{suite-release}.tar.gz.sha256
+tar -xzf colm-suite-{suite-release}.tar.gz
+cd colm-suite-{suite-release}
+----
+
+The development sources are on
+https://github.com/adrian-thurston/colm-suite[GitHub]. A git checkout has no
+`configure` script: run `./autogen.sh` first, which needs autoconf, automake and
+libtool.
+
+== Building with autotools
+
+The build needs make, gcc and g++.
 
 [source,bash]
 ----
-wget -q http://www.colm.net/files/colm/thurston-phdthesis.pdf
-wget -q http://www.colm.net/files/colm/colm-0.13.0.4.tar.gz
-tar -xaf colm-0.13.0.4.tar.gz
-cd colm-0.13.0.4
 ./configure --prefix=/opt/colm
 make
 sudo make install
 ----
 
-When we do:
+This installs colm and ragel under `/opt/colm`. Put its `bin` directory on your
+`PATH`:
 
+[source,bash]
 ----
-/opt/colm/bin/colm
-----
-
-We get:
-
-----
-error: colm: colm: no input file given
+export PATH=/opt/colm/bin:$PATH
+colm --version
 ----
 
-It works!
+----
+Colm version 0.15.0 August 2026
+Copyright (c) 2007-2026 by Dr. Adrian D. Thurston
+----
 
-== First impression
+Without `--prefix`, the suite installs under `/usr/local`. On Debian, Ubuntu and
+other systems that list `/usr/local/lib` in their loader configuration, run
+`sudo ldconfig` after `sudo make install`, or colm won't start. The
+xref:9_00_q_and_a.adoc#libcolm-not-found[FAQ] explains why.
 
-When we look a little bit closer we see that colm:
+To install colm but not ragel, configure with `--disable-install-ragel`:
 
-* is able to be build as a static and/or shared libray.
-* is licenced under MIT
-* is equipped with a vim syntax highlighting file
-* is using the aapl (MIT licenced) library from Adrian Thurston (just like ragel does).
-* There is one file in the repository that stands out: 'colm.lm'
-  In the Ragel repository there are also several '.lm' files. And it's syntax looks like the colm language that is presented in the thesis.
+[source,bash]
+----
+./configure --prefix=/opt/colm --disable-install-ragel
+----
 
+The whole suite is still built; only the install leaves ragel out. The README's
+https://github.com/adrian-thurston/colm-suite#installing-one-half-of-the-suite[Installing
+one half of the suite] has the details.
+
+== Building with CMake
+
+CMake 3.16 or later can build the suite instead. Only out-of-source builds are
+supported.
+
+[source,bash]
+----
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/colm
+cmake --build build -j$(nproc)
+sudo cmake --install build
+----
+
+To install colm but not ragel, add `-DCOLM_INSTALL_RAGEL=OFF` to the first
+command.
+
+A colm built by CMake always looks for its headers and runtime library where it
+is installed, so install it before using it to compile colm programs. The test
+suite builds only with autotools. The README's
+https://github.com/adrian-thurston/colm-suite#building-with-cmake[Building with
+CMake] lists the options and the other differences from the autotools build.
+
+== Running colm
+
+Colm compiles a program to C, then compiles the C with gcc, against the colm
+headers and the colm runtime library, libcolm, that were installed with it. So
+colm needs a C compiler wherever it is used, not only where it is built. It runs
+`gcc`, or the compiler named by the `CC` environment variable, and passes it
+`CFLAGS` from the environment as well.
+
+[source,chapel]
+.hello_world.lm
+----
+include::code/hello_world.lm[]
+----
+
+[source,bash]
+----
+colm hello_world.lm
+./hello_world
+----
+
+----
+hello world
+----
+
+`colm hello_world.lm` writes the C program to `hello_world.c` and the executable
+to `hello_world`. With `-r`, colm also runs the executable once it is built. The
+program reads colm's standard input and gets no arguments.
+
+[source,bash]
+----
+colm -r hello_world.lm
+----
+
+The executable needs libcolm when it runs. After an autotools install, colm
+links it against the shared library and records the install's library directory
+in it, so it runs on the machine colm is installed on. To run it on another
+machine, install the same colm release there, under the same prefix. CMake
+builds libcolm as a static library by default, and then the executable contains
+the runtime.
+
+== Further reading
+
+The ideas behind colm, in particular its parsing method, are set out in Adrian
+Thurston's https://www.colm.net/files/colm/thurston-phdthesis.pdf[Ph.D. thesis].
+It is not a manual, and the language has changed since it was written.

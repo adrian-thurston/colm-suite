@@ -1,0 +1,106 @@
+#
+# Backing up over a token whose right ignore holds only part of the
+# whitespace after it. When the parser backs up over b, b's left ignore goes
+# to accum_ignore, and then detach_right_ignore takes the right ignore off a,
+# the token under b. Those came before the ignores already accumulated, so
+# they must go on the end of the list, not replace it.
+#
+# This needs two lexical regions. After a token, the scanner reads ignores
+# in its own region, and they become its right ignore. With one region these
+# take all the whitespace up to the next token, and the next token's left
+# ignore is empty. Here a's region has no newline in its ignores, so its
+# right ignore stops at the newline, and the rest is scanned in b's region
+# as b's left ignore. The spaces at the ends of the IN and EXP lines are
+# those right ignores, so keep them.
+#
+# With the comment ignore in its region, a can have a right ignore of two
+# trees, a space and a comment. The last two runs are a sequence that needs
+# no backing up, and a parse error after backing up, where dropped ignores
+# show only as losses.
+#
+
+lex
+	token a /'a'/
+	ignore /[ ]+/
+	ignore /'#' [^\n]*/
+end
+
+lex
+	token b /'b'/
+	literal `!
+	ignore /[ \n]+/
+end
+
+def flat
+	[a] | [b]
+
+# Unless the input ends in !, the sequence fails and the parser backs up over
+# every token it shifted, into flat*.
+def start
+	[a b a b `!]
+|	[flat*]
+
+parse S: start[ stdin ]
+if S {
+	if match S [flat*]
+		print( 'flat: [', S, ']\n' )
+	else
+		print( 'seq: [', S, ']\n' )
+}
+else
+	print( 'error: ', error, '\n' )
+##### IN #####
+a  
+  b a b
+##### EXP #####
+flat: [a  
+  b a b
+]
+##### IN #####
+a    
+
+
+   b a b
+##### EXP #####
+flat: [a    
+
+
+   b a b
+]
+##### IN #####
+a 
+ b a 
+ b
+##### EXP #####
+flat: [a 
+ b a 
+ b
+]
+##### IN #####
+a # c
+  b a b
+##### EXP #####
+flat: [a # c
+  b a b
+]
+##### IN #####
+a #c  
+ b a #d
+ b
+##### EXP #####
+flat: [a #c  
+ b a #d
+ b
+]
+##### IN #####
+a  # c
+  b a b !
+##### EXP #####
+seq: [a  # c
+  b a b !
+]
+##### IN #####
+a  
+  b ! a
+##### EXP #####
+error: <stdin>:2:5: parse error

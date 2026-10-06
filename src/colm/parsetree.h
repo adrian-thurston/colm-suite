@@ -688,11 +688,14 @@ struct TokenRegion
 
 struct RegionSet
 {
-	RegionSet( RegionImpl *implTokenIgnore, RegionImpl *implTokenOnly,
+	RegionSet( int id, const InputLoc &loc,
+			RegionImpl *implTokenIgnore, RegionImpl *implTokenOnly,
 			RegionImpl *implIgnoreOnly, TokenRegion *tokenIgnore,
 			TokenRegion *tokenOnly, TokenRegion *ignoreOnly,
 			TokenRegion *collectIgnore )
 	:
+		id(id),
+		loc(loc),
 		implTokenIgnore(implTokenIgnore),
 		implTokenOnly(implTokenOnly),
 		implIgnoreOnly(implIgnoreOnly),
@@ -702,6 +705,9 @@ struct RegionSet
 		ignoreOnly(ignoreOnly),
 		collectIgnore(collectIgnore)
 	{}
+
+	int id;
+	InputLoc loc;
 
 	/* Provides the scanner state machines. We reuse ignore-only. */
 	RegionImpl *implTokenIgnore;

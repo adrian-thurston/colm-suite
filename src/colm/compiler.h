@@ -771,6 +771,13 @@ struct Compiler
 	void writeDotFile( PdaGraph *graph );
 	void writeDotFile( );
 	
+	/*
+	 * EBNF Generation
+	 */
+	void writeEbnfTokens();
+	void writeEbnfProduction( Production *prod );
+	void writeEbnfLangEl( LangEl *lel );
+	void writeEbnfFile();
 
 	/*
 	 * Data collected during the parse.

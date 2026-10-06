@@ -31,318 +31,322 @@
 extern "C" {
 #endif
 
-#if SIZEOF_LONG != 4 && SIZEOF_LONG != 8 
+#if SIZEOF_LONG != 4 && SIZEOF_LONG != 8
 	#error "SIZEOF_LONG contained an unexpected value"
 #endif
 
 typedef unsigned long ulong;
 typedef unsigned char uchar;
 
-#define IN_NONE                  0x00
-#define IN_LOAD_INT              0x01
-#define IN_LOAD_STR              0x02
-#define IN_LOAD_NIL              0x03
-#define IN_LOAD_TRUE             0x04
-#define IN_LOAD_FALSE            0x05
-#define IN_LOAD_TREE             0x06
-#define IN_LOAD_WORD             0x07
-
-#define IN_ADD_INT               0x08
-#define IN_SUB_INT               0x09
-#define IN_MULT_INT              0x0a
-#define IN_DIV_INT               0x0b
-
-#define IN_TST_EQL_VAL           0x59
-#define IN_TST_EQL_TREE          0x0c
-#define IN_TST_NOT_EQL_TREE      0x0d
-#define IN_TST_NOT_EQL_VAL       0x5f
-#define IN_TST_LESS_VAL          0x0e
-#define IN_TST_LESS_TREE         0xbd
-#define IN_TST_GRTR_VAL          0x0f
-#define IN_TST_GRTR_TREE         0xbf
-#define IN_TST_LESS_EQL_VAL      0x10
-#define IN_TST_LESS_EQL_TREE     0xc0
-#define IN_TST_GRTR_EQL_VAL      0x11
-#define IN_TST_GRTR_EQL_TREE     0xcd
-#define IN_TST_LOGICAL_AND       0x12
-#define IN_TST_LOGICAL_OR        0x13
-
-#define IN_TST_NZ_TREE           0xd1
-
-#define IN_LOAD_RETVAL           0xd4
-
-#define IN_STASH_ARG             0x20
-#define IN_PREP_ARGS             0xe8
-#define IN_CLEAR_ARGS            0xe9
-
-#define IN_GEN_ITER_FROM_REF     0xd3
-#define IN_GEN_ITER_DESTROY      0xd5
-#define IN_GEN_ITER_UNWIND       0x74
-#define IN_GEN_ITER_GET_CUR_R    0xdf
-#define IN_GEN_VITER_GET_CUR_R   0xe7
-#define IN_LIST_ITER_ADVANCE     0xde
-#define IN_REV_LIST_ITER_ADVANCE 0x77
-#define IN_MAP_ITER_ADVANCE      0xe6
-
-#define IN_NOT_VAL               0x14
-#define IN_NOT_TREE              0xd2
-
-#define IN_JMP                   0x15
-#define IN_JMP_FALSE_TREE        0x16
-#define IN_JMP_TRUE_TREE         0x17
-#define IN_JMP_FALSE_VAL         0xb8
-#define IN_JMP_TRUE_VAL          0xed
-
-#define IN_STR_LENGTH            0x19
-#define IN_CONCAT_STR            0x1a
-#define IN_TREE_TRIM             0x1b
-
-#define IN_POP_TREE              0x1d
-#define IN_POP_N_WORDS           0x1e
-#define IN_POP_VAL               0xbe
-#define IN_DUP_VAL               0x1f
-#define IN_DUP_TREE              0xf2
-
-#define IN_REJECT                0x21
-#define IN_MATCH                 0x22
-#define IN_PROD_NUM              0x6a
-#define IN_CONSTRUCT             0x23
-#define IN_CONS_OBJECT           0xf0
-#define IN_CONS_GENERIC          0xf1
-#define IN_TREE_CAST             0xe4
-
-#define IN_GET_LOCAL_R           0x25
-#define IN_GET_LOCAL_WC          0x26
-#define IN_SET_LOCAL_WC          0x27
-
-#define IN_GET_LOCAL_REF_R       0x28
-#define IN_GET_LOCAL_REF_WC      0x29
-#define IN_SET_LOCAL_REF_WC      0x2a
-
-#define IN_SAVE_RET              0x2b
-
-#define IN_GET_FIELD_TREE_R         0x2c
-#define IN_GET_FIELD_TREE_WC        0x2d
-#define IN_GET_FIELD_TREE_WV        0x2e
-#define IN_GET_FIELD_TREE_BKT       0x2f
-
-#define IN_SET_FIELD_TREE_WV        0x30
-#define IN_SET_FIELD_TREE_WC        0x31
-#define IN_SET_FIELD_TREE_BKT       0x32
-#define IN_SET_FIELD_TREE_LEAVE_WC  0x33
-
-#define IN_GET_FIELD_VAL_R       0x5e
-#define IN_SET_FIELD_VAL_WC      0x60
-
-#define IN_GET_MATCH_LENGTH_R    0x34
-#define IN_GET_MATCH_TEXT_R      0x35
-
-#define IN_GET_TOKEN_DATA_R      0x36
-#define IN_SET_TOKEN_DATA_WC     0x37
-#define IN_SET_TOKEN_DATA_WV     0x38
-#define IN_SET_TOKEN_DATA_BKT    0x39
-
-#define IN_GET_TOKEN_FILE_R      0x80
-#define IN_GET_TOKEN_LINE_R      0x3b
-#define IN_GET_TOKEN_POS_R       0x3a
-#define IN_GET_TOKEN_COL_R       0x81
-
-#define IN_INIT_RHS_EL           0x3c
-#define IN_INIT_LHS_EL           0x3d
-#define IN_INIT_CAPTURES         0x3e
-#define IN_STORE_LHS_EL          0x3f
-#define IN_RESTORE_LHS           0x40
-
-#define IN_TRITER_FROM_REF       0x41
-#define IN_TRITER_ADVANCE        0x42
-#define IN_TRITER_WIG_ADVANCE    0x84
-#define IN_TRITER_NEXT_CHILD     0x43
-#define IN_TRITER_GET_CUR_R      0x44
-#define IN_TRITER_GET_CUR_WC     0x45
-#define IN_TRITER_SET_CUR_WC     0x46
-#define IN_TRITER_UNWIND         0x73
-#define IN_TRITER_DESTROY        0x47
-#define IN_TRITER_NEXT_REPEAT    0x48
-#define IN_TRITER_PREV_REPEAT    0x49
-
-#define IN_REV_TRITER_FROM_REF   0x4a
-#define IN_REV_TRITER_DESTROY    0x4b
-#define IN_REV_TRITER_UNWIND     0x75
-#define IN_REV_TRITER_PREV_CHILD 0x4c
-
-#define IN_UITER_DESTROY         0x4d
-#define IN_UITER_UNWIND          0x71
-#define IN_UITER_CREATE_WV       0x4e
-#define IN_UITER_CREATE_WC       0x4f
-#define IN_UITER_ADVANCE         0x50
-#define IN_UITER_GET_CUR_R       0x51
-#define IN_UITER_GET_CUR_WC      0x52
-#define IN_UITER_SET_CUR_WC      0x53
-
-#define IN_TREE_SEARCH           0x54
-
-#define IN_LOAD_GLOBAL_R         0x55
-#define IN_LOAD_GLOBAL_WV        0x56
-#define IN_LOAD_GLOBAL_WC        0x57
-#define IN_LOAD_GLOBAL_BKT       0x58
-
-#define IN_PTR_ACCESS_WV         0x5a
-#define IN_PTR_ACCESS_BKT        0x61
-
-#define IN_REF_FROM_LOCAL        0x62
-#define IN_REF_FROM_REF          0x63
-#define IN_REF_FROM_QUAL_REF     0x64
-#define IN_RHS_REF_FROM_QUAL_REF 0xee
-#define IN_REF_FROM_BACK         0xe3
-#define IN_TRITER_REF_FROM_CUR   0x65
-#define IN_UITER_REF_FROM_CUR    0x66
-
-#define IN_GET_MAP_EL_MEM_R      0x6c
+enum INSTRCT_BYTECODE {
+	IN_NONE,
+	IN_LOAD_INT,
+	IN_LOAD_STR,
+	IN_LOAD_NIL,
+	IN_LOAD_TRUE,
+	IN_LOAD_FALSE,
+	IN_LOAD_TREE,
+	IN_LOAD_WORD,
+
+	IN_ADD_INT,
+	IN_SUB_INT,
+	IN_MULT_INT,
+	IN_DIV_INT,
+
+	IN_TST_EQL_VAL,
+	IN_TST_EQL_TREE,
+	IN_TST_NOT_EQL_TREE,
+	IN_TST_NOT_EQL_VAL,
+	IN_TST_LESS_VAL,
+	IN_TST_LESS_TREE,
+	IN_TST_GRTR_VAL,
+	IN_TST_GRTR_TREE,
+	IN_TST_LESS_EQL_VAL,
+	IN_TST_LESS_EQL_TREE,
+	IN_TST_GRTR_EQL_VAL,
+	IN_TST_GRTR_EQL_TREE,
+	IN_TST_LOGICAL_AND,
+	IN_TST_LOGICAL_OR,
+
+	IN_TST_NZ_TREE,
+
+	IN_LOAD_RETVAL,
+
+	IN_STASH_ARG,
+	IN_PREP_ARGS,
+	IN_CLEAR_ARGS,
+
+	IN_GEN_ITER_FROM_REF,
+	IN_GEN_ITER_DESTROY,
+	IN_GEN_ITER_UNWIND,
+	IN_GEN_ITER_GET_CUR_R,
+	IN_GEN_VITER_GET_CUR_R,
+	IN_LIST_ITER_ADVANCE,
+	IN_REV_LIST_ITER_ADVANCE,
+	IN_MAP_ITER_ADVANCE,
+
+	IN_NOT_VAL,
+	IN_NOT_TREE,
+
+	IN_JMP,
+	IN_JMP_FALSE_TREE,
+	IN_JMP_TRUE_TREE,
+	IN_JMP_FALSE_VAL,
+	IN_JMP_TRUE_VAL,
+
+	IN_STR_LENGTH,
+	IN_CONCAT_STR,
+	IN_TREE_TRIM,
+
+	IN_POP_TREE,
+	IN_POP_N_WORDS,
+	IN_POP_VAL,
+	IN_DUP_VAL,
+	IN_DUP_TREE,
+
+	IN_REJECT,
+	IN_MATCH,
+	IN_PROD_NUM,
+	IN_CONSTRUCT,
+	IN_CONS_OBJECT,
+	IN_CONS_GENERIC,
+	IN_TREE_CAST,
+
+	IN_GET_LOCAL_R,
+	IN_GET_LOCAL_WC,
+	IN_SET_LOCAL_WC,
+
+	IN_GET_LOCAL_REF_R,
+	IN_GET_LOCAL_REF_WC,
+	IN_SET_LOCAL_REF_WC,
+
+	IN_SAVE_RET,
+
+	IN_GET_FIELD_TREE_R,
+	IN_GET_FIELD_TREE_WC,
+	IN_GET_FIELD_TREE_WV,
+	IN_GET_FIELD_TREE_BKT,
+
+	IN_SET_FIELD_TREE_WV,
+	IN_SET_FIELD_TREE_WC,
+	IN_SET_FIELD_TREE_BKT,
+	IN_SET_FIELD_TREE_LEAVE_WC,
+
+	IN_GET_FIELD_VAL_R,
+	IN_SET_FIELD_VAL_WC,
+
+	IN_GET_MATCH_LENGTH_R,
+	IN_GET_MATCH_TEXT_R,
+
+	IN_GET_TOKEN_DATA_R,
+	IN_SET_TOKEN_DATA_WC,
+	IN_SET_TOKEN_DATA_WV,
+	IN_SET_TOKEN_DATA_BKT,
+
+	IN_GET_TOKEN_FILE_R,
+	IN_GET_TOKEN_LINE_R,
+	IN_GET_TOKEN_POS_R,
+	IN_GET_TOKEN_COL_R,
+
+	IN_INIT_RHS_EL,
+	IN_INIT_LHS_EL,
+	IN_INIT_CAPTURES,
+	IN_STORE_LHS_EL,
+	IN_RESTORE_LHS,
+
+	IN_TRITER_FROM_REF,
+	IN_TRITER_ADVANCE,
+	IN_TRITER_WIG_ADVANCE,
+	IN_TRITER_NEXT_CHILD,
+	IN_TRITER_GET_CUR_R,
+	IN_TRITER_GET_CUR_WC,
+	IN_TRITER_SET_CUR_WC,
+	IN_TRITER_UNWIND,
+	IN_TRITER_DESTROY,
+	IN_TRITER_NEXT_REPEAT,
+	IN_TRITER_PREV_REPEAT,
+
+	IN_REV_TRITER_FROM_REF,
+	IN_REV_TRITER_DESTROY,
+	IN_REV_TRITER_UNWIND,
+	IN_REV_TRITER_PREV_CHILD,
+
+	IN_UITER_DESTROY,
+	IN_UITER_UNWIND,
+	IN_UITER_CREATE_WV,
+	IN_UITER_CREATE_WC,
+	IN_UITER_ADVANCE,
+	IN_UITER_GET_CUR_R,
+	IN_UITER_GET_CUR_WC,
+	IN_UITER_SET_CUR_WC,
+
+	IN_TREE_SEARCH,
+
+	IN_LOAD_GLOBAL_R,
+	IN_LOAD_GLOBAL_WV,
+	IN_LOAD_GLOBAL_WC,
+	IN_LOAD_GLOBAL_BKT,
+
+	IN_PTR_ACCESS_WV,
+	IN_PTR_ACCESS_BKT,
+
+	IN_REF_FROM_LOCAL,
+	IN_REF_FROM_REF,
+	IN_REF_FROM_QUAL_REF,
+	IN_RHS_REF_FROM_QUAL_REF,
+	IN_REF_FROM_BACK,
+	IN_TRITER_REF_FROM_CUR,
+	IN_UITER_REF_FROM_CUR,
+
+	IN_GET_MAP_EL_MEM_R,
+
+	IN_MAP_LENGTH,
+
+	IN_LIST_LENGTH,
+
+	IN_GET_LIST_MEM_R,
+	IN_GET_LIST_MEM_WC,
+	IN_GET_LIST_MEM_WV,
+	IN_GET_LIST_MEM_BKT,
+
+	IN_GET_VLIST_MEM_R,
+	IN_GET_VLIST_MEM_WC,
+	IN_GET_VLIST_MEM_WV,
+	IN_GET_VLIST_MEM_BKT,
+
+	IN_CONS_REDUCER,
+	IN_READ_REDUCE,
+
+	IN_DONE,
+
+	IN_GET_LIST_EL_MEM_R,
+
+	IN_GET_MAP_MEM_R,
+	IN_GET_MAP_MEM_WV,
+	IN_GET_MAP_MEM_WC,
+	IN_GET_MAP_MEM_BKT,
 
-#define IN_MAP_LENGTH            0x67
-
-#define IN_LIST_LENGTH           0x72
-
-#define IN_GET_LIST_MEM_R        0x79
-#define IN_GET_LIST_MEM_WC       0x7a
-#define IN_GET_LIST_MEM_WV       0x7b
-#define IN_GET_LIST_MEM_BKT      0x7c
-
-#define IN_GET_VLIST_MEM_R       0xeb
-#define IN_GET_VLIST_MEM_WC      0xec
-#define IN_GET_VLIST_MEM_WV      0x70
-#define IN_GET_VLIST_MEM_BKT     0x5c
-
-#define IN_CONS_REDUCER          0x76
-#define IN_READ_REDUCE           0x69
-
-#define IN_DONE                  0x78
-
-#define IN_GET_LIST_EL_MEM_R     0xf5
-
-#define IN_GET_MAP_MEM_R         0x6d
-#define IN_GET_MAP_MEM_WV        0x7d
-#define IN_GET_MAP_MEM_WC        0x7e
-#define IN_GET_MAP_MEM_BKT       0x7f
+	IN_TREE_TO_STR_XML,
+	IN_TREE_TO_STR_XML_AC,
+	IN_TREE_TO_STR_POSTFIX,
 
-#define IN_TREE_TO_STR_XML       0x6e
-#define IN_TREE_TO_STR_XML_AC    0x6f
-#define IN_TREE_TO_STR_POSTFIX   0xb6
-
-#define IN_HOST                  0xea
-
-#define IN_CALL_WC               0x8c
-#define IN_CALL_WV               0x8d
-#define IN_RET                   0x8e
-#define IN_YIELD                 0x8f
-#define IN_HALT                  0x8b
-
-#define IN_INT_TO_STR            0x97
-#define IN_TREE_TO_STR           0x98
-#define IN_TREE_TO_STR_TRIM      0x99
-#define IN_TREE_TO_STR_TRIM_A    0x18
-
-#define IN_CREATE_TOKEN          0x9a
-#define IN_MAKE_TOKEN            0x9b
-#define IN_MAKE_TREE             0x9c
-#define IN_CONSTRUCT_TERM        0x9d
-
-#define IN_INPUT_PULL_WV         0x9e
-#define IN_INPUT_PULL_WC         0xe1
-#define IN_INPUT_PULL_BKT        0x9f
-
-#define IN_INPUT_CLOSE_WC        0xef
-#define IN_INPUT_AUTO_TRIM_WC    0x82
-#define IN_IINPUT_AUTO_TRIM_WC   0x83
-
-#define IN_PARSE_FRAG_W          0xa2
-#define IN_PARSE_INIT_BKT        0xa1
-#define IN_PARSE_FRAG_BKT        0xa6
-
-#define IN_PRINT_TREE       0xa3
-
-#define IN_SEND_NOTHING     0xa0
-#define IN_SEND_TEXT_W      0x89
-#define IN_SEND_TEXT_BKT    0x8a
-
-#define IN_SEND_TREE_W      0xa9
-#define IN_SEND_TREE_BKT    0xaa
-
-#define IN_SEND_STREAM_W    0x90
-#define IN_SEND_STREAM_BKT  0x1c
-
-#define IN_SEND_EOF_W       0x87
-#define IN_SEND_EOF_BKT     0xa4
-
-#define IN_REDUCE_COMMIT         0xa5
-
-#define IN_PCR_RET               0xb2
-#define IN_PCR_END_DECK          0xb3
-
-#define IN_OPEN_FILE             0xb4
-
-#define IN_GET_CONST             0xb5
-
-#define IN_TO_UPPER              0xb9
-#define IN_TO_LOWER              0xba
-
-#define IN_LOAD_INPUT_R          0xc1
-#define IN_LOAD_INPUT_WV         0xc2
-#define IN_LOAD_INPUT_WC         0xc3
-#define IN_LOAD_INPUT_BKT        0xc4
-
-#define IN_INPUT_PUSH_WV         0xc5
-#define IN_INPUT_PUSH_BKT        0xc6
-#define IN_INPUT_PUSH_IGNORE_WV  0xc7
-
-#define IN_INPUT_PUSH_STREAM_WV  0xf3
-#define IN_INPUT_PUSH_STREAM_BKT 0xf4
-
-#define IN_LOAD_CONTEXT_R        0xc8
-#define IN_LOAD_CONTEXT_WV       0xc9
-#define IN_LOAD_CONTEXT_WC       0xca
-#define IN_LOAD_CONTEXT_BKT      0xcb
-
-#define IN_SET_PARSER_CONTEXT    0xd0
-#define IN_SET_PARSER_INPUT      0x96
-
-#define IN_GET_RHS_VAL_R         0xd7
-#define IN_GET_RHS_VAL_WC        0xd8
-#define IN_GET_RHS_VAL_WV        0xd9
-#define IN_GET_RHS_VAL_BKT       0xda
-#define IN_SET_RHS_VAL_WC        0xdb
-#define IN_SET_RHS_VAL_WV        0xdc
-#define IN_SET_RHS_VAL_BKT       0xdd
-
-#define IN_GET_PARSER_MEM_R      0x5b
-
-#define IN_GET_STREAM_MEM_R      0xb7
-
-#define IN_GET_PARSER_STREAM     0x6b
-
-#define IN_GET_ERROR             0xcc
-#define IN_SET_ERROR             0xe2
-
-#define IN_SYSTEM                0xe5
-
-#define IN_GET_STRUCT_R          0xf7
-#define IN_GET_STRUCT_WC         0xf8
-#define IN_GET_STRUCT_WV         0xf9
-#define IN_GET_STRUCT_BKT        0xfa
-#define IN_SET_STRUCT_WC         0xfb
-#define IN_SET_STRUCT_WV         0xfc
-#define IN_SET_STRUCT_BKT        0xfd
-#define IN_GET_STRUCT_VAL_R      0x93
-#define IN_SET_STRUCT_VAL_WV     0x94
-#define IN_SET_STRUCT_VAL_WC     0x95
-#define IN_SET_STRUCT_VAL_BKT    0x5d
-#define IN_NEW_STRUCT            0xfe
-
-#define IN_GET_LOCAL_VAL_R       0x91
-#define IN_SET_LOCAL_VAL_WC      0x92
-
-#define IN_NEW_STREAM            0x24
-#define IN_GET_COLLECT_STRING    0x68
+	IN_HOST,
+
+	IN_CALL_WC,
+	IN_CALL_WV,
+	IN_RET,
+	IN_YIELD,
+	IN_HALT,
+
+	IN_INT_TO_STR,
+	IN_TREE_TO_STR,
+	IN_TREE_TO_STR_TRIM,
+	IN_TREE_TO_STR_TRIM_A,
+
+	IN_CREATE_TOKEN,
+	IN_MAKE_TOKEN,
+	IN_MAKE_TREE,
+	IN_CONSTRUCT_TERM,
+
+	IN_INPUT_PULL_WV,
+	IN_INPUT_PULL_WC,
+	IN_INPUT_PULL_BKT,
+
+	IN_INPUT_CLOSE_WC,
+	IN_INPUT_AUTO_TRIM_WC,
+	IN_IINPUT_AUTO_TRIM_WC,
+
+	IN_PARSE_FRAG_W,
+	IN_PARSE_INIT_BKT,
+	IN_PARSE_FRAG_BKT,
+
+	IN_PRINT_TREE,
+
+	IN_SEND_NOTHING,
+	IN_SEND_TEXT_W,
+	IN_SEND_TEXT_BKT,
+
+	IN_SEND_TREE_W,
+	IN_SEND_TREE_BKT,
+
+	IN_SEND_STREAM_W,
+	IN_SEND_STREAM_BKT,
+
+	IN_SEND_EOF_W,
+	IN_SEND_EOF_BKT,
+
+	IN_REDUCE_COMMIT,
+
+	IN_PCR_RET,
+	IN_PCR_END_DECK,
+
+	IN_OPEN_FILE,
+
+	IN_GET_CONST,
+
+	IN_TO_UPPER,
+	IN_TO_LOWER,
+
+	IN_LOAD_INPUT_R,
+	IN_LOAD_INPUT_WV,
+	IN_LOAD_INPUT_WC,
+	IN_LOAD_INPUT_BKT,
+
+	IN_INPUT_PUSH_WV,
+	IN_INPUT_PUSH_BKT,
+	IN_INPUT_PUSH_IGNORE_WV,
+
+	IN_INPUT_PUSH_STREAM_WV,
+	IN_INPUT_PUSH_STREAM_BKT,
+
+	IN_LOAD_CONTEXT_R,
+	IN_LOAD_CONTEXT_WV,
+	IN_LOAD_CONTEXT_WC,
+	IN_LOAD_CONTEXT_BKT,
+
+	IN_SET_PARSER_CONTEXT,
+	IN_SET_PARSER_INPUT,
+
+	IN_GET_RHS_VAL_R,
+	IN_GET_RHS_VAL_WC,
+	IN_GET_RHS_VAL_WV,
+	IN_GET_RHS_VAL_BKT,
+	IN_SET_RHS_VAL_WC,
+	IN_SET_RHS_VAL_WV,
+	IN_SET_RHS_VAL_BKT,
+
+	IN_GET_PARSER_MEM_R,
+
+	IN_GET_STREAM_MEM_R,
+
+	IN_GET_PARSER_STREAM,
+
+	IN_GET_ERROR,
+	IN_SET_ERROR,
+
+	IN_SYSTEM,
+
+	IN_GET_STRUCT_R,
+	IN_GET_STRUCT_WC,
+	IN_GET_STRUCT_WV,
+	IN_GET_STRUCT_BKT,
+	IN_SET_STRUCT_WC,
+	IN_SET_STRUCT_WV,
+	IN_SET_STRUCT_BKT,
+	IN_GET_STRUCT_VAL_R,
+	IN_SET_STRUCT_VAL_WV,
+	IN_SET_STRUCT_VAL_WC,
+	IN_SET_STRUCT_VAL_BKT,
+	IN_NEW_STRUCT,
+
+	IN_GET_LOCAL_VAL_R,
+	IN_SET_LOCAL_VAL_WC,
+
+	IN_NEW_STREAM,
+	IN_GET_COLLECT_STRING,
+
+	IN_FN,
+};
 
 /*
  * Const things to get.
@@ -357,72 +361,72 @@ typedef unsigned char uchar;
 /*
  * IN_FN instructions.
  */
+enum FN_FUNCS {
+	FN_NONE,
+	FN_STOP,
 
-#define IN_FN                    0xff
-#define FN_NONE                  0x00
-#define FN_STOP                  0x0a
-
-#define FN_STR_ATOI              0x1d
-#define FN_STR_ATOO              0x38
-#define FN_STR_UORD8             0x01
-#define FN_STR_SORD8             0x02
-#define FN_STR_UORD16            0x03
-#define FN_STR_SORD16            0x04
-#define FN_STR_UORD32            0x05
-#define FN_STR_SORD32            0x06
-#define FN_STR_PREFIX            0x36
-#define FN_STR_SUFFIX            0x37
-#define FN_SPRINTF               0xd6
-#define FN_LOAD_ARGV             0x07
-#define FN_LOAD_ARG0             0x08
-#define FN_INIT_STDS             0x3e
+	FN_STR_ATOI,
+	FN_STR_ATOO,
+	FN_STR_UORD8,
+	FN_STR_SORD8,
+	FN_STR_UORD16,
+	FN_STR_SORD16,
+	FN_STR_UORD32,
+	FN_STR_SORD32,
+	FN_STR_PREFIX,
+	FN_STR_SUFFIX,
+	FN_SPRINTF,
+	FN_LOAD_ARGV,
+	FN_LOAD_ARG0,
+	FN_INIT_STDS,
 
 
-#define FN_LIST_PUSH_TAIL_WV     0x11
-#define FN_LIST_PUSH_TAIL_WC     0x12
-#define FN_LIST_PUSH_TAIL_BKT    0x13
-#define FN_LIST_POP_TAIL_WV      0x14
-#define FN_LIST_POP_TAIL_WC      0x15
-#define FN_LIST_POP_TAIL_BKT     0x16
-#define FN_LIST_PUSH_HEAD_WV     0x17
-#define FN_LIST_PUSH_HEAD_WC     0x18
-#define FN_LIST_PUSH_HEAD_BKT    0x19
-#define FN_LIST_POP_HEAD_WV      0x1a
-#define FN_LIST_POP_HEAD_WC      0x1b
-#define FN_LIST_POP_HEAD_BKT     0x1c
+	FN_LIST_PUSH_TAIL_WV,
+	FN_LIST_PUSH_TAIL_WC,
+	FN_LIST_PUSH_TAIL_BKT,
+	FN_LIST_POP_TAIL_WV,
+	FN_LIST_POP_TAIL_WC,
+	FN_LIST_POP_TAIL_BKT,
+	FN_LIST_PUSH_HEAD_WV,
+	FN_LIST_PUSH_HEAD_WC,
+	FN_LIST_PUSH_HEAD_BKT,
+	FN_LIST_POP_HEAD_WV,
+	FN_LIST_POP_HEAD_WC,
+	FN_LIST_POP_HEAD_BKT,
 
-#define FN_MAP_FIND              0x24
-#define FN_MAP_INSERT_WV         0x1e
-#define FN_MAP_INSERT_WC         0x1f
-#define FN_MAP_INSERT_BKT        0x20
-#define FN_MAP_DETACH_WV         0x21
-#define FN_MAP_DETACH_WC         0x22
-#define FN_MAP_DETACH_BKT        0x23
+	FN_MAP_FIND,
+	FN_MAP_INSERT_WV,
+	FN_MAP_INSERT_WC,
+	FN_MAP_INSERT_BKT,
+	FN_MAP_DETACH_WV,
+	FN_MAP_DETACH_WC,
+	FN_MAP_DETACH_BKT,
 
-#define FN_VMAP_FIND             0x29
-#define FN_VMAP_INSERT_WC        0x25
-#define FN_VMAP_INSERT_WV        0x26
-#define FN_VMAP_INSERT_BKT       0x3d
-#define FN_VMAP_REMOVE_WC        0x27
-#define FN_VMAP_REMOVE_WV        0x28
-#define FN_VMAP_REMOVE_BKT       0x3f
+	FN_VMAP_FIND,
+	FN_VMAP_INSERT_WC,
+	FN_VMAP_INSERT_WV,
+	FN_VMAP_INSERT_BKT,
+	FN_VMAP_REMOVE_WC,
+	FN_VMAP_REMOVE_WV,
+	FN_VMAP_REMOVE_BKT,
 
-#define FN_VLIST_PUSH_TAIL_WV    0x2a
-#define FN_VLIST_PUSH_TAIL_WC    0x2b
-#define FN_VLIST_PUSH_TAIL_BKT   0x2c
-#define FN_VLIST_POP_TAIL_WV     0x2d
-#define FN_VLIST_POP_TAIL_WC     0x2e
-#define FN_VLIST_POP_TAIL_BKT    0x2f
-#define FN_VLIST_PUSH_HEAD_WV    0x30
-#define FN_VLIST_PUSH_HEAD_WC    0x31
-#define FN_VLIST_PUSH_HEAD_BKT   0x32
-#define FN_VLIST_POP_HEAD_WV     0x33
-#define FN_VLIST_POP_HEAD_WC     0x34
-#define FN_VLIST_POP_HEAD_BKT    0x35
-#define FN_EXIT                  0x39
-#define FN_EXIT_HARD             0x3a
-#define FN_PREFIX                0x3b
-#define FN_SUFFIX                0x3c
+	FN_VLIST_PUSH_TAIL_WV,
+	FN_VLIST_PUSH_TAIL_WC,
+	FN_VLIST_PUSH_TAIL_BKT,
+	FN_VLIST_POP_TAIL_WV,
+	FN_VLIST_POP_TAIL_WC,
+	FN_VLIST_POP_TAIL_BKT,
+	FN_VLIST_PUSH_HEAD_WV,
+	FN_VLIST_PUSH_HEAD_WC,
+	FN_VLIST_PUSH_HEAD_BKT,
+	FN_VLIST_POP_HEAD_WV,
+	FN_VLIST_POP_HEAD_WC,
+	FN_VLIST_POP_HEAD_BKT,
+	FN_EXIT,
+	FN_EXIT_HARD,
+	FN_PREFIX,
+	FN_SUFFIX,
+};
 
 #define TRIM_DEFAULT 0x01
 #define TRIM_YES     0x02
@@ -500,7 +504,7 @@ enum LEL_ID {
  */
 
 /*
- * User iterator call stack. 
+ * User iterator call stack.
  * Adds an iframe pointer, removes the return value.
  */
 

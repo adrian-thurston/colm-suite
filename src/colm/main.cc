@@ -57,6 +57,7 @@ using std::endl;
 
 /* Graphviz dot file generation. */
 bool genGraphviz = false;
+bool genEbnf = false;
 
 using std::ostream;
 using std::istream;
@@ -86,6 +87,7 @@ bool exportCode = false;
 bool hostAdapters = true;
 
 bool generateGraphviz = false;
+bool generateEbnf = false;
 bool verbose = false;
 bool logging = false;
 bool branchPointInfo = false;
@@ -211,6 +213,7 @@ void usage()
 "   -r                   run output program and replace process\n"
 "   -c                   compile only (don't produce binary)\n"
 "   -V                   print dot format (graphiz)\n"
+"   --ebnf               print EBNF for railroad diagram\n"
 "   -d                   print verbose debug information\n"
 "   -B <path>\n"
 "       Run Colm from the build directory. Use this when building from source\n"
@@ -579,6 +582,10 @@ void processArgs( int argc, const char **argv )
 					version();
 					exit(0);
 				}
+				else if ( strcasecmp(pc.parameterArg, "ebnf") == 0 ) {
+					generateEbnf = true;
+					break;
+				}
 				else {
 					error() << "--" << pc.parameterArg <<
 							" is an invalid argument" << endl;
@@ -747,6 +754,10 @@ int main(int argc, const char **argv)
 	if ( generateGraphviz ) {
 		outStream = &cout;
 		pd->writeDotFile();
+	}
+	else if ( generateEbnf ) {
+		outStream = &cout;
+		pd->writeEbnfFile();
 	}
 	else {
 		if ( gblLibrary )

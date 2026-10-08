@@ -1,0 +1,31 @@
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+int check( Item: id )
+{
+	Copy: id = Item
+	if $Copy == 'stop'
+		exit( 3 )
+	return 0
+}
+
+def item
+	[id]
+	{
+		print( $r1, '\n' )
+		check( r1 )
+	}
+
+def start
+	[item*]
+
+parse S: start["abc def stop ghi"]
+print( S, '\n' )
+##### EXP #####
+abc
+def
+stop
+##### EXIT #####
+3

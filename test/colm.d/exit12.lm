@@ -1,0 +1,48 @@
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+def item
+	[id]
+	{
+		if $r1 == 'stop'
+			exit( 3 )
+	}
+
+def items
+	[item*]
+
+def word
+	[id]
+
+def words
+	[word*]
+
+int parseEach( Words: words )
+{
+	Local: str = 'local'
+	for W: word in Words {
+		parse Items: items[ $W ]
+		print( Items, '\n' )
+	}
+	return 0
+}
+
+int outer( Words: words )
+{
+	Local: words = Words
+	parseEach( Local )
+	return 0
+}
+
+parse Words: words["abc def stop ghi"]
+for W: word in Words {
+	outer( Words )
+}
+print( 'after\n' )
+##### EXP #####
+abc
+def
+##### EXIT #####
+3

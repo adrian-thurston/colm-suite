@@ -1,0 +1,21 @@
+lex
+	ignore /[ \n]+/
+	token id /'#'/
+	token raw /[a-z]+/
+	{
+		if match_text == 'stop'
+			exit( 3 )
+		T: str = match_text
+		input->pull( match_length )
+		input->push( make_token( typeid<id>, T ) )
+	}
+end
+
+def start
+	[id*]
+
+parse S: start["abc def stop ghi"]
+print( S, '\n' )
+##### EXP #####
+##### EXIT #####
+3

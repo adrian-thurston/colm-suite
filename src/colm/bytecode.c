@@ -577,6 +577,26 @@ static code_t *pcr_call( program_t *prg, execution_t *exec, tree_t ***psp, code_
 	return instr;
 }
 
+/* Pop what pcr_call pushed under the code's frame, restoring the code that
+ * called the parser. Returns the instruction to go back to. */
+static code_t *pcr_return( program_t *prg, execution_t *exec, tree_t ***psp )
+{
+	tree_t **sp = *psp;
+
+	code_t *instr = vm_pop_type(code_t*);
+
+	exec->WV =         vm_pop_type(word_t);
+	exec->parser =     vm_pop_parser();
+	exec->pcr =        vm_pop_type(word_t);
+	exec->steps =      vm_pop_type(word_t);
+	exec->frame_id =   vm_pop_type(long);
+	exec->iframe_ptr = vm_pop_type(tree_t**);
+	exec->frame_ptr =  vm_pop_type(tree_t**);
+
+	*psp = sp;
+	return instr;
+}
+
 void colm_execute( program_t *prg, execution_t *exec, code_t *code )
 {
 	tree_t **sp = prg->stack_root;
@@ -2748,15 +2768,7 @@ again:
 				vm_popn( fi->frame_size );
 			}
 
-			instr = vm_pop_type(code_t*);
-
-			exec->WV =         vm_pop_type(word_t);
-			exec->parser =     vm_pop_parser();
-			exec->pcr =        vm_pop_type(word_t);
-			exec->steps =      vm_pop_type(word_t);
-			exec->frame_id =   vm_pop_type(long);
-			exec->iframe_ptr = vm_pop_type(tree_t**);
-			exec->frame_ptr =  vm_pop_type(tree_t**);
+			instr = pcr_return( prg, exec, &sp );
 
 			assert( instr != 0 );
 			break;
@@ -2782,6 +2794,12 @@ again:
 			if ( exec->pcr != PCR_DONE )
 				instr = pcr_call( prg, exec, &sp, instr, parser );
 			else {
+				/* Skip the unwind code. It is for an exit in a parser action
+				 * (see FN_EXIT). */
+				short unwind_len;
+				read_half( unwind_len );
+				instr += unwind_len;
+
 				if ( exec->WV ) {
 					rcode_unit_start( exec );
 
@@ -2791,9 +2809,6 @@ again:
 					rcode_code( exec, IN_PARSE_FRAG_BKT );
 					rcode_unit_term( exec );
 				}
-
-				if ( prg->induce_exit )
-					goto out;
 			}
 			break;
 		}
@@ -4742,24 +4757,56 @@ again:
 					if ( unwind_len > 0 )
 						sp = colm_execute_code( prg, exec, sp, instr );
 
+					/* Only functions have commit code. A frame without is a
+					 * parser action's, which pcr_call pushed. */
+					int action = fi->codeWC == 0;
+
+					if ( action ) {
+						/* Drop any reverse code unit the action began and
+						 * didn't finish. The parser makes reverse code from
+						 * whole units only. */
+						exec->parser->pda_run->rcode_collect.tab_len -=
+								exec->rcode_unit_len;
+						exec->rcode_unit_len = 0;
+					}
+
 					downref_locals( prg, &sp, exec, fi->locals, fi->locals_len );
 					vm_popn( fi->frame_size );
 
-					/* Call layout. */
-					exec->frame_id = vm_pop_type(long);
-					exec->frame_ptr = vm_pop_type(tree_t**);
-					instr = vm_pop_type(code_t*);
+					if ( action ) {
+						/* Back to the IN_PARSE_FRAG_W that called the
+						 * action, which left the parser on the stack. */
+						instr = pcr_return( prg, exec, &sp );
+						parser_t *parser = vm_pop_parser();
 
-					tree_t *ret_val = vm_pop_tree();
-					vm_pop_value();
+						/* Let the parser finish up after the action. Seeing
+						 * induce_exit, it stops without running another. */
+						exec->pcr = colm_parse_frag( prg, sp,
+								parser->pda_run, parser->input,
+								exec->pcr );
+						assert( exec->pcr == PCR_DONE );
 
-					/* The IN_PREP_ARGS stack data. */
-					vm_popn( fi->arg_size );
-					vm_pop_value();
+						/* The parse site's unwind code follows the
+						 * instruction. */
+						instr += SIZEOF_CODE;
+					}
+					else {
+						/* Call layout. */
+						exec->frame_id = vm_pop_type(long);
+						exec->frame_ptr = vm_pop_type(tree_t**);
+						instr = vm_pop_type(code_t*);
 
-					if ( fi->ret_tree ) {
-						/* Problem here. */
-						colm_tree_downref( prg, sp, ret_val );
+						tree_t *ret_val = vm_pop_tree();
+						vm_pop_value();
+
+						/* The IN_PREP_ARGS stack data. */
+						vm_popn( fi->arg_size );
+						vm_pop_value();
+
+						if ( fi->ret_tree ) {
+							/* Problem here. */
+							colm_tree_downref( prg, sp, ret_val );
+						}
 					}
 
 					read_half( unwind_len );

@@ -1050,6 +1050,20 @@ void LangVarRef::resetActiveRefs( Compiler *pd, VarRefLookup &lookup,
 	}
 }
 
+/* After a call, or a parse, which runs parser actions: the length of the code
+ * that unwinds this frame on an exit below, then the code. FN_EXIT runs it,
+ * the return or the parse skips it. */
+static void appendUnwindCode( Compiler *pd, CodeVect &code )
+{
+	if ( pd->unwindCode.length() == 0 )
+		code.appendHalf( 0 );
+	else {
+		code.appendHalf( pd->unwindCode.length() + 1 );
+		code.append( pd->unwindCode );
+		code.append( IN_DONE );
+	}
+}
+
 bool LangVarRef::isFinishCall( VarRefLookup &lookup ) const
 {
 	return lookup.objMethod->type == ObjectMethod::ParseFinish;
@@ -1105,16 +1119,9 @@ void LangVarRef::callOperation( Compiler *pd, CodeVect &code, VarRefLookup &look
 
 	if ( lookup.objMethod->useGenericId )
 		code.appendHalf( lookup.objMethod->generic->id );
-	
-	if ( unwind ) {
-		if ( pd->unwindCode.length() == 0 )
-			code.appendHalf( 0 );
-		else {
-			code.appendHalf( pd->unwindCode.length() + 1 );
-			code.append( pd->unwindCode );
-			code.append( IN_DONE );
-		}
-	}
+
+	if ( unwind )
+		appendUnwindCode( pd, code );
 }
 
 void LangVarRef::popRefQuals( Compiler *pd, CodeVect &code, 
@@ -1453,6 +1460,7 @@ UniqueType *LangTerm::evaluateConstruct( Compiler *pd, CodeVect &code ) const
 void LangTerm::parseFrag( Compiler *pd, CodeVect &code, int stopId )
 {
 	code.append( IN_PARSE_FRAG_W );
+	appendUnwindCode( pd, code );
 }
 
 UniqueType *LangTerm::evaluateReadReduce( Compiler *pd, CodeVect &code ) const
@@ -2759,9 +2767,11 @@ void Compiler::findLocals( ObjectDef *localFrame, CodeBlock *block )
 
 		/* FIXME: This test needs to be improved. Match_text was getting
 		 * through before useOffset was tested. What will? */
-		if ( el->useOffset() && !el->isLhsEl() &&
-				( el->beenReferenced || el->isParam() ) )
-		{
+
+		/* A reduction's lhs is listed too. The end of the action moves it
+		 * back to the parser and clears the local, but an exit in the action
+		 * leaves it in the local. */
+		if ( el->useOffset() && ( el->beenReferenced || el->isParam() ) ) {
 			UniqueType *ut = el->typeRef->uniqueType;
 			if ( ut->tree() ) {
 				int depth = el->scope->depth();

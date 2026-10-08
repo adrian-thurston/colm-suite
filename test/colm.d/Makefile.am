@@ -52,6 +52,18 @@ EXTRA_DIST = \
 	exit4.lm \
 	exit5.lm \
 	exit6.lm \
+	exit7.lm \
+	exit8.lm \
+	exit9.lm \
+	exit10.lm \
+	exit11.lm \
+	exit12.lm \
+	exit13.lm \
+	exit14.lm \
+	exit15.lm \
+	exit16.lm \
+	exit17.lm \
+	exit18.lm \
 	export1.lm \
 	ext1.lm \
 	factor1.lm \

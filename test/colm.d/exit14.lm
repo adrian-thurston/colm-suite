@@ -1,0 +1,24 @@
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+def item
+	[id]
+	{
+		print( $r1, '\n' )
+		if $r1 == 'stop'
+			exit_hard( 3 )
+	}
+
+def start
+	[item*]
+
+parse S: start["abc def stop ghi"]
+print( S, '\n' )
+##### EXP #####
+abc
+def
+stop
+##### EXIT #####
+3

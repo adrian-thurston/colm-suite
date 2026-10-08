@@ -1,0 +1,38 @@
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+def word
+	[id]
+	{
+		if $r1 == 'stop'
+			exit( 3 )
+	}
+
+def words
+	[word*]
+
+str check( S: str )
+{
+	parse W: words[ S ]
+	return $W
+}
+
+def item
+	[id]
+	{
+		S: str = check( $r1 )
+		print( S, '\n' )
+	}
+
+def items
+	[item*]
+
+parse I: items["abc def stop ghi"]
+print( I, '\n' )
+##### EXP #####
+abc
+def
+##### EXIT #####
+3

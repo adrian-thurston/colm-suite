@@ -20,8 +20,8 @@ pattern is written between two slashes.
 * `ignore /PATTERN/` defines text the scanner reads and then drops, such as
   whitespace and comments. The parser never sees it.
 * `literal` defines tokens for fixed text. Each is written as a backtick
-  followed by the text, which runs up to the next space, line break or `]`:
-  `+literal `( `)+` defines the tokens `(` and `)`.
+  followed by the text, which runs up to the next space, tab, line break
+  or `]`: `+literal `( `)+` defines the tokens `(` and `)`.
 
 A `def` uses a token by its name, and a literal by its backtick form. Every
 literal that a `def` uses must be defined by a `literal` statement. Colm
@@ -59,8 +59,8 @@ outside one: <<regions>> explains what that means.
 
 == Named regular languages
 
-A pattern is a regular expression. The table shows what a pattern can
-contain. `x` and `y` stand for any pattern.
+A pattern is a regular expression. The table shows the parts of a pattern
+used most. `x` and `y` stand for any pattern.
 
 [cols="2,3"]
 |===
@@ -135,6 +135,7 @@ Colm has names for common sets of characters:
 Text in a pattern has to be quoted. A bare word is a name. `rl` gives a
 pattern a name, so that other patterns can use it:
 
+[source,chapel]
 ----
 rl letter /alpha | '_'/
 ----
@@ -223,6 +224,7 @@ The scanner chooses from all the patterns of the `lex` block, whether or not
 the parser can use the token that wins. In this program, `if` is a keyword
 again, and the grammar wants identifiers:
 
+[source,chapel]
 ----
 lex
 	literal `if
@@ -251,8 +253,7 @@ A token or literal defined outside a `lex` block is in a region of its own.
 
 This program reads settings, one to a line. A setting is a name, an `=`, and
 then the rest of the line, whatever it holds. The name and the `=` are in the
-first region. The value and the line break are in the second region, which
-has no ignores, so that the spaces inside a value are kept:
+first region. The value and the line break are in the second region:
 
 [source,chapel]
 .lex_regions.lm
@@ -273,10 +274,15 @@ include::code/lex_regions.exp[]
 ----
 
 After the `=`, the parser can take only a `value`, so the scanner reads it
-with the second region's patterns. There, `x = y + 1` is a single token: the
-second `=` is not the literal, because the literal is in the first region.
+with the second region's patterns. There, only `value` and `nl` can match,
+so `x = y + 1` is a single token, and its second `=` is not the literal.
 After the line break, the parser can take a `key`, or the end of the input,
 so the scanner goes back to the first region.
+
+The second region is what makes this work. In a single `lex` block, `value`
+would match each whole line, which is longer than any `key`, so the scanner
+would read `name = Ada Lovelace` as one `value`, and the parse would fail at
+its start.
 
 The value doesn't start with the space that follows the `=`. After the
 scanner reads a token, it skips what that token's region ignores, and only
@@ -316,9 +322,10 @@ parser never sees it. An action has to pull the matched text, though: if it
 doesn't, the scanner matches the same text again, and runs the action again,
 without end.
 
-An action can declare variables of its own. To use a variable declared
-outside it, the variable has to be declared with `global`. A token with an
-empty pattern, `//`, never matches any input. Only an action can make one.
+An action can declare variables of its own. To use a variable declared at
+the top of the program, the variable has to be declared with `global`. A
+token with an empty pattern, `//`, never matches any input. Only an action
+can make one.
 
 This program reads shell-style here-documents. `cat << END` starts one, and it
 runs up to the first line that is `END` and nothing else. The word after `<<`

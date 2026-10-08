@@ -1,0 +1,6 @@
+# A compile error that has nothing to do with streams: a COMP_ERR case checks
+# the error colm gives for any program it rejects.
+I: int = 1
+I = 'a'
+##### COMP_ERR #####
+4:1: type mismatch in assignment

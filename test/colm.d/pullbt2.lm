@@ -1,0 +1,34 @@
+# Pullbt1 with the pull in a reduction action. Backtracking over the reduction
+# must give stdin back the text the pull took.
+
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+	literal `; `( `)
+end
+
+# Reducing an id to an item pulls the next character of stdin.
+def item
+	[id]
+	{
+		print( 'pulled ', stdin->pull( 1 ), '\n' )
+	}
+|	[`( item* `)]
+
+def flat
+	[id] | [`(] | [`)]
+
+def start
+	[item* `;]
+|	[flat* `;]
+
+parse S: start[ 'a ( b ;' ]
+print( 'flat: ', S, '\n' )
+print( 'rest: ', stdin->pull( 4 ), '\n' )
+##### IN #####
+wxyz
+##### EXP #####
+pulled w
+pulled x
+flat: a ( b ;
+rest: wxyz

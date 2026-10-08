@@ -1,0 +1,54 @@
+# Backtracking over a token action that pulls from a stream. The undo of the
+# pull must give the stream back the text the pull took, so that the action
+# pulls the same text when it runs again.
+
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+	literal `; `( `)
+
+	# An @ stands for the next character of stdin, scanned as an id.
+	token at /'@'/
+	{
+		input->pull( 1 )
+		input->push( stdin->pull( 1 ) )
+	}
+end
+
+# Parens must balance here. When they don't, the parser backtracks over
+# everything and takes flat instead.
+def item
+	[id]
+|	[`( item* `)]
+
+def flat
+	[id] | [`(] | [`)]
+
+def start
+	[item* `;]
+|	[flat* `;]
+
+void show( S: start )
+{
+	if S {
+		if match S [item* `;]
+			print( 'items: ', S, '\n' )
+		else
+			print( 'flat: ', S, '\n' )
+	}
+	else
+		print( 'error: ', error, '\n' )
+}
+
+parse S1: start[ '@ ( @ ;' ]
+show( S1 )
+parse S2: start[ '( @ ) ;' ]
+show( S2 )
+print( 'rest: ', stdin->pull( 2 ), '\n' )
+##### IN #####
+abcd
+##### EXP #####
+flat: a ( b ;
+items: ( c ) ;
+rest: d
+

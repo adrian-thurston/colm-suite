@@ -1,0 +1,5 @@
+# A stream has no push_stream, a stream from open no more than stdin.
+Stream: stream = open( 'working/streampush3.lm', 'r' )
+Stream->push_stream( stdin )
+##### COMP_ERR #####
+3:9: cannot resolve qualification push_stream

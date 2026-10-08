@@ -27,6 +27,7 @@ EXTRA_DIST = \
 	call1.lm \
 	collect.lm \
 	commitbt.lm \
+	comperr1.lm \
 	concat1.lm \
 	concat2.lm \
 	construct1.lm \
@@ -140,6 +141,10 @@ EXTRA_DIST = \
 	prints.lm \
 	pull1.lm \
 	pull2.lm \
+	pull3.lm \
+	pull4.lm \
+	pullbt1.lm \
+	pullbt2.lm \
 	pushemptybt1.lm \
 	pushignbt1.lm \
 	pushigneof1.lm \
@@ -171,6 +176,9 @@ EXTRA_DIST = \
 	sendstream.lm \
 	sprintf.lm \
 	stds1.lm \
+	streampush1.lm \
+	streampush2.lm \
+	streampush3.lm \
 	streamseq1.lm \
 	streamseq2.lm \
 	string.lm \
@@ -184,6 +192,9 @@ EXTRA_DIST = \
 	tags4.lm \
 	tcontext1.lm \
 	til.lm \
+	toppush1.lm \
+	toppush2.lm \
+	toppush3.lm \
 	translate1.lm \
 	translate2.lm \
 	travs1.lm \

@@ -227,9 +227,10 @@ static void runJob( const Config &config, Job &job )
 				}
 
 				/* Standard error goes to the log, by way of a buffer of its own
-				 * when it is to be searched. */
+				 * when it is to be searched or becomes the output. */
 				std::string errOut;
-				std::string *errBuf = step.errorPrefix.empty() ? &job.log : &errOut;
+				std::string *errBuf = step.errorPrefix.empty() && !step.stderrIsOutput ?
+						&job.log : &errOut;
 
 				int exitCode = 0;
 				std::string err;
@@ -241,6 +242,8 @@ static void runJob( const Config &config, Job &job )
 				}
 				job.exitCode = exitCode;
 				job.log += errOut;
+				if ( step.stderrIsOutput )
+					job.output = errOut;
 
 				std::string run = step.label.empty() ? "" : step.label + ": ";
 
@@ -261,6 +264,15 @@ static void runJob( const Config &config, Job &job )
 						snprintf( msg, sizeof(msg), "exit value: got %d expected %d",
 								exitCode, step.expectExit );
 						job.fail( run + msg );
+					}
+					else if ( step.expectExit != 0 ) {
+						/* A step expected to fail, such as a compilation
+						 * expected to give an error. */
+						char msg[128];
+						snprintf( msg, sizeof(msg), "%s exit value: got %d expected %d",
+								roleName( step.role ), exitCode, step.expectExit );
+						job.fail( msg );
+						return;
 					}
 					else {
 						job.fail( std::string( roleName( step.role ) ) + " failed" );

@@ -1,0 +1,9 @@
+# A stream has no push_ignore.
+lex
+	ignore ws /[ \n]+/
+	token id /[a-z]+/
+end
+
+stdin->push_ignore( make_token( typeid<ws>, ' ' ) )
+##### COMP_ERR #####
+7:8: cannot resolve qualification push_ignore

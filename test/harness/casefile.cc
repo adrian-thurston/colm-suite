@@ -6,7 +6,7 @@
 
 #include <ctype.h>
 
-/* Match "#+ *[a-zA-Z]+ *#+" starting at pos. */
+/* Match "#+ *[a-zA-Z_]+ *#+" starting at pos. */
 static bool matchHeaderAt( const std::string &line, size_t pos, std::string &name )
 {
 	size_t i = pos;
@@ -17,7 +17,7 @@ static bool matchHeaderAt( const std::string &line, size_t pos, std::string &nam
 	while ( i < line.size() && line[i] == ' ' )
 		i++;
 	size_t nameStart = i;
-	while ( i < line.size() && isalpha( (unsigned char)line[i] ) )
+	while ( i < line.size() && ( isalpha( (unsigned char)line[i] ) || line[i] == '_' ) )
 		i++;
 	if ( i == nameStart )
 		return false;

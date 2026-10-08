@@ -1,0 +1,24 @@
+# Toppush1 with push_ignore.
+
+lex
+	ignore ws /[ \n]+/
+	token id /[a-z]+/
+end
+
+def start
+	[id*]
+
+void push_ws( I: _input )
+{
+	I->push_ignore( make_token( typeid<ws>, '  ' ) )
+}
+
+P: parser<start> = new parser<start>()
+push_ws( P->gets() )
+send P [ stdin ]
+S: start = P->finish()
+print( '{', S, '}\n' )
+##### IN #####
+b c--noeol
+##### EXP #####
+{  b c}

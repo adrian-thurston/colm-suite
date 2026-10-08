@@ -128,6 +128,11 @@ pool items (kids, trees, heads, ...) fails its case. A colm.d case's `LOST`
 section lists known losses that don't. `--valgrind` also catches memory errors
 and malloc leaks.
 
+A colm.d case with a `COMP_ERR` section is a program colm must reject. It
+passes when colm exits with 1 and its error output is the section, read
+without the `working/NAME.lm:` colm prints in front of each `line:col`. It has
+no runs, so it takes no `ARGS`, `IN`, `EXP`, `EXIT`, `LOST` or `HOST`.
+
 A fix comes with a test case that fails without it: Colm cases go in
 `test/colm.d`, Ragel cases in `test/ragel.d`. For a change to the runtime's
 memory handling (`src/colm/*.c`), also run the cases it touches with

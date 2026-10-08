@@ -1,0 +1,21 @@
+# Pull3 with a stream from open in place of stdin.
+
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+def start
+	[id*]
+
+Stream: stream = open( 'working/pull4-0.in', 'r' )
+X: str = Stream->pull( 2 )
+Y: str = Stream->pull( 2 )
+print( '[', X, '][', Y, ']\n' )
+parse S: start[ Stream ]
+print( '{', S, '}\n' )
+##### IN #####
+b c d e--noeol
+##### EXP #####
+[b ][c ]
+{d e}

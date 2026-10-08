@@ -1,0 +1,24 @@
+# Toppush1 with push_stream.
+
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+def start
+	[id*]
+
+void push_stdin( I: _input )
+{
+	I->push_stream( stdin )
+}
+
+P: parser<start> = new parser<start>()
+push_stdin( P->gets() )
+send P [ ' z' ]
+S: start = P->finish()
+print( '{', S, '}\n' )
+##### IN #####
+b c--noeol
+##### EXP #####
+{b c z}

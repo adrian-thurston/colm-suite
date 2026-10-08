@@ -20,8 +20,8 @@ Please Note:
 
 [source,bash]
 ----
-/opt/colm/bin/colm fizzbuzz.lm
-./fizzbuzz
+/opt/colm/bin/colm figure_44.lm
+./figure_44
 ----
 
 That gives us:
@@ -45,8 +45,10 @@ Therefor we'll resort to a function.
 Writing a function seems rather straight forward.
 
 Please note:
+
 * that '&&' is working.
-* The return type is needed, but if 'nil' is returned by default.
+* The return type is needed: use 'void' for a function that returns nothing.
+  A function that ends without a 'return' returns 'nil', which is 0 for an 'int'.
 
 [source,bash]
 ----

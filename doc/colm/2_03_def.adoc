@@ -2,7 +2,8 @@ Def
 ===
 
 The 'def' is where colm really shines.
-A 'def' is somewhere between a struct and a regular expression.
+A 'def' defines a context-free grammar nonterminal: a type whose values are parse trees.
+Each of its productions, between square brackets, is a sequence of tokens and nonterminals, and 'parse' turns input into a tree of that type.
 Again one example is much more clearer.
 
 [source,chapel]

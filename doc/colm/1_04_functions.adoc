@@ -9,7 +9,7 @@ We can also pass parameters by reference.
 This enables us to change the variable with in the function.
 
 [source,chapel]
-./reference.lm
+.reference.lm
 ----
 include::code/reference.lm[]
 ----

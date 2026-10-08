@@ -4,7 +4,8 @@ Vim syntax
 To activate colm syntax highlighting in vim, copy colm's syntax file, 'colm.vim', to vim's syntax directory.
 It is at the top of the source tree, and installing colm puts it in the documentation directory, '<prefix>/share/doc/colm-suite'.
 
- cp /opt/colm/share/doc/colm-suite/colm.vim ~/.vim/syntax
+ mkdir -p ~/.vim/syntax
+ cp /opt/colm/share/doc/colm-suite/colm.vim ~/.vim/syntax/
 
 [source,vim]
 .~/.vimrc

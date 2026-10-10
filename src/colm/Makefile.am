@@ -81,7 +81,7 @@ libprog_a_SOURCES = \
 	resolve.cc lookup.cc synthesis.cc parsetree.cc \
 	pdagraph.cc pdabuild.cc pdacodegen.cc fsmcodegen.cc \
 	fsmexec.cc closure.cc \
-	dotgen.cc pcheck.cc ctinput.cc declare.cc codegen.cc \
+	dotgen.cc ebnfgen.cc pcheck.cc ctinput.cc declare.cc codegen.cc \
 	exports.cc compiler.cc parser.cc reduce.cc
 
 libprog_a_CXXFLAGS = $(common_CFLAGS)

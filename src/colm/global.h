@@ -44,6 +44,7 @@ std::ostream &error();
 /* IO filenames and stream. */
 extern std::ostream *outStream;
 extern bool generateGraphviz;
+extern bool generateEbnf;
 extern bool branchPointInfo;
 extern bool verbose, logging;
 extern bool addUniqueEmptyProductions;

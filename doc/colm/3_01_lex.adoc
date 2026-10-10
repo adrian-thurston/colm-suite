@@ -17,8 +17,8 @@ Tokens are defined in a `lex` block, with three kinds of definition. A
 pattern is written between two slashes.
 
 * `token NAME /PATTERN/` defines a token called `NAME`.
-* `ignore /PATTERN/` defines text the scanner reads and then drops, such as
-  whitespace and comments. The parser never sees it.
+* `ignore /PATTERN/` defines text the scanner reads but doesn't pass to the
+  parser as a token, such as whitespace and comments. A `def` never names it.
 * `literal` defines tokens for fixed text. Each is written as a backtick
   followed by the text, which runs up to the next space, tab, line break
   or `]`: `+literal `( `)+` defines the tokens `(` and `)`.
@@ -324,8 +324,9 @@ without end.
 
 An action can declare variables of its own. To use a variable declared at
 the top of the program, the variable has to be declared with `global`. A
-token with an empty pattern, `//`, never matches any input. Only an action
-can make one.
+token with an empty pattern, `//`, never matches any input, so the scanner
+never makes one. Code has to make it with `make_token`, as the action in the
+next example does.
 
 This program reads shell-style here-documents. `cat << END` starts one, and it
 runs up to the first line that is `END` and nothing else. The word after `<<`

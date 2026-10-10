@@ -61,6 +61,7 @@ include::code/hello_world_ext.lm[]
 ----
 
 We also notice that:
+
 * the quotes can be single and double
 * the whitespace is not significant
-* the newlines '\n' appear to be '\r\n'
+* the line ends with '\r\n' because the string "world\r\n" ends with it

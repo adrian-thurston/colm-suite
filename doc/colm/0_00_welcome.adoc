@@ -3,7 +3,7 @@ Welcome
 
 == Colm = COmputer Language Machinery
 
-Colm is a programming language designed for the analysis and https://www.program-transformation.org/Transform/TransformationSystems[transformation of computer languages].
+Colm is a programming language designed for the analysis and transformation of computer languages.
 Colm is influenced primarily by https://www.txl.ca/[TXL].
 
 === What is a transformation language?
@@ -11,6 +11,7 @@ Colm is influenced primarily by https://www.txl.ca/[TXL].
 A transformation language has a type system based on formal languages.
 Rather than defining classes or data structures, one defines grammars.
 A parser is constructed automatically from the grammar, and the parser is used for two purposes:
+
 * to parse the input language,
 * and to parse the structural patterns in the program that performs the analysis.
 
@@ -19,6 +20,7 @@ In this setting, grammar-based parsing is critical because it guarantees that bo
 === Colm's features
 
 Colm is not-your-typical-scripting-language (TM):
+
 * Colm's main contribution lies in the parsing method.
   Colm's parsing engine is generalized, but it also allows for the construction of arbitrary global data structures that can be queried during parsing.
   In other generalized methods, construction of global data requires some very careful consideration because of inherent concurrency in the parsing method.
@@ -26,17 +28,12 @@ Colm is not-your-typical-scripting-language (TM):
 * By default Colm will create an elf executable that can be used standalone for that actual transformations.
 * Colm is a static and strong typed scripting language.
 * Colms' is very tiny and fast and can easily be embedded/linked with c/cpp programs.
-* Colm's runtime is a stackbased VM that starts with the bare minimum of the language and bootstraps itself.
-* Creates a VM which can be embedded in C. As it runs in an embeddable VM, the language is bootstrapped.
-
-=== Where is colm used?
-
-Colm is developed and used intensively by https://www.colm.net/[Colm Networks] to develop fast network traffic automata and systems for traffic identification, decoding, pattern matching, and extraction of security events.
-But colm is also the driving force in https://www.colm.net/open-source/ragel/[the Ragel State Machine Compiler]
+* Colm's runtime is a stack-based VM, which can be embedded in C.
+* Colm's compiler bootstraps itself: it is built in stages, starting with the bare minimum of the language and ending with the full language.
 
 === What is colm's history?
 
-Colm's development started by https://twitter.com/ehdtee[Adrian Thurston] during his https://www.colm.net/files/colm/thurston-phdthesis.pdf[Ph.D. thesis] period after intensive study of http://research.cs.queensu.ca/~cordy/Papers/TC_SCAM06_ETXL.pdf[TXL].
+Colm's development started by Adrian Thurston during his https://www.colm.net/files/colm/thurston-phdthesis.pdf[Ph.D. thesis] period after intensive study of http://research.cs.queensu.ca/~cordy/Papers/TC_SCAM06_ETXL.pdf[TXL].
 
 === When not to use Colm
 

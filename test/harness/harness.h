@@ -126,6 +126,10 @@ struct Step
 	std::string errorPrefix;
 	std::string knownErrors;
 
+	/* Exec: standard error becomes the job's current output, as well as going
+	 * to the log. Standard output must then not be CaptureOutput. */
+	bool stderrIsOutput;
+
 	/* Filter: a shell command the current output is piped through. */
 	std::string shell;
 
@@ -145,7 +149,8 @@ struct Step
 
 	Step( Kind kind )
 		: kind(kind), role(Run), stdoutTo(CaptureNone),
-		expectExit(-1), errorExit(-1), ignoreWs(false), stripCr(false) {}
+		expectExit(-1), errorExit(-1), stderrIsOutput(false),
+		ignoreWs(false), stripCr(false) {}
 
 	static Step exec( Role role, const Words &argv, const std::string &cwd );
 	static Step filter( const std::string &shell, const std::string &cwd );
@@ -160,6 +165,7 @@ struct Step
 	Step &environment( const std::string &setting ) { env.push_back( setting ); return *this; }
 	Step &errorsFrom( int e, const std::string &prefix, const std::string &known )
 		{ errorExit = e; errorPrefix = prefix; knownErrors = known; return *this; }
+	Step &stderrOutput() { stderrIsOutput = true; return *this; }
 	Step &labelled( const std::string &l ) { label = l; return *this; }
 	Step &whitespace() { ignoreWs = true; return *this; }
 	Step &trailingCr() { stripCr = true; return *this; }
@@ -242,15 +248,16 @@ void enumerateRagel( const Config &config, const Selection &sel, JobList &jobs )
  */
 
 /* The program, its compilation arguments, and the C functions it calls (CALL)
- * and the host program it is linked into (HOST), if it has them. */
+ * and the host program it is linked into (HOST), if it has them. A program
+ * with compErr (COMP_ERR) is expected to fail to compile, with that error. */
 struct ColmProgram
 {
 	std::string text;
 	Words comp;
-	bool hasCall, hasHost;
-	std::string call, host;
+	bool hasCall, hasHost, hasCompErr;
+	std::string call, host, compErr;
 
-	ColmProgram() : hasCall(false), hasHost(false) {}
+	ColmProgram() : hasCall(false), hasHost(false), hasCompErr(false) {}
 };
 
 /* One run of the compiled program. */
@@ -267,8 +274,9 @@ struct ColmRun
 };
 
 /* colmCompile adds the steps that compile the program to working/NAME in the
- * job's suite build directory, NAME being the job's name. colmRun adds a run
- * of it, checked for its output, its exit value and its leak reports. */
+ * job's suite build directory, NAME being the job's name, or, for a program
+ * with compErr, that check colm's error. colmRun adds a run of it, checked
+ * for its output, its exit value and its leak reports. */
 void colmCompile( const Config &config, Job *job, const ColmProgram &prog );
 void colmRun( const Config &config, Job *job, const ColmRun &run );
 

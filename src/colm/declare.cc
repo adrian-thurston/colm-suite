@@ -923,13 +923,13 @@ void Compiler::declareInputFields( )
 			IN_INPUT_PULL_WV, IN_INPUT_PULL_WC, uniqueTypeInt, false );
 
 	initFunction( uniqueTypeStr, inputObj, ObjectMethod::Call, "push",  
-			IN_INPUT_PUSH_WV, IN_INPUT_PUSH_WV, uniqueTypeAny, false );
+			IN_INPUT_PUSH_WV, IN_INPUT_PUSH_WC, uniqueTypeAny, false );
 
 	initFunction( uniqueTypeStr, inputObj, ObjectMethod::Call, "push_ignore",  
-			IN_INPUT_PUSH_IGNORE_WV, IN_INPUT_PUSH_IGNORE_WV, uniqueTypeAny, false );
+			IN_INPUT_PUSH_IGNORE_WV, IN_INPUT_PUSH_IGNORE_WC, uniqueTypeAny, false );
 
 	initFunction( uniqueTypeStr, inputObj, ObjectMethod::Call, "push_stream",  
-		IN_INPUT_PUSH_STREAM_WV, IN_INPUT_PUSH_STREAM_WV, uniqueTypeStream, false );
+		IN_INPUT_PUSH_STREAM_WV, IN_INPUT_PUSH_STREAM_WC, uniqueTypeStream, false );
 
 	initFunction( uniqueTypeVoid, inputObj, ObjectMethod::Call, "close",
 			IN_INPUT_CLOSE_WC, IN_INPUT_CLOSE_WC, false );
@@ -944,17 +944,10 @@ void Compiler::declareStreamFields( )
 {
 	streamObj = streamSel->structDef->objectDef;
 
+	/* No push, push_ignore or push_stream: unlike an input, a stream can't be
+	 * prepended to. */
 	initFunction( uniqueTypeStr, streamObj, ObjectMethod::Call, "pull",  
-			IN_INPUT_PULL_WV, IN_INPUT_PULL_WC, uniqueTypeInt, false );
-
-	initFunction( uniqueTypeStr, streamObj, ObjectMethod::Call, "push",  
-			IN_INPUT_PUSH_WV, IN_INPUT_PUSH_WV, uniqueTypeAny, false );
-
-	initFunction( uniqueTypeStr, streamObj, ObjectMethod::Call, "push_ignore",  
-			IN_INPUT_PUSH_IGNORE_WV, IN_INPUT_PUSH_IGNORE_WV, uniqueTypeAny, false );
-
-	initFunction( uniqueTypeStr, streamObj, ObjectMethod::Call, "push_stream",  
-		IN_INPUT_PUSH_STREAM_WV, IN_INPUT_PUSH_STREAM_WV, uniqueTypeStream, false );
+			IN_STREAM_PULL_WV, IN_STREAM_PULL_WC, uniqueTypeInt, false );
 
 	initFunction( uniqueTypeVoid, streamObj, ObjectMethod::Call, "close",
 			IN_INPUT_CLOSE_WC, IN_INPUT_CLOSE_WC, false );

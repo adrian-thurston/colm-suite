@@ -1,0 +1,28 @@
+# Pushes onto a parser's input outside a parse, from a function and from the
+# top level. Neither reverts, so the push must not write reverse code: with no
+# parse there is nowhere to write it.
+
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+def start
+	[id*]
+
+void push_text( I: _input )
+{
+	I->push( 'y ' )
+}
+
+P: parser<start> = new parser<start>()
+push_text( P->gets() )
+I: _input = P->gets()
+I->push( 'x ' )
+send P [ stdin ]
+S: start = P->finish()
+print( '{', S, '}\n' )
+##### IN #####
+b c--noeol
+##### EXP #####
+{x y b c}

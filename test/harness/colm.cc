@@ -7,6 +7,7 @@
  *
  *   ###### ARGS #####   program arguments
  *   ###### COMP ######  compilation arguments
+ *   ###### COMP_ERR ### expected compile error
  *   ###### IN #####     program input
  *   ###### EXP #####    expected output
  *   ###### EXIT ######  expected exit value
@@ -17,6 +18,12 @@
  * ARGS, IN, EXP, EXIT and LOST repeat: the Nth of each describes the Nth run
  * of the compiled program. A line ending in --noeol is emitted without its
  * newline.
+ *
+ * A case with COMP_ERR is a program colm must reject. It passes when colm
+ * exits with 1 and its error output is the section, once the path colm
+ * compiles the program from, working/NAME.lm, is taken off the front of each
+ * line: "2:9: cannot resolve qualification push". It has no runs, so it takes
+ * no ARGS, IN, EXP, EXIT or LOST, and no HOST.
  *
  * Each run has COLM_LEAK_CHECK set, so the runtime reports the kids, trees,
  * parse trees, heads and locations the program never freed, one per line as
@@ -159,7 +166,19 @@ void colmCompile( const Config &config, Job *job, const ColmProgram &prog )
 		argv.insert( argv.end(), prog.comp.begin(), prog.comp.end() );
 		argv.insert( argv.end(), adds.begin(), adds.end() );
 		argv.push_back( lm );
-		job->steps.push_back( Step::exec( Step::Compile, argv, build ).capture( CaptureLog ) );
+
+		Step compile = Step::exec( Step::Compile, argv, build ).capture( CaptureLog );
+		if ( prog.hasCompErr ) {
+			/* Colm's errors are the output, without the path in front. */
+			std::string path = lm;
+			replaceAll( path, ".", "\\." );
+			job->steps.push_back( compile.exit( 1 ).stderrOutput() );
+			job->steps.push_back( Step::filter( "sed -e 's|^" + path + ":||'", build ) );
+			job->steps.push_back( Step::compare( prog.compErr, "compile error" ) );
+		}
+		else {
+			job->steps.push_back( compile );
+		}
 	}
 
 	job->artifacts.push_back( joinPath( wk, root ) );
@@ -232,10 +251,24 @@ void enumerateColm( const Config &config, const Selection &sel, JobList &jobs )
 		prog.text = noEol( cf.preamble );
 		prog.hasCall = section( cf, "CALL", 0, prog.call );
 		prog.hasHost = section( cf, "HOST", 0, prog.host );
+		prog.hasCompErr = section( cf, "COMP_ERR", 0, prog.compErr );
 
 		std::string body;
 		if ( section( cf, "COMP", 0, body ) )
 			prog.comp = splitWords( body );
+
+		if ( prog.hasCompErr ) {
+			static const char *noRuns[] = { "ARGS", "IN", "EXP", "EXIT", "LOST", "HOST", 0 };
+			for ( const char **name = noRuns; *name != 0; name++ ) {
+				if ( cf.has( *name ) ) {
+					job->error( std::string( "a COMP_ERR case takes no " ) + *name );
+					break;
+				}
+			}
+			if ( job->outcome == Pending )
+				colmCompile( config, job, prog );
+			continue;
+		}
 
 		colmCompile( config, job, prog );
 

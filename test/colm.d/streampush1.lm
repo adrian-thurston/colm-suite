@@ -1,0 +1,4 @@
+# A stream has no push: there is nothing to prepend its text to.
+stdout->push( "hello\n" )
+##### COMP_ERR #####
+2:9: cannot resolve qualification push

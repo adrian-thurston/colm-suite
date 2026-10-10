@@ -1,0 +1,21 @@
+# Two pulls from stdin, then a parse of what is left. Each pull must consume
+# what it returns, so the second pull and the parse see the text after it.
+
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+def start
+	[id*]
+
+X: str = stdin->pull( 2 )
+Y: str = stdin->pull( 2 )
+print( '[', X, '][', Y, ']\n' )
+parse S: start[ stdin ]
+print( '{', S, '}\n' )
+##### IN #####
+b c d e--noeol
+##### EXP #####
+[b ][c ]
+{d e}

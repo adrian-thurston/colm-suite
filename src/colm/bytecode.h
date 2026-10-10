@@ -251,6 +251,10 @@ typedef unsigned char uchar;
 #define IN_INPUT_PULL_WC         0xe1
 #define IN_INPUT_PULL_BKT        0x9f
 
+#define IN_STREAM_PULL_WV        0xab
+#define IN_STREAM_PULL_WC        0xac
+#define IN_STREAM_PULL_BKT       0xad
+
 #define IN_INPUT_CLOSE_WC        0xef
 #define IN_INPUT_AUTO_TRIM_WC    0x82
 #define IN_IINPUT_AUTO_TRIM_WC   0x83
@@ -292,10 +296,13 @@ typedef unsigned char uchar;
 #define IN_LOAD_INPUT_BKT        0xc4
 
 #define IN_INPUT_PUSH_WV         0xc5
+#define IN_INPUT_PUSH_WC         0xae
 #define IN_INPUT_PUSH_BKT        0xc6
 #define IN_INPUT_PUSH_IGNORE_WV  0xc7
+#define IN_INPUT_PUSH_IGNORE_WC  0xaf
 
 #define IN_INPUT_PUSH_STREAM_WV  0xf3
+#define IN_INPUT_PUSH_STREAM_WC  0xb0
 #define IN_INPUT_PUSH_STREAM_BKT 0xf4
 
 #define IN_LOAD_CONTEXT_R        0xc8

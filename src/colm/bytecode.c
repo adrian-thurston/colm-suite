@@ -323,6 +323,36 @@ static void undo_pull( program_t *prg, input_t *input, tree_t *str )
 	undo_stream_pull( prg, impl, data, length );
 }
 
+/* The stream counterpart of colm_stream_pull, which pulls from an input. A
+ * stream is never pulled from for a parser, so there is no pda_run. */
+static head_t *stream_impl_pull( program_t *prg, struct stream_impl *si, long length )
+{
+	head_t *head = init_str_space( length );
+	alph_t *dest = (alph_t*)head->data;
+
+	si->funcs->get_data( prg, si, dest, length );
+	location_t *loc = location_allocate( prg );
+	si->funcs->consume_data( prg, si, length, loc );
+	head->location = loc;
+
+	return head;
+}
+
+static tree_t *stream_pull_stream_bc( program_t *prg, stream_t *stream, tree_t *length )
+{
+	long len = ((long)length);
+	head_t *tokdata = stream_impl_pull( prg, stream_to_impl( stream ), len );
+	return construct_string( prg, tokdata );
+}
+
+static void undo_pull_stream( program_t *prg, stream_t *stream, tree_t *str )
+{
+	struct stream_impl *si = stream_to_impl( stream );
+	const char *data = string_data( ( (str_t*)str )->value );
+	long length = string_length( ( (str_t*)str )->value );
+	si->funcs->undo_consume_data( prg, si, colm_alph_from_cstr( data ), length );
+}
+
 static void input_push_text( struct colm_program *prg, struct input_impl *is,
 		struct colm_location *loc, const char *data, long length )
 {
@@ -2883,6 +2913,44 @@ again:
 			colm_tree_downref( prg, sp, string );
 			break;
 		}
+		case IN_STREAM_PULL_WV: {
+			debug( prg, REALM_BYTECODE, "IN_STREAM_PULL_WV\n" );
+
+			stream_t *stream = vm_pop_stream();
+			tree_t *len = vm_pop_tree();
+			tree_t *string = stream_pull_stream_bc( prg, stream, len );
+			colm_tree_upref( prg, string );
+			vm_push_tree( string );
+
+			/* Single unit. */
+			colm_tree_upref( prg, string );
+			rcode_code( exec, IN_STREAM_PULL_BKT );
+			rcode_word( exec, (word_t) string );
+			rcode_unit_term( exec );
+			break;
+		}
+		case IN_STREAM_PULL_WC: {
+			debug( prg, REALM_BYTECODE, "IN_STREAM_PULL_WC\n" );
+
+			stream_t *stream = vm_pop_stream();
+			tree_t *len = vm_pop_tree();
+			tree_t *string = stream_pull_stream_bc( prg, stream, len );
+			colm_tree_upref( prg, string );
+			vm_push_tree( string );
+			break;
+		}
+		case IN_STREAM_PULL_BKT: {
+			tree_t *string;
+			read_tree( string );
+
+			stream_t *stream = vm_pop_stream();
+
+			debug( prg, REALM_BYTECODE, "IN_STREAM_PULL_BKT\n" );
+
+			undo_pull_stream( prg, stream, string );
+			colm_tree_downref( prg, sp, string );
+			break;
+		}
 		case IN_INPUT_PUSH_WV: {
 			debug( prg, REALM_BYTECODE, "IN_INPUT_PUSH_WV\n" );
 
@@ -2899,6 +2967,17 @@ again:
 			colm_tree_downref( prg, sp, tree );
 			break;
 		}
+		case IN_INPUT_PUSH_WC: {
+			debug( prg, REALM_BYTECODE, "IN_INPUT_PUSH_WC\n" );
+
+			input_t *input = vm_pop_input();
+			tree_t *tree = vm_pop_tree();
+			input_push( prg, sp, input_to_impl( input ), tree, false );
+			vm_push_tree( 0 );
+
+			colm_tree_downref( prg, sp, tree );
+			break;
+		}
 		case IN_INPUT_PUSH_IGNORE_WV: {
 			debug( prg, REALM_BYTECODE, "IN_INPUT_PUSH_IGNORE_WV\n" );
 
@@ -2911,6 +2990,17 @@ again:
 			rcode_code( exec, IN_INPUT_PUSH_BKT );
 			rcode_word( exec, len );
 			rcode_unit_term( exec );
+
+			colm_tree_downref( prg, sp, tree );
+			break;
+		}
+		case IN_INPUT_PUSH_IGNORE_WC: {
+			debug( prg, REALM_BYTECODE, "IN_INPUT_PUSH_IGNORE_WC\n" );
+
+			input_t *input = vm_pop_input();
+			tree_t *tree = vm_pop_tree();
+			input_push( prg, sp, input_to_impl( input ), tree, true );
+			vm_push_tree( 0 );
 
 			colm_tree_downref( prg, sp, tree );
 			break;
@@ -2936,6 +3026,15 @@ again:
 			/* Single unit end. */
 			rcode_code( exec, IN_INPUT_PUSH_STREAM_BKT );
 			rcode_unit_term( exec );
+			break;
+		}
+		case IN_INPUT_PUSH_STREAM_WC: {
+			debug( prg, REALM_BYTECODE, "IN_INPUT_PUSH_STREAM_WC\n" );
+
+			input_t *input = vm_pop_input();
+			stream_t *to_push = vm_pop_stream();
+			input_push_stream( prg, sp, input_to_impl( input ), to_push );
+			vm_push_tree( 0 );
 			break;
 		}
 		case IN_INPUT_PUSH_STREAM_BKT: {
@@ -4935,6 +5034,15 @@ again:
 			read_tree( string );
 
 			debug( prg, REALM_BYTECODE, "IN_INPUT_PULL_BKT\n" );
+
+			colm_tree_downref( prg, sp, string );
+			break;
+		}
+		case IN_STREAM_PULL_BKT: {
+			tree_t *string;
+			read_tree( string );
+
+			debug( prg, REALM_BYTECODE, "IN_STREAM_PULL_BKT\n" );
 
 			colm_tree_downref( prg, sp, string );
 			break;

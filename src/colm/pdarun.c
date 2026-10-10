@@ -1667,9 +1667,6 @@ again:
 			return PCR_REDUCTION;
 			case PCR_REDUCTION:
 
-			if ( prg->induce_exit )
-				goto fail;
-
 			/* If the lhs was stored and it changed then we need to restore the
 			 * original upon backtracking, otherwise downref since we took a
 			 * copy above. */
@@ -1701,6 +1698,14 @@ again:
 			/* Pull out the reverse code, if any. */
 			colm_make_reverse_code( pda_run );
 			colm_transfer_reverse_code( pda_run, pda_run->red_lel );
+
+			if ( prg->induce_exit ) {
+				/* The action called exit. Fail the parse, leaving the reduced
+				 * tree in the input, where clearing the parser releases it. */
+				pda_run->red_lel->next = pda_run->parse_input;
+				pda_run->parse_input = pda_run->red_lel;
+				goto fail;
+			}
 
 			/* Perhaps the execution environment is telling us we need to
 			 * reject the reduction. */
@@ -2078,6 +2083,14 @@ long colm_parse_loop( program_t *prg, tree_t **sp, struct pda_run *pda_run,
 				case PCR_PRE_EOF:
 
 				colm_make_reverse_code( pda_run );
+
+				/* The block called exit. Clearing the parser releases the EOF
+				 * token waiting in the input. */
+				if ( prg->induce_exit ) {
+					debug( prg, REALM_PARSE, "parsing has been "
+							"stopped by a call to exit\n" );
+					break;
+				}
 			}
 		}
 		else if ( pda_run->token_id == SCAN_UNDO ) {

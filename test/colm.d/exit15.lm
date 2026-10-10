@@ -1,0 +1,25 @@
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+global Last: str = 'none'
+
+def item
+	Name: str
+	[id]
+	{
+		lhs.Name = $r1
+		Last = $r1
+		if $r1 == 'stop'
+			exit( 3 )
+	}
+
+def start
+	[item*]
+
+parse S: start["abc def stop ghi"]
+print( S, '\n' )
+##### EXP #####
+##### EXIT #####
+3

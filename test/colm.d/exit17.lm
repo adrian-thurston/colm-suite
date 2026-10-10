@@ -1,0 +1,33 @@
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+def item
+	[id]
+	{
+		print( $r1, '\n' )
+		if $r1 == 'stop'
+			exit( 3 )
+	}
+
+def start
+	[item*]
+
+int sendAll( P: parser<start> )
+{
+	Local: str = 'local'
+	send P "abc def stop ghi "
+	return 0
+}
+
+P: parser<start> = new parser<start>()
+sendAll( P )
+P->finish()
+print( P->tree, '\n' )
+##### EXP #####
+abc
+def
+stop
+##### EXIT #####
+3

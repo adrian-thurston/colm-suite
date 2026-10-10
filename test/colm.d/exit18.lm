@@ -1,0 +1,27 @@
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+def start
+	[id*]
+	{
+		print( 'start\n' )
+		exit( 3 )
+	}
+
+int finishIt( P: parser<start> )
+{
+	Local: str = 'local'
+	P->finish()
+	return 0
+}
+
+P: parser<start> = new parser<start>()
+send P "abc def ghi"
+finishIt( P )
+print( P->tree, '\n' )
+##### EXP #####
+start
+##### EXIT #####
+3

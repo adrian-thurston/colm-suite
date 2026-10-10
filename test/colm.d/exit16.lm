@@ -1,0 +1,20 @@
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+
+	preeof {
+		exit( 3 )
+	}
+end
+
+def start
+	[id*]
+	{
+		print( 'reduced\n' )
+	}
+
+parse S: start["abc def ghi"]
+print( S, '\n' )
+##### EXP #####
+##### EXIT #####
+3

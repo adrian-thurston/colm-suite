@@ -1,0 +1,16 @@
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+def start
+	[id*]
+	{
+		exit( 3 )
+	}
+
+parse S: start["abc def ghi"]
+print( S, '\n' )
+##### EXP #####
+##### EXIT #####
+3

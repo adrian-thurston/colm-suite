@@ -1330,6 +1330,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_TREE_R %d\n", field );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "reading an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			tree_t *val = colm_tree_get_field( obj, field );
@@ -1344,6 +1346,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_TREE_WC %d\n", field );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "reading an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			tree_t *split = get_field_split( prg, obj, field );
@@ -1358,6 +1362,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_TREE_WV\n" );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "reading an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			tree_t *split = get_field_split( prg, obj, field );
@@ -1391,6 +1397,8 @@ again:
 
 			tree_t *obj = vm_pop_tree();
 			tree_t *val = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "setting an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			/* Downref the old value. */
@@ -1408,6 +1416,8 @@ again:
 
 			tree_t *obj = vm_pop_tree();
 			tree_t *val = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "setting an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			/* Save the old value, then set the field. */
@@ -1468,6 +1478,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_VAL_R %d\n", field );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "reading an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			tree_t *pointer = colm_tree_get_field( obj, field );
@@ -1485,6 +1497,8 @@ again:
 
 			tree_t *obj = vm_pop_tree();
 			value_t value = vm_pop_value();
+			if ( obj == 0 )
+				runtime_error( prg, "setting an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			/* Downref the old value. */
@@ -1717,6 +1731,8 @@ again:
 			uchar len;
 
 			tree_t *obj = vm_pop_tree(), *val = 0;
+			if ( obj == 0 )
+				runtime_error( prg, "reading a child of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			read_byte( len );
@@ -1751,6 +1767,8 @@ again:
 
 			tree_t *obj = vm_pop_tree();
 			tree_t *val = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "setting a child of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			read_byte( len );
@@ -3347,6 +3365,11 @@ again:
 
 			ref_t *ref = (ref_t*)(sp + back);
 
+			/* A nil tree has no attributes. A child the production of its
+			 * parent doesn't have gives no kid. */
+			if ( ref->kid == 0 || ref->kid->tree == 0 )
+				runtime_error( prg, "reading an attribute of a nil tree" );
+
 			tree_t *obj = ref->kid->tree;
 			kid_t *attr_kid = get_field_kid( obj, field );
 
@@ -3365,6 +3388,11 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_RHS_REF_FROM_QUAL_REF\n" );
 
 			ref_t *ref = (ref_t*)(sp + back);
+
+			/* A nil tree has no children. A child the production of its
+			 * parent doesn't have gives no kid. */
+			if ( ref->kid == 0 || ref->kid->tree == 0 )
+				runtime_error( prg, "reading a child of a nil tree" );
 
 			tree_t *obj = ref->kid->tree;
 			kid_t *attr_kid = 0;

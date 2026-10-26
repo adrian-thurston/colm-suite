@@ -191,6 +191,9 @@ EXTRA_DIST = \
 	namespace9.lm \
 	nestedcomm.lm \
 	new1.lm \
+	nilchild1.lm \
+	nilchild2.lm \
+	nilchildmsg1.lm \
 	nilfield1.lm \
 	nilfield2.lm \
 	nilfieldmsg1.lm \

@@ -655,7 +655,7 @@ struct Compiler
 	void addMatchText( ObjectDef *frame, LangEl *lel );
 	void addMatchLength( ObjectDef *frame, LangEl *lel );
 	void addInput( ObjectDef *frame );
-	void addThis( ObjectDef *frame );
+	void addThis( ObjectDef *frame, StructDef *context );
 	void addTransTokVar( ObjectDef *frame, LangEl *lel );
 	void addProdRHSVars( ObjectDef *localFrame, ProdElList *prodElList );
 	void addProdRedObjectVar( ObjectDef *localFrame, LangEl *langEl );
@@ -923,6 +923,12 @@ struct Compiler
 
 	/* For stack unwinding. Used at exits, returns, iterator destroy, etc. */
 	CodeVect unwindCode;
+
+	/* The term a statement evaluates with nothing of its own on the stack,
+	 * and whether the call or parse being compiled has words under it that
+	 * an exit can't unwind. */
+	LangTerm *stmtTerm;
+	bool noUnwind;
 
 	ObjectField *makeDataEl();
 	ObjectField *makeFileEl();

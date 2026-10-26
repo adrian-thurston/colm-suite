@@ -1002,6 +1002,7 @@ struct Compiler
 	void writeLhsRef( Production *production, ReduceTextItem *i );
 	void writeRhsRef( Production *production, ReduceTextItem *i );
 	void writeTreeRef( Production *production, ReduceTextItem *i );
+	void writeRhsLoc( Production *production, ReduceTextItem *i, long pos );
 	void writeRhsLoc( Production *production, ReduceTextItem *i );
 	void writeHostItemList( Production *production, const ReduceTextItemList &list );
 	void writeCommitStub();

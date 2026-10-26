@@ -191,6 +191,17 @@ static void pop_check( program_t *prg, list_t *list )
 		runtime_error( prg, "pop from an empty list" );
 }
 
+/* The location a reduction action reads with @N or @name, for the commit
+ * code. A def's tokens are gone once its own reduction has run, unless the
+ * host keeps them with colm_set_reduce_clean( prg, 0 ), and a def that matched
+ * nothing never had any. With no location, the program stops, with msg. */
+location_t *colm_reduce_loc( program_t *prg, location_t *loc, const char *msg )
+{
+	if ( loc == 0 )
+		runtime_error( prg, msg );
+	return loc;
+}
+
 /* A map holds an element while the element's height is above 0. A new element
  * starts at 0, and map_detach sets it back to 0. The parents of an element in
  * a map lead up to that map's root. */

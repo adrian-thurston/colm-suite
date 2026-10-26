@@ -101,6 +101,8 @@ void colm_decrement_steps( struct pda_run *pda_run )
 	//debug( prg, REALM_PARSE, "steps down to %ld\n", pdaRun->steps );
 }
 
+/* Pulls up to length characters off the input. The string is as long as what
+ * the input had, which can be less than length. */
 head_t *colm_stream_pull( program_t *prg, tree_t **sp, struct pda_run *pda_run,
 		struct input_impl *is, long length )
 {
@@ -114,7 +116,7 @@ head_t *colm_stream_pull( program_t *prg, tree_t **sp, struct pda_run *pda_run,
 
 		alph_t *dest = run_buf->data + run_buf->length;
 
-		is->funcs->get_data( prg, is, dest, length );
+		length = is->funcs->get_data( prg, is, dest, length );
 		location_t *loc = location_allocate( prg );
 		is->funcs->consume_data( prg, is, length, loc );
 
@@ -132,7 +134,8 @@ head_t *colm_stream_pull( program_t *prg, tree_t **sp, struct pda_run *pda_run,
 		head_t *head = init_str_space( length );
 		alph_t *dest = (alph_t*)head->data;
 
-		is->funcs->get_data( prg, is, dest, length );
+		length = is->funcs->get_data( prg, is, dest, length );
+		head->length = length;
 		location_t *loc = location_allocate( prg );
 		is->funcs->consume_data( prg, is, length, loc );
 		head->location = loc;
@@ -1660,12 +1663,15 @@ again:
 			pda_run->fi = &prg->rtd->frame_info[prg->rtd->prod_info[pda_run->reduction].frame_id];
 			pda_run->frame_id = prg->rtd->prod_info[pda_run->reduction].frame_id;
 			pda_run->reject = false;
+			pda_run->in_reduction_action = true;
 			pda_run->parsed = 0;
 			pda_run->code = pda_run->fi->codeWV;
 
 			/* COROUTINE */
 			return PCR_REDUCTION;
 			case PCR_REDUCTION:
+
+			pda_run->in_reduction_action = false;
 
 			/* If the lhs was stored and it changed then we need to restore the
 			 * original upon backtracking, otherwise downref since we took a

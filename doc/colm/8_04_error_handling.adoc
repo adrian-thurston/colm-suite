@@ -199,6 +199,10 @@ Some mistakes stop the program where they happen:
 * a `for` loop over a nil tree, as
   xref:1_06_iterators.adoc#iterators[the iterators chapter] describes, or
   over a nil list or map;
+* sending to a nil parser or stream, sending a nil stream to a parser or
+  parsing from one, pushing one onto an input, or calling a function or
+  reading a field of a nil parser or stream, as
+  xref:3_06_send.adoc#send[the send chapter] describes;
 * a nil tree, or `nil`, among the items a `send`, `send_tree` or `parse`
   sends to a parser, as xref:3_06_send.adoc#send[the send chapter] describes;
 * a `match`, `require` or `switch` on a nil tree, as

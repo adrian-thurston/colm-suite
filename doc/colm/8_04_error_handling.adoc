@@ -202,6 +202,9 @@ Some mistakes stop the program where they happen:
   xref:2_02_list_map_struct_alias.adoc#maps[the maps section] describe;
 * pushing a nil element onto a list, with `push_el`, `push_head_el` or
   `push_tail_el`;
+* giving a map's `insert_el` or `detach_el` nil, `insert_el` an element that
+  a map holds already, or `detach_el` one that the map doesn't hold, as
+  xref:2_02_list_map_struct_alias.adoc#maps[the maps section] describes;
 * reading or setting a field of a nil struct, as
   xref:2_02_list_map_struct_alias.adoc#structs[the structs section] describes,
   or the `value` or `key` of a nil list or map element, or reading such an

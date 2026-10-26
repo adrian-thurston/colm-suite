@@ -191,6 +191,42 @@ static void pop_check( program_t *prg, list_t *list )
 		runtime_error( prg, "pop from an empty list" );
 }
 
+/* A map holds an element while the element's height is above 0. A new element
+ * starts at 0, and map_detach sets it back to 0. The parents of an element in
+ * a map lead up to that map's root. */
+static int map_holds_el( map_t *map, map_el_t *map_el )
+{
+	if ( map_el->height == 0 )
+		return 0;
+	while ( map_el->parent != 0 )
+		map_el = map_el->parent;
+	return map_el == map->root;
+}
+
+/* An insert_el of a nil element, or of one that is in a map already, this one
+ * or another, stops the program. */
+static map_el_t *insert_el_check( program_t *prg, struct_t *s, short gen_id )
+{
+	if ( s == 0 )
+		runtime_error( prg, "insert_el of a nil element" );
+	map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+	if ( map_el->height != 0 )
+		runtime_error( prg, "insert_el of an element already in a map" );
+	return map_el;
+}
+
+/* A detach_el of a nil element, or of one that is not in the map, stops the
+ * program. */
+static map_el_t *detach_el_check( program_t *prg, map_t *map, struct_t *s, short gen_id )
+{
+	if ( s == 0 )
+		runtime_error( prg, "detach_el of a nil element" );
+	map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+	if ( !map_holds_el( map, map_el ) )
+		runtime_error( prg, "detach_el of an element not in the map" );
+	return map_el;
+}
+
 /* A send to a nil parser stops the program. */
 static void parser_check( program_t *prg, parser_t *parser )
 {
@@ -4661,7 +4697,7 @@ again:
 					runtime_error( prg, "insert into a nil map" );
 				struct_t *s = vm_pop_struct();
 
-				map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+				map_el_t *map_el = insert_el_check( prg, s, gen_id );
 
 				colm_map_insert( prg, map, map_el );
 
@@ -4679,7 +4715,7 @@ again:
 					runtime_error( prg, "insert into a nil map" );
 				struct_t *s = vm_pop_struct();
 
-				map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+				map_el_t *map_el = insert_el_check( prg, s, gen_id );
 
 				map_el_t *inserted = colm_map_insert( prg, map, map_el );
 
@@ -4725,7 +4761,7 @@ again:
 					runtime_error( prg, "detach from a nil map" );
 				struct_t *s = vm_pop_struct();
 
-				map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+				map_el_t *map_el = detach_el_check( prg, map, s, gen_id );
 
 				colm_map_detach( prg, map, map_el );
 
@@ -4743,7 +4779,7 @@ again:
 					runtime_error( prg, "detach from a nil map" );
 				struct_t *s = vm_pop_struct();
 
-				map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+				map_el_t *map_el = detach_el_check( prg, map, s, gen_id );
 
 				colm_map_detach( prg, map, map_el );
 

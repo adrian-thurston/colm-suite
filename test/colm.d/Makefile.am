@@ -208,7 +208,9 @@ EXTRA_DIST = \
 	nilmap1.lm \
 	nilmsg1.lm \
 	nilparser1.lm \
+	nilstr1.lm \
 	nilstream1.lm \
+	nilstrmsg1.lm \
 	noctx1.lm \
 	noctx2.lm \
 	noctx3.lm \

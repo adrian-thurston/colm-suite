@@ -493,8 +493,18 @@ static void colm_stream_push_tree( struct colm_program *prg, struct input_impl *
 	is->funcs->prepend_tree( prg, is, tree, ignore );
 }
 
-static long input_push( program_t *prg, tree_t **sp, struct input_impl *in, tree_t *tree, int ignore )
+/* A push onto a nil input, or of a nil tree, stops the program. */
+static long input_push( program_t *prg, tree_t **sp, input_t *input, tree_t *tree, int ignore )
 {
+	if ( input == 0 )
+		runtime_error( prg, "pushing onto a nil input" );
+	if ( tree == 0 ) {
+		runtime_error( prg, ignore ?
+				"pushing a nil tree as ignored text" :
+				"pushing a nil tree" );
+	}
+
+	struct input_impl *in = input_to_impl( input );
 	long length = -1;
 	if ( tree->id == LEL_ID_PTR ) {
 		assert(false);
@@ -3213,7 +3223,7 @@ again:
 
 			input_t *input = vm_pop_input();
 			tree_t *tree = vm_pop_tree();
-			long len = input_push( prg, sp, input_to_impl( input ), tree, false );
+			long len = input_push( prg, sp, input, tree, false );
 			vm_push_tree( 0 );
 
 			/* Single unit. */
@@ -3229,7 +3239,7 @@ again:
 
 			input_t *input = vm_pop_input();
 			tree_t *tree = vm_pop_tree();
-			input_push( prg, sp, input_to_impl( input ), tree, false );
+			input_push( prg, sp, input, tree, false );
 			vm_push_tree( 0 );
 
 			colm_tree_downref( prg, sp, tree );
@@ -3240,7 +3250,7 @@ again:
 
 			input_t *input = vm_pop_input();
 			tree_t *tree = vm_pop_tree();
-			long len = input_push( prg, sp, input_to_impl( input ), tree, true );
+			long len = input_push( prg, sp, input, tree, true );
 			vm_push_tree( 0 );
 
 			/* Single unit end. */
@@ -3256,7 +3266,7 @@ again:
 
 			input_t *input = vm_pop_input();
 			tree_t *tree = vm_pop_tree();
-			input_push( prg, sp, input_to_impl( input ), tree, true );
+			input_push( prg, sp, input, tree, true );
 			vm_push_tree( 0 );
 
 			colm_tree_downref( prg, sp, tree );

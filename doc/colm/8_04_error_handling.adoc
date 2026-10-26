@@ -105,10 +105,9 @@ character of several bytes, such as `é` in UTF-8, counts as several.
 A token that wasn't read from input, such as one made with `make_token` or
 `cons`, has `file` nil, and 0 in the others.
 
-Reading a location field of a token variable that is nil is an error, which
-the program has to guard against. Check the token before reading its fields,
-as the next example does with `if ( First )` before `twice` reads
-`First.line`.
+Reading a location field of a token variable that is nil stops the program,
+as <<run-time-errors>> says. Check the token before reading its fields, as
+the next example does with `if ( First )` before `twice` reads `First.line`.
 
 A def has no location fields: `S.line` on a def doesn't compile. Read them
 from one of its tokens, as the next example does with `S.name`.
@@ -141,9 +140,9 @@ spaces, and the program exits with status 1. Without the third line, it prints
 
 `error.line`, `error.col` and `error.pos` give the parts of the message's
 location: its line, its column, and its byte offset. `error` is nil after a
-parse that succeeds, so reading its fields then is an error, as it is for a
-token variable that is nil. The program has to guard against it: read them
-only inside its check on the parse's result, as this program does:
+parse that succeeds, so reading its fields then stops the program, as it does
+for any token variable that is nil. Read them only inside the check on the
+parse's result, as this program does:
 
 [source,colm]
 .err_parts.lm
@@ -174,7 +173,8 @@ action: the parse stops there, and the program ends with that status. Use
 
 In a program run from a C or {cpp} host, `exit` ends the program, and the host
 gets back its status and its `error`, as xref:8_01_embedding.adoc#embedding[the
-embedding chapter] explains.
+embedding chapter] explains. Inside an exported function that the host called,
+`exit` ends the host's process too, with the status `N`.
 
 To fail the parse instead, and let the parser try another way, an action uses
 `reject`, which xref:3_02_parse.adoc#reject[the parsing chapter] covers.
@@ -187,13 +187,29 @@ Some mistakes stop the program where they happen:
 * popping a value off a list that is empty or nil, as
   xref:2_02_list_map_struct_alias.adoc#lists[the lists section] describes;
 * reading the `head`, `tail` or `top` of such a list;
+* any other use of a nil list or map, such as a push, an `insert` or a read
+  of its `length`, as the lists section and
+  xref:2_02_list_map_struct_alias.adoc#maps[the maps section] describe;
+* pushing a nil element onto a list, with `push_el`, `push_head_el` or
+  `push_tail_el`;
+* reading or setting a field of a nil struct, as
+  xref:2_02_list_map_struct_alias.adoc#structs[the structs section] describes,
+  or the `value` or `key` of a nil list or map element, or reading such an
+  element's `next` or `prev`;
 * a `for` loop over a nil tree, as
   xref:1_06_iterators.adoc#iterators[the iterators chapter] describes, or
   over a nil list or map;
 * sending to a nil parser or stream, sending a nil stream to a parser or
   parsing from one, pushing one onto an input, or calling a function or
   reading a field of a nil parser or stream, as
-  xref:3_06_send.adoc#send[the send chapter] describes.
+  xref:3_06_send.adoc#send[the send chapter] describes;
+* a nil tree, or `nil`, among the items a `send`, `send_tree` or `parse`
+  sends to a parser, as xref:3_06_send.adoc#send[the send chapter] describes;
+* a `match`, `require` or `switch` on a nil tree, as
+  xref:3_03_match.adoc#match[the patterns chapter] describes;
+* reading or setting a field of a token that is nil, such as `error.line`
+  after a parse that succeeds, as <<locations,the input locations section>>
+  describes.
 
 What the program printed before comes out first. Then the program prints
 `fatal:` and what went wrong to `stderr`, and exits with status 1. A pop from

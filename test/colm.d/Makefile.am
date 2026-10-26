@@ -273,6 +273,12 @@ EXTRA_DIST = \
 	ref3.lm \
 	regignbt1.lm \
 	regignbt2.lm \
+	reject1.lm \
+	reject2.lm \
+	reject3.lm \
+	reject4.lm \
+	rejectmsg1.lm \
+	rejectmsg2.lm \
 	reor1.lm \
 	reor2.lm \
 	reparse.lm \

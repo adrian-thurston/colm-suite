@@ -1050,10 +1050,14 @@ void LangVarRef::resetActiveRefs( Compiler *pd, VarRefLookup &lookup,
 
 /* After a call, or a parse, which runs parser actions: the length of the code
  * that unwinds this frame on an exit below, then the code. FN_EXIT runs it,
- * the return or the parse skips it. */
+ * the return or the parse skips it. Where words the expression around the
+ * call or parse pushed lie under it, -1 stands in for both, and an exit there
+ * ends the process. */
 static void appendUnwindCode( Compiler *pd, CodeVect &code )
 {
-	if ( pd->unwindCode.length() == 0 )
+	if ( pd->noUnwind )
+		code.appendHalf( (half_t) -1 );
+	else if ( pd->unwindCode.length() == 0 )
 		code.appendHalf( 0 );
 	else {
 		code.appendHalf( pd->unwindCode.length() + 1 );
@@ -1168,6 +1172,10 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	/* Evaluate the object. */
 	VarRefLookup lookup = lookupMethod( pd );
 
+	/* An iterator runs only as the iterator of a for loop. */
+	if ( lookup.objMethod->iterDef != 0 )
+		error(loc) << "iterator " << name << " called outside a for loop" << endp;
+
 	Function *func = lookup.objMethod->func;
 
 	/* Prepare the contiguous call args space. */
@@ -1180,6 +1188,19 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 
 	/* Evaluate and push the arguments. */
 	ObjectField **paramRefs = evaluateArgs( pd, code, lookup, args );
+
+	/* A ref argument's qualifiers, or the value a ref argument takes, stay
+	 * on the stack under the call, where an exit can't unwind them. */
+	if ( args != 0 ) {
+		for ( CallArgVect::Iter pe = *args; pe.lte(); pe++ ) {
+			LangExpr *expression = (*pe)->expr;
+			UniqueType *paramUT = lookup.objMethod->paramUTs[pe.pos()];
+
+			if ( paramUT->typeId == TYPE_REF && ( !expression->canTakeRef( pd ) ||
+					expression->term->varRef->qual->length() > 0 ) )
+				pd->noUnwind = true;
+		}
+	}
 
 	/* Write the call opcode. */
 	callOperation( pd, code, lookup );
@@ -1303,6 +1324,46 @@ void LangTerm::evaluateCapture( Compiler *pd, CodeVect &code, UniqueType *valUt 
 	}
 }
 
+/* The actions of a type defined in a context use the context's variables, so
+ * a parse of it, or a parser made with new, must be given an object of the
+ * context. */
+static void checkContextGiven( const InputLoc &loc, LangEl *langEl, bool given )
+{
+	if ( langEl->contextIn != 0 && !given ) {
+		error( loc ) << "parsing " << langEl->declName << " needs a context of type " <<
+				langEl->contextIn->name << endp;
+	}
+}
+
+/* A struct's name qualified by the namespaces it is declared in, as a type's
+ * xmlTag is. The root namespace, which has no parent, adds nothing. */
+static String qualifiedName( StructEl *structEl )
+{
+	String name = structEl->name;
+	for ( Namespace *nspace = structEl->nspace; nspace != 0 &&
+			nspace->parentNamespace != 0; nspace = nspace->parentNamespace )
+		name = nspace->name + "::" + name;
+	return name;
+}
+
+/* A parser of a type defined in a context runs its actions on an object of
+ * that context, so it must be given one: another struct isn't laid out like
+ * the context. */
+static void checkParserContext( const FieldInit *arg, UniqueType *argUT,
+		LangEl *langEl )
+{
+	StructDef *context = langEl->contextIn;
+	if ( argUT->structEl == context->structEl )
+		return;
+
+	/* An expression that is a single term has its location in the term. */
+	const InputLoc &loc = arg->expr->type == LangExpr::TermType ?
+			arg->expr->term->loc : arg->expr->loc;
+	error( loc ) << "the context of " << langEl->xmlTag << " must be of type " <<
+			qualifiedName( context->structEl ) << ", not " <<
+			qualifiedName( argUT->structEl ) << endp;
+}
+
 UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 {
 	/* What is being newstructed. */
@@ -1316,8 +1377,10 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 			newUT->generic->typeId == GEN_PARSER &&
 			newUT->generic->elUt->langEl->contextIn != 0 )
 	{
-		if ( fieldInitArgs == 0 || fieldInitArgs->length() != 1 )
-			error(loc) << "parse command requires just context " << endp;
+		if ( fieldInitArgs != 0 && fieldInitArgs->length() > 1 ) {
+			error(loc) << "new parser<" << newUT->generic->elUt->langEl->declName <<
+					"> takes one argument, its context" << endp;
+		}
 		context = true;
 	}
 
@@ -1342,7 +1405,8 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 	 * First load the context into the parser.
 	 */
 	if ( context ) {
-		for ( int i = 0; i < fieldInitArgs->length(); i++ ) {
+		bool contextGiven = false;
+		for ( int i = 0; fieldInitArgs != 0 && i < fieldInitArgs->length(); i++ ) {
 			/* Eval what we are initializing with. */
 			UniqueType *argUT = fieldInitArgs->data[i]->expr->evaluate( pd, code );
 
@@ -1350,12 +1414,17 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 				code.append( IN_SET_PARSER_INPUT );
 			}
 			else if ( argUT->typeId == TYPE_STRUCT ) {
+				checkParserContext( fieldInitArgs->data[i], argUT,
+						newUT->generic->elUt->langEl );
 				code.append( IN_SET_PARSER_CONTEXT );
+				contextGiven = true;
 			}
 			else {
 				error(loc) << "cannot initialize parser with this type, context or input only" << endp;
 			}
 		}
+
+		checkContextGiven( loc, newUT->generic->elUt->langEl, contextGiven );
 	}
 
 	evaluateCapture( pd, code, newUT );
@@ -1560,6 +1629,7 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 	/*
 	 * First load the context into the parser.
 	 */
+	bool contextGiven = false;
 	if ( context ) {
 		for ( int i = 0; i < fieldInitArgs->length(); i++ ) {
 			/* Eval what we are initializing with. */
@@ -1569,13 +1639,18 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 				code.append( IN_SET_PARSER_INPUT );
 			}
 			else if ( argUT->typeId == TYPE_STRUCT && targetUT->langEl->contextIn != 0 ) {
+				checkParserContext( fieldInitArgs->data[i], argUT,
+						targetUT->langEl );
 				code.append( IN_SET_PARSER_CONTEXT );
+				contextGiven = true;
 			}
 			else {
 				error(loc) << "cannot initialize parser with this type, context or input only" << endp;
 			}
 		}
 	}
+
+	checkContextGiven( loc, targetUT->langEl, contextGiven );
 
 	/*****************************/
 
@@ -1990,6 +2065,12 @@ UniqueType *LangTerm::evaluateSearch( Compiler *pd, CodeVect &code ) const
 
 UniqueType *LangTerm::evaluate( Compiler *pd, CodeVect &code ) const
 {
+	/* Only the term a statement starts with can be unwound by an exit. Any
+	 * other runs over words the expression around it has pushed. */
+	bool noUnwind = pd->noUnwind;
+	pd->noUnwind = this != pd->stmtTerm;
+	pd->stmtTerm = 0;
+
 	UniqueType *retUt = 0;
 	switch ( type ) {
 		case VarRefType:
@@ -2092,6 +2173,7 @@ UniqueType *LangTerm::evaluate( Compiler *pd, CodeVect &code ) const
 	// else
 	//	pd->unwindCode.insert( 0, IN_POP_TREE );
 
+	pd->noUnwind = noUnwind;
 	return retUt;
 }
 
@@ -2574,6 +2656,13 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 
 	objField->iterImpl = iterImpl;
 
+	/* A loop over a tree or a user iterator selects the trees of the loop
+	 * variable's type, by the type's id. A type that isn't a tree has none. */
+	if ( iterImpl->useSearchUT && searchUT->langEl == 0 ) {
+		error(loc) << "loop variable " << objField->name <<
+				" must have a tree type" << endp;
+	}
+
 	/* Evaluate and push the arguments. */
 	ObjectField **paramRefs = iterCall->langTerm->varRef->evaluateArgs(
 			pd, code, lookup, iterCall->langTerm->args );
@@ -2618,10 +2707,17 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	}
 }
 
+/* The term an expression is, if it is one. */
+static LangTerm *stmtTerm( LangExpr *expr )
+{
+	return expr->type == LangExpr::TermType ? expr->term : 0;
+}
+
 void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 {
 	/* Generate code for the while test. Remember the top. */
 	long top = code.length();
+	pd->stmtTerm = stmtTerm( expr );
 	UniqueType *eut = expr->evaluate( pd, code );
 
 	/* Jump past the while block if false. Note that we don't have the
@@ -2670,6 +2766,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 	switch ( type ) {
 		case ExprType: {
 			/* Evaluate the exrepssion, then pop it immediately. */
+			pd->stmtTerm = stmtTerm( expr );
 			UniqueType *exprUt = expr->evaluate( pd, code );
 			if ( exprUt->tree() )
 				code.append( IN_POP_TREE );
@@ -2683,6 +2780,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			long jumpFalse = 0, jumpPastElse = 0, distance = 0;
 
 			/* Evaluate the test. */
+			pd->stmtTerm = stmtTerm( expr );
 			UniqueType *eut = expr->evaluate( pd, code );
 
 			/* Jump past the if block if false. We don't know the distance
@@ -2752,6 +2850,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 		}
 		case AssignType: {
 			/* Evaluate the exrepssion. */
+			pd->stmtTerm = stmtTerm( expr );
 			UniqueType *exprUT = expr->evaluate( pd, code );
 
 			/* Do the assignment. */
@@ -2783,6 +2882,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			}
 
 			/* Evaluate the exrepssion. */
+			pd->stmtTerm = stmtTerm( expr );
 			UniqueType *exprUT = expr->evaluate( pd, code );
 
 			if ( pd->curFunction == 0 ) {
@@ -2816,9 +2916,38 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			break;
 		}
 		case YieldType: {
+			/* Only a function can yield: an iterator, or a function an
+			 * iterator calls. IN_YIELD stops a function that no iterator
+			 * called. */
+			switch ( pd->compileContext ) {
+				case Compiler::CompileReduction:
+					error(loc) << "yield in a production action" << endp;
+					break;
+				case Compiler::CompileTranslation:
+					error(loc) << "yield in a token action" << endp;
+					break;
+				case Compiler::CompilePreEof:
+					error(loc) << "yield in a preeof block" << endp;
+					break;
+				case Compiler::CompileRoot:
+					error(loc) << "yield at the top level" << endp;
+					break;
+				case Compiler::CompileFunction:
+					break;
+			}
+
 			/* take a reference and yield it. Immediately reset the referece. */
 			varRef->preEvaluateRef( pd, code );
 			ObjectField *objField = varRef->evaluateRef( pd, code, 0 );
+
+			/* A loop takes what an iterator yields as a tree. A loop
+			 * variable holds a value of its loop's search type. */
+			TypeRef *yieldTR = objField->typeRef;
+			UniqueType *yieldUT = yieldTR->searchUniqueType != 0 ?
+					yieldTR->searchUniqueType : yieldTR->uniqueType;
+			if ( yieldUT->langEl == 0 )
+				error(varRef->loc) << "can only yield a tree" << endp;
+
 			code.append( IN_YIELD );
 
 			if ( varRef->qual->length() > 0 ) {
@@ -3030,7 +3159,7 @@ void Compiler::compilePreEof( TokenRegion *region )
 	block->frameId = nextFrameId++;
 
 	addInput( block->localFrame );
-	addThis( block->localFrame );
+	addThis( block->localFrame, block->context );
 
 	CodeVect &code = block->codeWV;
 

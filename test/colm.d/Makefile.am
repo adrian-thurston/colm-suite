@@ -139,6 +139,9 @@ EXTRA_DIST = \
 	itemtype6.lm \
 	itemtype7.lm \
 	itemtype8.lm \
+	itercall1.lm \
+	itercall2.lm \
+	itercall3.lm \
 	lhs1.lm \
 	liftattrs.lm \
 	list1.lm \
@@ -335,6 +338,11 @@ EXTRA_DIST = \
 	void1.lm \
 	while1.lm \
 	xmlac.lm \
+	yield1.lm \
+	yield2.lm \
+	yield3.lm \
+	yield4.lm \
+	yield5.lm \
 	yieldtype1.lm \
 	yieldtype2.lm \
 	yieldtype3.lm \

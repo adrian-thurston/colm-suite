@@ -207,6 +207,8 @@ Some mistakes stop the program where they happen:
 * a `for` loop over a nil tree, as
   xref:1_06_iterators.adoc#iterators[the iterators chapter] describes, or
   over a nil list or map;
+* a `yield` in a function that no iterator called, which the iterators
+  chapter covers too;
 * sending to a nil parser or stream, sending a nil stream to a parser or
   parsing from one, pushing one onto an input, or calling a function or
   reading a field of a nil parser or stream, as

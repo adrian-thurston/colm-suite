@@ -200,6 +200,7 @@ EXTRA_DIST = \
 	nilchild1.lm \
 	nilchild2.lm \
 	nilchildmsg1.lm \
+	nilctx1.lm \
 	nilfield1.lm \
 	nilfield2.lm \
 	nilfieldmsg1.lm \
@@ -208,6 +209,11 @@ EXTRA_DIST = \
 	nilmsg1.lm \
 	nilparser1.lm \
 	nilstream1.lm \
+	noctx1.lm \
+	noctx2.lm \
+	noctx3.lm \
+	noctx4.lm \
+	noctx5.lm \
 	ntignbt1.lm \
 	ntignbt2.lm \
 	ntignbt3.lm \

@@ -1324,6 +1324,17 @@ void LangTerm::evaluateCapture( Compiler *pd, CodeVect &code, UniqueType *valUt 
 	}
 }
 
+/* The actions of a type defined in a context use the context's variables, so
+ * a parse of it, or a parser made with new, must be given an object of the
+ * context. */
+static void checkContextGiven( const InputLoc &loc, LangEl *langEl, bool given )
+{
+	if ( langEl->contextIn != 0 && !given ) {
+		error( loc ) << "parsing " << langEl->declName << " needs a context of type " <<
+				langEl->contextIn->name << endp;
+	}
+}
+
 /* A struct's name qualified by the namespaces it is declared in, as a type's
  * xmlTag is. The root namespace, which has no parent, adds nothing. */
 static String qualifiedName( StructEl *structEl )
@@ -1366,8 +1377,10 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 			newUT->generic->typeId == GEN_PARSER &&
 			newUT->generic->elUt->langEl->contextIn != 0 )
 	{
-		if ( fieldInitArgs == 0 || fieldInitArgs->length() != 1 )
-			error(loc) << "parse command requires just context " << endp;
+		if ( fieldInitArgs != 0 && fieldInitArgs->length() > 1 ) {
+			error(loc) << "new parser<" << newUT->generic->elUt->langEl->declName <<
+					"> takes one argument, its context" << endp;
+		}
 		context = true;
 	}
 
@@ -1392,7 +1405,8 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 	 * First load the context into the parser.
 	 */
 	if ( context ) {
-		for ( int i = 0; i < fieldInitArgs->length(); i++ ) {
+		bool contextGiven = false;
+		for ( int i = 0; fieldInitArgs != 0 && i < fieldInitArgs->length(); i++ ) {
 			/* Eval what we are initializing with. */
 			UniqueType *argUT = fieldInitArgs->data[i]->expr->evaluate( pd, code );
 
@@ -1403,11 +1417,14 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 				checkParserContext( fieldInitArgs->data[i], argUT,
 						newUT->generic->elUt->langEl );
 				code.append( IN_SET_PARSER_CONTEXT );
+				contextGiven = true;
 			}
 			else {
 				error(loc) << "cannot initialize parser with this type, context or input only" << endp;
 			}
 		}
+
+		checkContextGiven( loc, newUT->generic->elUt->langEl, contextGiven );
 	}
 
 	evaluateCapture( pd, code, newUT );
@@ -1612,6 +1629,7 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 	/*
 	 * First load the context into the parser.
 	 */
+	bool contextGiven = false;
 	if ( context ) {
 		for ( int i = 0; i < fieldInitArgs->length(); i++ ) {
 			/* Eval what we are initializing with. */
@@ -1624,12 +1642,15 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 				checkParserContext( fieldInitArgs->data[i], argUT,
 						targetUT->langEl );
 				code.append( IN_SET_PARSER_CONTEXT );
+				contextGiven = true;
 			}
 			else {
 				error(loc) << "cannot initialize parser with this type, context or input only" << endp;
 			}
 		}
 	}
+
+	checkContextGiven( loc, targetUT->langEl, contextGiven );
 
 	/*****************************/
 

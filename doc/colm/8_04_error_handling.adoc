@@ -222,6 +222,8 @@ Some mistakes stop the program where they happen:
   xref:3_06_send.adoc#send[the send chapter] describes;
 * a nil tree, or `nil`, among the items a `send`, `send_tree` or `parse`
   sends to a parser, as xref:3_06_send.adoc#send[the send chapter] describes;
+* giving a parse, or a parser made with `new`, a context that is nil, as
+  xref:3_04_undo.adoc#context[the context chapter] describes;
 * a `match`, `require` or `switch` on a nil tree, as
   xref:3_03_match.adoc#match[the patterns chapter] describes;
 * reading or setting a field of a token that is nil, such as `error.line`

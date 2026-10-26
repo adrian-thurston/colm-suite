@@ -13,6 +13,7 @@
  *   ###### EXIT ######  expected exit value
  *   ###### LOST ######  known leaks: runtime reports that don't fail the run
  *   ###### HOST ######  host program
+ *   ###### REDUCER ###  the commit code's reducer.h, with HOST
  *   ###### CALL ######  file containing C functions
  *
  * ARGS, IN, EXP, EXIT and LOST repeat: the Nth of each describes the Nth run
@@ -20,14 +21,16 @@
  * newline.
  *
  * HOST is C++. The manual suite's NAME.host.c is a C host, built without the
- * export header and code. The manual suite's NAME.reducer.h is a program's
- * reducer.h: the program is compiled with -m and its commit code linked in.
+ * export header and code. REDUCER, like the manual suite's NAME.reducer.h, is
+ * a program's reducer.h: the program is compiled with -m and its commit code
+ * linked into the HOST, which needs one.
  *
  * A case with COMP_ERR is a program colm must reject. It passes when colm
  * exits with 1 and its error output is the section, once the path colm
  * compiles the program from, working/NAME.lm, is taken off the front of each
- * line: "2:9: cannot resolve qualification push". It has no runs, so it takes
- * no ARGS, IN, EXP, EXIT or LOST, and no HOST.
+ * line: "2:9: cannot resolve qualification push". Colm must also leave the
+ * program, working/NAME.lm, as it was. It has no runs, so it takes no ARGS,
+ * IN, EXP, EXIT or LOST, and no HOST.
  *
  * Each run has COLM_LEAK_CHECK set, so the runtime reports the kids, trees,
  * parse trees, heads and locations the program never freed, one per line as
@@ -217,6 +220,14 @@ void colmCompile( const Config &config, Job *job, const ColmProgram &prog )
 			job->steps.push_back( compile.exit( 1 ).stderrOutput() );
 			job->steps.push_back( Step::filter( "sed -e 's|^" + path + ":||'", build ) );
 			job->steps.push_back( Step::compare( prog.compErr, "compile error" ) );
+
+			/* Colm writes none of its output over the program it rejects. */
+			Words cat;
+			cat.push_back( "cat" );
+			cat.push_back( lm );
+			Step read = Step::exec( Step::Compile, cat, build ).capture( CaptureOutput );
+			job->steps.push_back( read );
+			job->steps.push_back( Step::compare( prog.text, "program" ) );
 		}
 		else {
 			job->steps.push_back( compile );
@@ -293,11 +304,17 @@ void enumerateColm( const Config &config, const Selection &sel, JobList &jobs )
 		prog.text = noEol( cf.preamble );
 		prog.hasCall = section( cf, "CALL", 0, prog.call );
 		prog.hasHost = section( cf, "HOST", 0, prog.host );
+		prog.hasReducer = section( cf, "REDUCER", 0, prog.reducer );
 		prog.hasCompErr = section( cf, "COMP_ERR", 0, prog.compErr );
 
 		std::string body;
 		if ( section( cf, "COMP", 0, body ) )
 			prog.comp = splitWords( body );
+
+		if ( prog.hasReducer && !prog.hasHost ) {
+			job->error( "a REDUCER section needs a HOST" );
+			continue;
+		}
 
 		if ( prog.hasCompErr ) {
 			static const char *noRuns[] = { "ARGS", "IN", "EXP", "EXIT", "LOST", "HOST", 0 };

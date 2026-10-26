@@ -508,14 +508,16 @@ enum LEL_ID {
  */
 
 /*
- * User iterator call stack. 
- * Adds an iframe pointer, removes the return value.
+ * User iterator call stack.
+ * Adds an iframe pointer, and keeps the frame id of the loop's code where a
+ * call keeps the return value.
  */
 
 /* Number of spots in the frame, after the args. */
 #define IFR_AA  5
 
 /* Positions relative to the frame pointer. */
+#define IFR_RFD 3    /* return frame id */
 #define IFR_RIN 2    /* return instruction */
 #define IFR_RIF 1    /* return iframe pointer */
 #define IFR_RFR 0    /* return frame pointer */
@@ -677,6 +679,8 @@ void split_ref( struct colm_program *prg, tree_t ***sp, ref_t *from_ref );
 tree_t **colm_execute_code( struct colm_program *prg,
 	execution_t *exec, tree_t **sp, code_t *instr );
 code_t *colm_pop_reverse_code( struct rt_code_vect *all_rev );
+
+location_t *colm_reduce_loc( struct colm_program *prg, location_t *loc, const char *msg );
 
 #ifdef __cplusplus
 }

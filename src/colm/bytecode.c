@@ -164,13 +164,22 @@ static void flush_streams( program_t *prg )
 /* Stops the program on an error at run time, such as a pop from an empty
  * list. What the program wrote so far comes out first, then "fatal: " and the
  * message on standard error, and the process exits with status 1. That ends a
- * host program too, unlike exit, which unwinds the VM and returns to the host.
+ * host program too, unlike an exit in the code colm_run_program runs, which
+ * unwinds the VM and returns to the host where it can (see exit_now).
  * Whether an error should unwind the VM instead is still open. Every check
  * that stops the program goes through here, so that is one change. */
 static void runtime_error( program_t *prg, const char *msg )
 {
 	flush_streams( prg );
 	fatal( "%s\n", msg );
+}
+
+/* An exit the VM can't unwind ends the process at once, as exit_hard does,
+ * after what the program wrote so far comes out. */
+static void exit_now( program_t *prg )
+{
+	flush_streams( prg );
+	exit( prg->exit_status );
 }
 
 /* A pop from a nil or empty list stops the program. */
@@ -180,6 +189,49 @@ static void pop_check( program_t *prg, list_t *list )
 		runtime_error( prg, "pop from a nil list" );
 	if ( list->list_len == 0 )
 		runtime_error( prg, "pop from an empty list" );
+}
+
+/* A map holds an element while the element's height is above 0. A new element
+ * starts at 0, and map_detach sets it back to 0. The parents of an element in
+ * a map lead up to that map's root. */
+static int map_holds_el( map_t *map, map_el_t *map_el )
+{
+	if ( map_el->height == 0 )
+		return 0;
+	while ( map_el->parent != 0 )
+		map_el = map_el->parent;
+	return map_el == map->root;
+}
+
+/* An insert_el of a nil element, or of one that is in a map already, this one
+ * or another, stops the program. */
+static map_el_t *insert_el_check( program_t *prg, struct_t *s, short gen_id )
+{
+	if ( s == 0 )
+		runtime_error( prg, "insert_el of a nil element" );
+	map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+	if ( map_el->height != 0 )
+		runtime_error( prg, "insert_el of an element already in a map" );
+	return map_el;
+}
+
+/* A detach_el of a nil element, or of one that is not in the map, stops the
+ * program. */
+static map_el_t *detach_el_check( program_t *prg, map_t *map, struct_t *s, short gen_id )
+{
+	if ( s == 0 )
+		runtime_error( prg, "detach_el of a nil element" );
+	map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+	if ( !map_holds_el( map, map_el ) )
+		runtime_error( prg, "detach_el of an element not in the map" );
+	return map_el;
+}
+
+/* A send to a nil parser stops the program. */
+static void parser_check( program_t *prg, parser_t *parser )
+{
+	if ( parser == 0 )
+		runtime_error( prg, "send to a nil parser" );
 }
 
 static void colm_parser_set_context( program_t *prg, tree_t **sp, parser_t *parser, struct_t *val )
@@ -747,6 +799,7 @@ tree_t *colm_run_func( struct colm_program *prg, int frame_id,
 	vm_push_tree( 0 );
 
 	execution.frame_id = frame_id;
+	execution.export_call = 1;
 
 	execution.frame_ptr = vm_ptop();
 	vm_pushn( fi->frame_size );
@@ -1181,6 +1234,11 @@ again:
 			instr = uiter->resume;
 			exec->frame_ptr = uiter->frame;
 			exec->iframe_ptr = &uiter->stack_root[-IFR_AA];
+
+			/* Resuming a function the iterator called: take back its frame
+			 * id, which IN_YIELD kept on the stack. */
+			if ( exec->frame_ptr != exec->iframe_ptr )
+				exec->frame_id = vm_pop_type( long );
 			break;
 		}
 		case IN_UITER_GET_CUR_R: {
@@ -1324,6 +1382,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_TREE_R %d\n", field );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "reading an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			tree_t *val = colm_tree_get_field( obj, field );
@@ -1338,6 +1398,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_TREE_WC %d\n", field );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "reading an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			tree_t *split = get_field_split( prg, obj, field );
@@ -1352,6 +1414,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_TREE_WV\n" );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "reading an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			tree_t *split = get_field_split( prg, obj, field );
@@ -1385,6 +1449,8 @@ again:
 
 			tree_t *obj = vm_pop_tree();
 			tree_t *val = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "setting an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			/* Downref the old value. */
@@ -1402,6 +1468,8 @@ again:
 
 			tree_t *obj = vm_pop_tree();
 			tree_t *val = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "setting an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			/* Save the old value, then set the field. */
@@ -1462,6 +1530,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_VAL_R %d\n", field );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "reading an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			tree_t *pointer = colm_tree_get_field( obj, field );
@@ -1479,6 +1549,8 @@ again:
 
 			tree_t *obj = vm_pop_tree();
 			value_t value = vm_pop_value();
+			if ( obj == 0 )
+				runtime_error( prg, "setting an attribute of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			/* Downref the old value. */
@@ -1521,6 +1593,8 @@ again:
 		case IN_GET_COLLECT_STRING: {
 			debug( prg, REALM_BYTECODE, "IN_GET_COLLECT_STRING\n" );
 			stream_t *stream = vm_pop_stream();
+			if ( stream == 0 )
+				runtime_error( prg, "reading the tree of a nil stream" );
 			str_t *str = collect_string( prg, stream );
 			colm_tree_upref( prg, (tree_t*)str );
 			vm_push_string( str );
@@ -1533,6 +1607,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_STRUCT_R %d\n", field );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "reading a field of a nil struct" );
 			tree_t *val = colm_struct_get_field( obj, tree_t*, field );
 			colm_tree_upref( prg, val );
 			vm_push_tree( val );
@@ -1545,6 +1621,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_STRUCT_WC %d\n", field );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "reading a field of a nil struct" );
 			tree_t *val = colm_struct_get_field( obj, tree_t*, field );
 			colm_tree_upref( prg, val );
 			vm_push_tree( val );
@@ -1558,6 +1636,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_STRUCT_WV\n" );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "reading a field of a nil struct" );
 			tree_t *val = colm_struct_get_field( obj, tree_t*, field );
 			colm_tree_upref( prg, val );
 			vm_push_tree( val );
@@ -1589,6 +1669,8 @@ again:
 
 			tree_t *obj = vm_pop_tree();
 			tree_t *val = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "setting a field of a nil struct" );
 
 			/* Downref the old value. */
 			tree_t *prev = colm_struct_get_field( obj, tree_t*, field );
@@ -1604,6 +1686,8 @@ again:
 
 			struct_t *obj = vm_pop_struct();
 			tree_t *val = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "setting a field of a nil struct" );
 
 			/* Save the old value, then set the field. */
 			tree_t *prev = colm_struct_get_field( obj, tree_t*, field );
@@ -1640,6 +1724,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_STRUCT_VAL_R %d\n", field );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "reading a field of a nil struct" );
 			tree_t *val = colm_struct_get_field( obj, tree_t*, field );
 			vm_push_tree( val );
 			break;
@@ -1652,6 +1738,8 @@ again:
 
 			struct_t *strct = vm_pop_struct();
 			tree_t *val = vm_pop_tree();
+			if ( strct == 0 )
+				runtime_error( prg, "setting a field of a nil struct" );
 
 			colm_struct_set_field( strct, tree_t*, field, val );
 			break;
@@ -1664,6 +1752,8 @@ again:
 
 			struct_t *strct = vm_pop_struct();
 			tree_t *val = vm_pop_tree();
+			if ( strct == 0 )
+				runtime_error( prg, "setting a field of a nil struct" );
 
 			tree_t *prev = colm_struct_get_field( strct, tree_t*, field );
 			colm_struct_set_field( strct, tree_t*, field, val );
@@ -1693,6 +1783,8 @@ again:
 			uchar len;
 
 			tree_t *obj = vm_pop_tree(), *val = 0;
+			if ( obj == 0 )
+				runtime_error( prg, "reading a child of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			read_byte( len );
@@ -1727,6 +1819,8 @@ again:
 
 			tree_t *obj = vm_pop_tree();
 			tree_t *val = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "setting a child of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
 			read_byte( len );
@@ -2496,6 +2590,10 @@ again:
 
 			tree_t *tree = vm_pop_tree();
 
+			/* match, require and a switch case with a pattern all come here. */
+			if ( tree == 0 )
+				runtime_error( prg, "match against a nil tree" );
+
 			/* Run the match, push the result. */
 			int root_node = prg->rtd->pat_repl_info[pattern_id].offset;
 
@@ -2536,6 +2634,11 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_PROD_NUM\n" );
 
 			tree_t *tree = vm_pop_tree();
+
+			/* A switch case that names a production. */
+			if ( tree == 0 )
+				runtime_error( prg, "match against a nil tree" );
+
 			colm_tree_downref( prg, sp, tree );
 
 			value_t v = tree->prod_num;
@@ -2551,6 +2654,9 @@ again:
 
 			tree_t *to_send = vm_pop_tree();
 			stream_t *stream = vm_pop_stream();
+
+			if ( stream == 0 )
+				runtime_error( prg, "send to a nil stream" );
 
 			struct stream_impl *si = stream_to_impl( stream );
 
@@ -2576,6 +2682,9 @@ again:
 
 			tree_t *to_send = vm_pop_tree();
 			parser_t *parser = vm_pop_parser();
+			parser_check( prg, parser );
+			if ( to_send == 0 )
+				runtime_error( prg, "sending a nil tree to a parser" );
 
 			struct input_impl *si = input_to_impl( parser->input );
 
@@ -2632,6 +2741,9 @@ again:
 
 			tree_t *to_send = vm_pop_tree();
 			parser_t *parser = vm_pop_parser();
+			parser_check( prg, parser );
+			if ( to_send == 0 )
+				runtime_error( prg, "sending a nil tree to a parser" );
 
 			struct input_impl *si = input_to_impl( parser->input );
 
@@ -2685,6 +2797,7 @@ again:
 
 		case IN_SEND_NOTHING: {
 			parser_t *parser = vm_pop_parser();
+			parser_check( prg, parser );
 			vm_push_parser( parser );
 			exec->steps = parser->pda_run->steps;
 			exec->pcr = PCR_START;
@@ -2695,6 +2808,9 @@ again:
 
 			stream_t *to_send = vm_pop_stream();
 			parser_t *parser = vm_pop_parser();
+			parser_check( prg, parser );
+			if ( to_send == 0 )
+				runtime_error( prg, "sending a nil stream to a parser" );
 
 			word_t len = stream_append_stream( prg, sp, parser->input, to_send );
 
@@ -2735,6 +2851,7 @@ again:
 
 			debug( prg, REALM_BYTECODE, "IN_SEND_EOF_W\n" );
 			parser_t *parser = vm_pop_parser();
+			parser_check( prg, parser );
 			vm_push_parser( parser );
 
 			si = input_to_impl( parser->input );
@@ -2767,6 +2884,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_INPUT_CLOSE_WC\n" );
 
 			stream_t *stream = vm_pop_stream();
+			if ( stream == 0 )
+				runtime_error( prg, "closing a nil stream" );
 			struct stream_impl *si = stream->impl;
 
 			si->funcs->close_stream( prg, si );
@@ -2779,6 +2898,8 @@ again:
 
 			stream_t *stream = vm_pop_stream();
 			value_t auto_trim = vm_pop_value();
+			if ( stream == 0 )
+				runtime_error( prg, "setting auto_trim on a nil stream" );
 			struct stream_impl *si = stream->impl;
 
 			si->funcs->set_option( prg, si, 0, (long) auto_trim );
@@ -2894,7 +3015,8 @@ again:
 				 * (see FN_EXIT). */
 				short unwind_len;
 				read_half( unwind_len );
-				instr += unwind_len;
+				if ( unwind_len > 0 )
+					instr += unwind_len;
 
 				if ( exec->WV ) {
 					rcode_unit_start( exec );
@@ -2988,6 +3110,8 @@ again:
 
 			stream_t *stream = vm_pop_stream();
 			tree_t *len = vm_pop_tree();
+			if ( stream == 0 )
+				runtime_error( prg, "pull from a nil stream" );
 			tree_t *string = stream_pull_stream_bc( prg, stream, len );
 			colm_tree_upref( prg, string );
 			vm_push_tree( string );
@@ -3004,6 +3128,8 @@ again:
 
 			stream_t *stream = vm_pop_stream();
 			tree_t *len = vm_pop_tree();
+			if ( stream == 0 )
+				runtime_error( prg, "pull from a nil stream" );
 			tree_t *string = stream_pull_stream_bc( prg, stream, len );
 			colm_tree_upref( prg, string );
 			vm_push_tree( string );
@@ -3090,6 +3216,8 @@ again:
 
 			input_t *input = vm_pop_input();
 			stream_t *to_push = vm_pop_stream();
+			if ( to_push == 0 )
+				runtime_error( prg, "pushing a nil stream" );
 			input_push_stream( prg, sp, input_to_impl( input ), to_push );
 			vm_push_tree( 0 );
 
@@ -3103,6 +3231,8 @@ again:
 
 			input_t *input = vm_pop_input();
 			stream_t *to_push = vm_pop_stream();
+			if ( to_push == 0 )
+				runtime_error( prg, "pushing a nil stream" );
 			input_push_stream( prg, sp, input_to_impl( input ), to_push );
 			vm_push_tree( 0 );
 			break;
@@ -3291,6 +3421,11 @@ again:
 
 			ref_t *ref = (ref_t*)(sp + back);
 
+			/* A nil tree has no attributes. A child the production of its
+			 * parent doesn't have gives no kid. */
+			if ( ref->kid == 0 || ref->kid->tree == 0 )
+				runtime_error( prg, "reading an attribute of a nil tree" );
+
 			tree_t *obj = ref->kid->tree;
 			kid_t *attr_kid = get_field_kid( obj, field );
 
@@ -3309,6 +3444,11 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_RHS_REF_FROM_QUAL_REF\n" );
 
 			ref_t *ref = (ref_t*)(sp + back);
+
+			/* A nil tree has no children. A child the production of its
+			 * parent doesn't have gives no kid. */
+			if ( ref->kid == 0 || ref->kid->tree == 0 )
+				runtime_error( prg, "reading a child of a nil tree" );
 
 			tree_t *obj = ref->kid->tree;
 			kid_t *attr_kid = 0;
@@ -3373,6 +3513,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_TOKEN_DATA_R\n" );
 
 			tree_t *tree = vm_pop_tree();
+			if ( tree == 0 )
+				runtime_error( prg, "reading the data of a nil token" );
 			head_t *data = string_copy( prg, tree->tokdata );
 			tree_t *str = construct_string( prg, data );
 			colm_tree_upref( prg, str );
@@ -3385,6 +3527,8 @@ again:
 
 			tree_t *tree = vm_pop_tree();
 			tree_t *val = vm_pop_tree();
+			if ( tree == 0 )
+				runtime_error( prg, "setting the data of a nil token" );
 			head_t *head = string_copy( prg, ((str_t*)val)->value );
 			string_free( prg, tree->tokdata );
 			tree->tokdata = head;
@@ -3398,6 +3542,8 @@ again:
 
 			tree_t *tree = vm_pop_tree();
 			tree_t *val = vm_pop_tree();
+			if ( tree == 0 )
+				runtime_error( prg, "setting the data of a nil token" );
 
 			head_t *oldval = tree->tokdata;
 			head_t *head = string_copy( prg, ((str_t*)val)->value );
@@ -3428,8 +3574,11 @@ again:
 		case IN_GET_TOKEN_FILE_R: {
 			debug( prg, REALM_BYTECODE, "IN_GET_TOKEN_FILE_R\n" );
 			tree_t *tree = vm_pop_tree();
+			if ( tree == 0 )
+				runtime_error( prg, "reading the file of a nil token" );
 			tree_t *str = 0;
-			if ( tree->tokdata->location ) {
+			if ( tree->tokdata->location != 0 &&
+					tree->tokdata->location->name != 0 ) {
 				const char *fn = tree->tokdata->location->name;
 				size_t fnlen = strlen( fn );
 				head_t *data = string_alloc_full( prg, fn, fnlen );
@@ -3444,6 +3593,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_TOKEN_LINE_R\n" );
 
 			tree_t *tree = vm_pop_tree();
+			if ( tree == 0 )
+				runtime_error( prg, "reading the line of a nil token" );
 			value_t integer = 0;
 			if ( tree->tokdata->location )
 				integer = tree->tokdata->location->line;
@@ -3455,6 +3606,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_TOKEN_COL_R\n" );
 
 			tree_t *tree = vm_pop_tree();
+			if ( tree == 0 )
+				runtime_error( prg, "reading the col of a nil token" );
 			value_t integer = 0;
 			if ( tree->tokdata->location )
 				integer = tree->tokdata->location->column;
@@ -3466,6 +3619,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_TOKEN_POS_R\n" );
 
 			tree_t *tree = vm_pop_tree();
+			if ( tree == 0 )
+				runtime_error( prg, "reading the pos of a nil token" );
 			value_t integer = 0;
 			if ( tree->tokdata->location )
 				integer = tree->tokdata->location->byte;
@@ -3493,6 +3648,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_LIST_LENGTH\n" );
 
 			list_t *list = vm_pop_list();
+			if ( list == 0 )
+				runtime_error( prg, "length of a nil list" );
 			long len = colm_list_length( list );
 			value_t res = len;
 			vm_push_value( res );
@@ -3506,6 +3663,11 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_LIST_EL_MEM_R\n" );
 
 			struct_t *s = vm_pop_struct();
+			if ( s == 0 ) {
+				runtime_error( prg, field == 0 ?
+						"reading the prev of a nil list element" :
+						"reading the next of a nil list element" );
+			}
 
 			list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
 			struct_t *val = colm_list_el_get( prg, list_el, gen_id, field );
@@ -3521,6 +3683,10 @@ again:
 					"IN_GET_LIST_MEM_R %hd %hd\n", gen_id, field );
 
 			list_t *list = vm_pop_list();
+			if ( list == 0 ) {
+				runtime_error( prg, field == 0 ? "reading the head of a nil list" :
+						"reading the tail of a nil list" );
+			}
 			struct_t *val = colm_list_get( prg, list, gen_id, field );
 			vm_push_struct( val );
 			break;
@@ -3644,6 +3810,8 @@ again:
 		case IN_GET_PARSER_STREAM: {
 			debug( prg, REALM_BYTECODE, "IN_GET_PARSER_STREAM\n" );
 			parser_t *parser = vm_pop_parser();
+			if ( parser == 0 )
+				runtime_error( prg, "reading the input of a nil parser" );
 			vm_push_input( parser->input );
 			break;
 		}
@@ -3654,6 +3822,11 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_PARSER_MEM_R %hd\n", field );
 
 			parser_t *parser = vm_pop_parser();
+			if ( parser == 0 ) {
+				runtime_error( prg, field == 0 ?
+						"reading the tree of a nil parser" :
+						"reading the error of a nil parser" );
+			}
 
 			tree_t *val = get_parser_mem( parser, field );
 
@@ -3670,6 +3843,11 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_GET_MAP_EL_MEM_R\n" );
 
 			struct_t *strct = vm_pop_struct();
+			if ( strct == 0 ) {
+				runtime_error( prg, field == 0 ?
+						"reading the prev of a nil map element" :
+						"reading the next of a nil map element" );
+			}
 
 			map_el_t *map_el = colm_struct_to_map_el( prg, strct, gen_id );
 			struct_t *val = colm_map_el_get( prg, map_el, gen_id, field );
@@ -3680,6 +3858,8 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_MAP_LENGTH\n" );
 
 			tree_t *obj = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "length of a nil map" );
 			long len = map_length( (map_t*)obj );
 			value_t res = len;
 			vm_push_value( res );
@@ -3694,6 +3874,10 @@ again:
 					"IN_GET_MAP_MEM_R %hd %hd\n", gen_id, field );
 
 			map_t *map = vm_pop_map();
+			if ( map == 0 ) {
+				runtime_error( prg, field == 0 ? "reading the head of a nil map" :
+						"reading the tail of a nil map" );
+			}
 			struct_t *val = colm_map_get( prg, map, gen_id, field );
 			vm_push_struct( val );
 			break;
@@ -3849,6 +4033,11 @@ again:
 		case IN_YIELD: {
 			debug( prg, REALM_BYTECODE, "IN_YIELD\n" );
 
+			/* A yield in a function that no iterator called: there is no
+			 * iterator to give the value to. */
+			if ( exec->iframe_ptr == 0 )
+				runtime_error( prg, "yield outside an iterator" );
+
 			kid_t *kid = vm_pop_kid();
 			ref_t *next = vm_pop_ref();
 			user_iter_t *uiter = (user_iter_t*) vm_plocal_iframe( IFR_AA );
@@ -3857,6 +4046,14 @@ again:
 					kid->tree->id == uiter->search_id || 
 					uiter->search_id == prg->rtd->any_id )
 			{
+				/* A function the iterator called yields. Keep its frame id
+				 * on the stack, for IN_UITER_ADVANCE, and go back to the
+				 * loop's. */
+				if ( exec->frame_ptr != exec->iframe_ptr ) {
+					vm_push_type( long, exec->frame_id );
+					exec->frame_id = (long) vm_local_iframe( IFR_RFD );
+				}
+
 				/* Store the yielded value. */
 				uiter->ref.kid = kid;
 				uiter->ref.next = next;
@@ -3895,10 +4092,11 @@ again:
 			/* This is a setup similar to as a call, only the frame structure
 			 * is slightly different for user iterators. We aren't going to do
 			 * the call. We don't need to set up the return ip because the
-			 * uiter advance will set it. The frame we need to do because it
-			 * is set once for the lifetime of the iterator. */
+			 * uiter advance will set it. The frame and the frame id we need
+			 * to do because they are set once for the lifetime of the
+			 * iterator. */
 			vm_push_type( tree_t**, exec->call_args );
-			vm_push_value( 0 );
+			vm_push_type( long, exec->frame_id );  /* Return frame id. */
 
 			vm_push_type( code_t*, 0 );            /* Return instruction pointer,  */
 			vm_push_type( tree_t**, exec->iframe_ptr ); /* Return iframe. */
@@ -3930,10 +4128,11 @@ again:
 			/* This is a setup similar to as a call, only the frame structure
 			 * is slightly different for user iterators. We aren't going to do
 			 * the call. We don't need to set up the return ip because the
-			 * uiter advance will set it. The frame we need to do because it
-			 * is set once for the lifetime of the iterator. */
+			 * uiter advance will set it. The frame and the frame id we need
+			 * to do because they are set once for the lifetime of the
+			 * iterator. */
 			vm_push_type( tree_t**, exec->call_args );
-			vm_push_value( 0 );
+			vm_push_type( long, exec->frame_id );  /* Return frame id. */
 
 			vm_push_type( code_t*, 0 );            /* Return instruction pointer,  */
 			vm_push_type( tree_t**, exec->iframe_ptr ); /* Return iframe. */
@@ -4277,7 +4476,11 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_LIST_PUSH_HEAD_WC\n" );
 
 				list_t *list = vm_pop_list();
+				if ( list == 0 )
+					runtime_error( prg, "push to a nil list" );
 				struct_t *s = vm_pop_struct();
+				if ( s == 0 )
+					runtime_error( prg, "pushing a nil element" );
 
 				list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
 				colm_list_prepend( list, list_el );
@@ -4293,7 +4496,11 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_LIST_PUSH_HEAD_WV\n" );
 
 				list_t *list = vm_pop_list();
+				if ( list == 0 )
+					runtime_error( prg, "push to a nil list" );
 				struct_t *s = vm_pop_struct();
+				if ( s == 0 )
+					runtime_error( prg, "pushing a nil element" );
 
 				list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
 				colm_list_prepend( list, list_el );
@@ -4321,7 +4528,11 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_LIST_PUSH_TAIL_WC\n" );
 
 				list_t *list = vm_pop_list();
+				if ( list == 0 )
+					runtime_error( prg, "push to a nil list" );
 				struct_t *s = vm_pop_struct();
+				if ( s == 0 )
+					runtime_error( prg, "pushing a nil element" );
 
 				list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
 				colm_list_append( list, list_el );
@@ -4337,7 +4548,11 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_LIST_PUSH_TAIL_WV\n" );
 
 				list_t *list = vm_pop_list();
+				if ( list == 0 )
+					runtime_error( prg, "push to a nil list" );
 				struct_t *s = vm_pop_struct();
+				if ( s == 0 )
+					runtime_error( prg, "pushing a nil element" );
 
 				list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
 				colm_list_append( list, list_el );
@@ -4476,6 +4691,8 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_MAP_FIND %hd\n", gen_id );
 
 				map_t *map = vm_pop_map();
+				if ( map == 0 )
+					runtime_error( prg, "find in a nil map" );
 				tree_t *key = vm_pop_tree();
 
 				map_el_t *map_el = colm_map_find( prg, map, key );
@@ -4496,9 +4713,11 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_MAP_INSERT_WC %hd\n", gen_id );
 
 				map_t *map = vm_pop_map();
+				if ( map == 0 )
+					runtime_error( prg, "insert into a nil map" );
 				struct_t *s = vm_pop_struct();
 
-				map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+				map_el_t *map_el = insert_el_check( prg, s, gen_id );
 
 				colm_map_insert( prg, map, map_el );
 
@@ -4512,9 +4731,11 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_MAP_INSERT_WV %hd\n", gen_id );
 
 				map_t *map = vm_pop_map();
+				if ( map == 0 )
+					runtime_error( prg, "insert into a nil map" );
 				struct_t *s = vm_pop_struct();
 
-				map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+				map_el_t *map_el = insert_el_check( prg, s, gen_id );
 
 				map_el_t *inserted = colm_map_insert( prg, map, map_el );
 
@@ -4556,9 +4777,11 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_MAP_DETACH_WC %hd\n", gen_id );
 
 				map_t *map = vm_pop_map();
+				if ( map == 0 )
+					runtime_error( prg, "detach from a nil map" );
 				struct_t *s = vm_pop_struct();
 
-				map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+				map_el_t *map_el = detach_el_check( prg, map, s, gen_id );
 
 				colm_map_detach( prg, map, map_el );
 
@@ -4572,9 +4795,11 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_MAP_DETACH_WV %hd\n", gen_id );
 
 				map_t *map = vm_pop_map();
+				if ( map == 0 )
+					runtime_error( prg, "detach from a nil map" );
 				struct_t *s = vm_pop_struct();
 
-				map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
+				map_el_t *map_el = detach_el_check( prg, map, s, gen_id );
 
 				colm_map_detach( prg, map, map_el );
 
@@ -4610,6 +4835,8 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_VMAP_INSERT_WC %hd\n", gen_id );
 
 				map_t *map = vm_pop_map();
+				if ( map == 0 )
+					runtime_error( prg, "insert into a nil map" );
 				struct_t *value = vm_pop_struct();
 				struct_t *key = vm_pop_struct();
 
@@ -4626,6 +4853,8 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_VMAP_INSERT_WV %hd\n", gen_id );
 
 				map_t *map = vm_pop_map();
+				if ( map == 0 )
+					runtime_error( prg, "insert into a nil map" );
 				struct_t *value = vm_pop_struct();
 				struct_t *key = vm_pop_struct();
 
@@ -4668,6 +4897,8 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_VMAP_REMOVE_WC %hd\n", gen_id );
 
 				map_t *map = vm_pop_map();
+				if ( map == 0 )
+					runtime_error( prg, "remove from a nil map" );
 				tree_t *key = vm_pop_tree();
 
 				map_el_t *map_el = colm_vmap_remove( prg, map, key );
@@ -4688,6 +4919,8 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_VMAP_REMOVE_WV %hd\n", gen_id );
 
 				map_t *map = vm_pop_map();
+				if ( map == 0 )
+					runtime_error( prg, "remove from a nil map" );
 				tree_t *key = vm_pop_tree();
 
 				map_el_t *map_el = colm_vmap_remove( prg, map, key );
@@ -4733,6 +4966,8 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_VMAP_FIND %hd\n", gen_id );
 
 				map_t *map = vm_pop_map();
+				if ( map == 0 )
+					runtime_error( prg, "find in a nil map" );
 				tree_t *key = vm_pop_tree();
 
 				tree_t *result = colm_vmap_find( prg, map, key );
@@ -4750,6 +4985,8 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_VLIST_PUSH_TAIL_WC %hd\n", gen_id );
 
 				list_t *list = vm_pop_list();
+				if ( list == 0 )
+					runtime_error( prg, "push to a nil list" );
 				value_t value = vm_pop_value();
 
 				colm_vlist_append( prg, list, value );
@@ -4764,6 +5001,8 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_VLIST_PUSH_TAIL_WV %hd\n", gen_id );
 
 				list_t *list = vm_pop_list();
+				if ( list == 0 )
+					runtime_error( prg, "push to a nil list" );
 				value_t value = vm_pop_value();
 
 				colm_vlist_append( prg, list, value );
@@ -4790,6 +5029,8 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_VLIST_PUSH_HEAD_WC %hd\n", gen_id );
 
 				list_t *list = vm_pop_list();
+				if ( list == 0 )
+					runtime_error( prg, "push to a nil list" );
 				value_t value = vm_pop_value();
 
 				colm_vlist_prepend( prg, list, value );
@@ -4804,6 +5045,8 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_VLIST_PUSH_HEAD_WV %hd\n", gen_id );
 
 				list_t *list = vm_pop_list();
+				if ( list == 0 )
+					runtime_error( prg, "push to a nil list" );
 				value_t value = vm_pop_value();
 
 				colm_vlist_prepend( prg, list, value );
@@ -4924,7 +5167,8 @@ again:
 			}
 			case FN_EXIT: {
 				/* The unwind code follows the exit call (exception, see
-				 * synthesis). */
+				 * synthesis). -1 in place of its length means the stack
+				 * can't be unwound from here (see exit_now). */
 				short unwind_len;
 				read_half( unwind_len );
 
@@ -4934,7 +5178,22 @@ again:
 				prg->exit_status = vm_pop_type(long);
 				prg->induce_exit = 1;
 
+				/* Below an exported function that the host called is the
+				 * pseudo call colm_run_func made, not the root frame the
+				 * unwind stops at, so the unwind can't get back to the host.
+				 * End the process instead, as exit_hard does, once what the
+				 * program printed is out. */
+				if ( exec->export_call ) {
+					flush_streams( prg );
+					exit( prg->exit_status );
+				}
+
 				while ( true ) {
+					/* The call or parse we are in sits on words the stack
+					 * can't be unwound past. */
+					if ( unwind_len < 0 )
+						exit_now( prg );
+
 					/* We stop on the root, leaving the psuedo-call setup on the
 					 * stack. Note we exclude the local data. */
 					if ( exec->frame_id == prg->rtd->root_frame_id )

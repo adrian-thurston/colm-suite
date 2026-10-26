@@ -64,6 +64,8 @@ EXTRA_DIST = \
 	ctxtype4.lm \
 	ctxtype5.lm \
 	ctxtype6.lm \
+	ctxvar1.lm \
+	ctxvarmsg1.lm \
 	decl1.lm \
 	decl2.lm \
 	decl3.lm \

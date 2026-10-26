@@ -45,11 +45,25 @@ EXTRA_DIST = \
 	counting2.lm \
 	counting3.lm \
 	counting4.lm \
+	ctxthis1.lm \
+	ctxthis2.lm \
+	ctxthis3.lm \
+	ctxthis4.lm \
+	ctxthis5.lm \
+	ctxtype1.lm \
+	ctxtype2.lm \
+	ctxtype3.lm \
+	ctxtype4.lm \
+	ctxtype5.lm \
+	ctxtype6.lm \
 	decl1.lm \
 	decl2.lm \
 	decl3.lm \
 	define1.lm \
 	div.lm \
+	earlytree1.lm \
+	earlytree2.lm \
+	earlytreemsg1.lm \
 	exit1.lm \
 	exit2.lm \
 	exit3.lm \
@@ -69,7 +83,11 @@ EXTRA_DIST = \
 	exit17.lm \
 	exit18.lm \
 	exit19.lm \
+	exit20.lm \
+	exit21.lm \
+	exit22.lm \
 	export1.lm \
+	export2.lm \
 	ext1.lm \
 	factor1.lm \
 	factor2.lm \
@@ -84,6 +102,12 @@ EXTRA_DIST = \
 	forloop5.lm \
 	forloop6.lm \
 	forloop7.lm \
+	forvar1.lm \
+	forvar2.lm \
+	forvar3.lm \
+	forvar4.lm \
+	forvar5.lm \
+	forvar6.lm \
 	func1.lm \
 	func2.lm \
 	func3.lm \
@@ -118,6 +142,9 @@ EXTRA_DIST = \
 	itemtype6.lm \
 	itemtype7.lm \
 	itemtype8.lm \
+	itercall1.lm \
+	itercall2.lm \
+	itercall3.lm \
 	lhs1.lm \
 	liftattrs.lm \
 	list1.lm \
@@ -130,6 +157,7 @@ EXTRA_DIST = \
 	listpop2.lm \
 	literal1.lm \
 	load1.lm \
+	locname1.lm \
 	logical1.lm \
 	lookup1.lm \
 	mailbox.lm \
@@ -144,7 +172,12 @@ EXTRA_DIST = \
 	map7.lm \
 	map8.lm \
 	map9.lm \
+	mapel1.lm \
+	mapel2.lm \
+	mapelmsg1.lm \
+	mapmsg1.lm \
 	matchex.lm \
+	matchnil1.lm \
 	matchtext1.lm \
 	maxlen.lm \
 	mediawiki/garticle.rl \
@@ -164,8 +197,25 @@ EXTRA_DIST = \
 	namespace9.lm \
 	nestedcomm.lm \
 	new1.lm \
+	nilchild1.lm \
+	nilchild2.lm \
+	nilchildmsg1.lm \
+	nilctx1.lm \
+	nilfield1.lm \
+	nilfield2.lm \
+	nilfieldmsg1.lm \
+	nillist1.lm \
+	nilmap1.lm \
+	nilmsg1.lm \
+	nilparser1.lm \
 	nilstr1.lm \
+	nilstream1.lm \
 	nilstrmsg1.lm \
+	noctx1.lm \
+	noctx2.lm \
+	noctx3.lm \
+	noctx4.lm \
+	noctx5.lm \
 	ntignbt1.lm \
 	ntignbt2.lm \
 	ntignbt3.lm \
@@ -178,6 +228,9 @@ EXTRA_DIST = \
 	open2.lm \
 	order1.lm \
 	order2.lm \
+	outfile1.lm \
+	outfile2.lm \
+	outfile3.lm \
 	parse1.lm \
 	parsetree1.lm \
 	pointer1.lm \
@@ -190,6 +243,8 @@ EXTRA_DIST = \
 	pull4.lm \
 	pullbt1.lm \
 	pullbt2.lm \
+	pullend1.lm \
+	pullend2.lm \
 	pushemptybt1.lm \
 	pushignbt1.lm \
 	pushigneof1.lm \
@@ -278,6 +333,12 @@ EXTRA_DIST = \
 	uiter5.lm \
 	uiter6.lm \
 	uiter7.lm \
+	uiter8.lm \
+	uiter9.lm \
+	uiter10.lm \
+	uiter11.lm \
+	uiter12.lm \
+	uiter13.lm \
 	undoctx1.lm \
 	undoctx2.lm \
 	undoctx3.lm \
@@ -289,6 +350,8 @@ EXTRA_DIST = \
 	undomap1.lm \
 	undomap2.lm \
 	undomap3.lm \
+	undomap4.lm \
+	undomap5.lm \
 	undopush1.lm \
 	undosplit1.lm \
 	undosplit2.lm \
@@ -296,6 +359,17 @@ EXTRA_DIST = \
 	void1.lm \
 	while1.lm \
 	xmlac.lm \
+	yield1.lm \
+	yield2.lm \
+	yield3.lm \
+	yield4.lm \
+	yield5.lm \
+	yieldtype1.lm \
+	yieldtype2.lm \
+	yieldtype3.lm \
+	yieldtype4.lm \
+	yieldtype5.lm \
+	yieldtype6.lm \
 	accumbt4.in \
 	accumbt5.in \
 	binary1.in \

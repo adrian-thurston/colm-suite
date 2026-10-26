@@ -64,6 +64,13 @@ A child that isn't in the production of `T` is nil, so a test such as
 `x?`, is always there, but has no text when `x` is absent. To test it, label
 it and compare its text with `""`.
 
+`T` itself must not be nil. Reading a child of a nil tree, such as the result
+of a `parse` that failed, stops the program: it prints
+`fatal: reading a child of a nil tree` and exits with status 1. Setting one
+stops it too, with `setting` in place of `reading`, as
+xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]
+describes. So check a parse's result before reading its children.
+
 A name after a production's closing bracket, as in `+[id] :Id+`, names the
 production. The `switch` statement, in xref:3_03_match.adoc#patterns[the
 chapter on patterns], uses these names.
@@ -105,7 +112,9 @@ of the group's `status`. `$T.Mark` has no text when a task has no `!`.
 declares the variable `NAME`, which holds the tree. The items are sent to the
 parser in order. An item can be `stdin`, a string, a `str` or `int` value, or
 a tree, which is sent as its text. `+NAME: TYPE = parse TYPE[ ... ]+` does the
-same. The type can be a repetition:
+same. An item that is a nil tree, or `nil`, stops the program, as
+xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]
+says. The type can be a repetition:
 
 [source,colm]
 ----

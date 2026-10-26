@@ -1320,6 +1320,35 @@ void LangTerm::evaluateCapture( Compiler *pd, CodeVect &code, UniqueType *valUt 
 	}
 }
 
+/* A struct's name qualified by the namespaces it is declared in, as a type's
+ * xmlTag is. The root namespace, which has no parent, adds nothing. */
+static String qualifiedName( StructEl *structEl )
+{
+	String name = structEl->name;
+	for ( Namespace *nspace = structEl->nspace; nspace != 0 &&
+			nspace->parentNamespace != 0; nspace = nspace->parentNamespace )
+		name = nspace->name + "::" + name;
+	return name;
+}
+
+/* A parser of a type defined in a context runs its actions on an object of
+ * that context, so it must be given one: another struct isn't laid out like
+ * the context. */
+static void checkParserContext( const FieldInit *arg, UniqueType *argUT,
+		LangEl *langEl )
+{
+	StructDef *context = langEl->contextIn;
+	if ( argUT->structEl == context->structEl )
+		return;
+
+	/* An expression that is a single term has its location in the term. */
+	const InputLoc &loc = arg->expr->type == LangExpr::TermType ?
+			arg->expr->term->loc : arg->expr->loc;
+	error( loc ) << "the context of " << langEl->xmlTag << " must be of type " <<
+			qualifiedName( context->structEl ) << ", not " <<
+			qualifiedName( argUT->structEl ) << endp;
+}
+
 UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 {
 	/* What is being newstructed. */
@@ -1367,6 +1396,8 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 				code.append( IN_SET_PARSER_INPUT );
 			}
 			else if ( argUT->typeId == TYPE_STRUCT ) {
+				checkParserContext( fieldInitArgs->data[i], argUT,
+						newUT->generic->elUt->langEl );
 				code.append( IN_SET_PARSER_CONTEXT );
 			}
 			else {
@@ -1586,6 +1617,8 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 				code.append( IN_SET_PARSER_INPUT );
 			}
 			else if ( argUT->typeId == TYPE_STRUCT && targetUT->langEl->contextIn != 0 ) {
+				checkParserContext( fieldInitArgs->data[i], argUT,
+						targetUT->langEl );
 				code.append( IN_SET_PARSER_CONTEXT );
 			}
 			else {
@@ -2598,6 +2631,13 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 
 	objField->iterImpl = iterImpl;
 
+	/* A loop over a tree or a user iterator selects the trees of the loop
+	 * variable's type, by the type's id. A type that isn't a tree has none. */
+	if ( iterImpl->useSearchUT && searchUT->langEl == 0 ) {
+		error(loc) << "loop variable " << objField->name <<
+				" must have a tree type" << endp;
+	}
+
 	/* Evaluate and push the arguments. */
 	ObjectField **paramRefs = iterCall->langTerm->varRef->evaluateArgs(
 			pd, code, lookup, iterCall->langTerm->args );
@@ -2837,6 +2877,15 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			/* take a reference and yield it. Immediately reset the referece. */
 			varRef->preEvaluateRef( pd, code );
 			ObjectField *objField = varRef->evaluateRef( pd, code, 0 );
+
+			/* A loop takes what an iterator yields as a tree. A loop
+			 * variable holds a value of its loop's search type. */
+			TypeRef *yieldTR = objField->typeRef;
+			UniqueType *yieldUT = yieldTR->searchUniqueType != 0 ?
+					yieldTR->searchUniqueType : yieldTR->uniqueType;
+			if ( yieldUT->langEl == 0 )
+				error(varRef->loc) << "can only yield a tree" << endp;
+
 			code.append( IN_YIELD );
 
 			if ( varRef->qual->length() > 0 ) {
@@ -3048,7 +3097,7 @@ void Compiler::compilePreEof( TokenRegion *region )
 	block->frameId = nextFrameId++;
 
 	addInput( block->localFrame );
-	addThis( block->localFrame );
+	addThis( block->localFrame, block->context );
 
 	CodeVect &code = block->codeWV;
 

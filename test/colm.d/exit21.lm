@@ -1,105 +1,55 @@
 #
-# An exit that can unwind the stack returns to the host, which goes on and
-# gets the exit status from colm_delete_program. That holds for a call that
-# is the whole expression of an expression statement, an assignment, a
-# return, or an if or while test. An exit that can't unwind, reached through
-# a call inside a larger expression, ends the host's process too.
+# An exit in a parser action, where the parse is part of a larger expression
+# in a function, can't unwind the stack. The program's output comes out, and
+# it ends there with the exit status. The argument picks the expression.
 #
 
-int f2()
+lex
+	ignore /[ \n]+/
+	token id /[a-z]+/
+end
+
+def item
+	[id]
+	{
+		print( $r1, '\n' )
+		if $r1 == 'stop'
+			exit( 3 )
+	}
+
+def items
+	[item*]
+
+str g( S: str, T: items )
 {
-	print( 'f2\n' )
-	exit( 3 )
-	return 1
+	return S
 }
 
-int f1()
+int f( A: str )
 {
-	I: int = 1 + f2()
+	if ( A == "print" ) {
+		print( 'x\n', parse items["abc stop"], '\n' )
+	}
+	elsif ( A == "arg" ) {
+		S: str = g( 'x', parse items["abc stop"] )
+	}
 	return 0
 }
 
-int f3( A: str )
-{
-	if ( A == "assign" ) {
-		I: int = f2()
-	}
-	elsif ( A == "return" ) {
-		return f2()
-	}
-	elsif ( A == "if" ) {
-		if ( f2() )
-			print( 'yes\n' )
-	}
-	elsif ( A == "while" ) {
-		while ( f2() )
-			print( 'yes\n' )
-	}
-	return 0
-}
-
-A: str = argv->pop()
-if ( A == "stmt" )
-	f2()
-elsif ( A == "nested" )
-	f1()
-else
-	f3( A )
+f( argv->pop() )
 print( 'after\n' )
-##### HOST #####
-
-#include <colm/colm.h>
-#include <stdio.h>
-
-extern colm_sections colm_object;
-
-int main( int argc, const char **argv )
-{
-	colm_program *program = colm_new_program( &colm_object );
-	colm_run_program( program, argc, argv );
-	int status = colm_delete_program( program );
-
-	printf( "host: exit status %d\n", status );
-	return status;
-}
 ##### ARGS #####
-stmt
+print
 ##### EXP #####
-f2
-host: exit status 3
+x
+abc
+stop
 ##### EXIT #####
 3
 ##### ARGS #####
-nested
+arg
 ##### EXP #####
-f2
-##### EXIT #####
-3
-##### ARGS #####
-assign
-##### EXP #####
-f2
-host: exit status 3
-##### EXIT #####
-3
-##### ARGS #####
-return
-##### EXP #####
-f2
-host: exit status 3
-##### EXIT #####
-3
-##### ARGS #####
-if
-##### EXP #####
-f2
-host: exit status 3
-##### EXIT #####
-3
-##### ARGS #####
-while
-##### EXP #####
-f2
-host: exit status 3
+abc
+stop
 ##### EXIT #####
 3

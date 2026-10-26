@@ -150,9 +150,13 @@ context, runs it, takes its file names, reads its error and deletes it.
 
 A program that calls `exit( N )` stops there, and `colm_run_program` returns.
 The host carries on, and `colm_delete_program` returns `N`. `exit_hard( N )`
-calls C's `exit`, which ends the host's process too. So does an `exit` that
-colm can't unwind the stack from, as
+calls C's `exit`, which ends the host's process too. So does `exit( N )` in an
+exported function that the host called, as in <<exports>>, or in a function,
+iterator or parser action that it runs: colm can't return to the host from
+there. So does an `exit` that colm can't unwind the stack from, as
 xref:8_04_error_handling.adoc#stopping[the error handling chapter] describes.
+What the program printed comes out first, and the process exits with status
+`N`.
 
 A host can make several programs, from one parse object or from several, and
 have them alive at once. Each is independent of the others. Make a program,

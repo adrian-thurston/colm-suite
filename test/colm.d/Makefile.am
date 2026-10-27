@@ -251,6 +251,7 @@ EXTRA_DIST = \
 	pull2.lm \
 	pull3.lm \
 	pull4.lm \
+	pullbig1.lm \
 	pullbt1.lm \
 	pullbt2.lm \
 	pullend1.lm \

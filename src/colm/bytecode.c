@@ -33,6 +33,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdbool.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -411,14 +412,16 @@ static void stream_undo_append_stream( program_t *prg, tree_t **sp, struct input
 	is->funcs->undo_append_stream( prg, sp, is );
 }
 
-/* A pull of a negative length, or of more than the input has, stops the
- * program. */
+/* A pull of a negative length, of more than INT_MAX characters, which
+ * get_data() can't take, or of more than the input has, stops the program. */
 static tree_t *stream_pull_bc( program_t *prg, tree_t **sp, struct pda_run *pda_run,
 		input_t *input, tree_t *length )
 {
 	long len = ((long)length);
 	if ( len < 0 )
 		runtime_error( prg, "pull of a negative length" );
+	if ( len > INT_MAX )
+		runtime_error( prg, "pull of a length too large" );
 	struct input_impl *impl = input_to_impl( input );
 	head_t *tokdata = colm_stream_pull( prg, sp, pda_run, impl, len );
 	if ( tokdata->length < len )
@@ -460,13 +463,15 @@ static head_t *stream_impl_pull( program_t *prg, struct stream_impl *si, long le
 	return head;
 }
 
-/* A pull of a negative length, or of more than the stream has, stops the
- * program. */
+/* A pull of a negative length, of more than INT_MAX characters, which
+ * get_data() can't take, or of more than the stream has, stops the program. */
 static tree_t *stream_pull_stream_bc( program_t *prg, stream_t *stream, tree_t *length )
 {
 	long len = ((long)length);
 	if ( len < 0 )
 		runtime_error( prg, "pull of a negative length" );
+	if ( len > INT_MAX )
+		runtime_error( prg, "pull of a length too large" );
 	head_t *tokdata = stream_impl_pull( prg, stream_to_impl( stream ), len );
 	if ( tokdata->length < len )
 		runtime_error( prg, "pull past the end of the stream" );

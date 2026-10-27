@@ -1,0 +1,16 @@
+# A parser's tree is read-only: changing the tree through it is a compile
+# error.
+lex
+	token word /[a-z]+/
+	ignore /space+/
+end
+def start
+	N: int
+	[word*]
+P: parser<start> = new parser<start>()
+send P "a b"
+P->finish()
+P->tree.N = 3
+print( P->tree.N, "\n" )
+##### COMP_ERR #####
+13:9: left hand side qualification "tree" is const

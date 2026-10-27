@@ -1,0 +1,27 @@
+# A parser's tree and error, read-only, can still be read, looped over and
+# copied, and the copy changed.
+lex
+	token word /[a-z]+/
+	ignore /space+/
+end
+def start
+	N: int
+	[word*]
+P: parser<start> = new parser<start>()
+send P "a b"
+P->finish()
+Words: int = 0
+for W: word in P->tree
+	Words = Words + 1
+print( "words ", Words, "\n" )
+T: start = P->tree
+T.N = 3
+print( T.N, " ", P->tree.N, "\n" )
+Q: parser<start> = new parser<start>()
+send Q "a 1"
+Q->finish()
+print( Q->error, "\n" )
+##### EXP #####
+words 2
+3 0
+<text2>:1:3: parse error

@@ -1541,6 +1541,10 @@ void Compiler::initParserField( GenericType *gen, const char *name,
 	ObjectField *el = ObjectField::cons( internal,
 			ObjectField::InbuiltOffType, typeRef, name );
 
+	/* The parser sets its tree and error. Nothing else can set them, or
+	 * write through them. */
+	el->isConst = true;
+
 	el->inGetR =  IN_GET_PARSER_MEM_R;
 	// el->inGetWC = IN_GET_PARSER_MEM_WC;
 	// el->inGetWV = IN_GET_PARSER_MEM_WV;

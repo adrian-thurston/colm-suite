@@ -1,0 +1,12 @@
+# Assigning to a parser's error is a compile error.
+lex
+	token word /[a-z]+/
+	ignore /space+/
+end
+def start [word*]
+P: parser<start> = new parser<start>()
+send P "a b"
+P->error = "x"
+print( "done\n" )
+##### COMP_ERR #####
+9:4: field "error" is const

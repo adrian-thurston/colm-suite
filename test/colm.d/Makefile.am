@@ -244,6 +244,10 @@ EXTRA_DIST = \
 	outfile2.lm \
 	outfile3.lm \
 	parse1.lm \
+	parsermem1.lm \
+	parsermem2.lm \
+	parsermem3.lm \
+	parsermem4.lm \
 	parsetree1.lm \
 	pointer1.lm \
 	postfix.lm \

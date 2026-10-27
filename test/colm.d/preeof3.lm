@@ -1,0 +1,21 @@
+# Nor in a context outside its lex region.
+
+context c
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+
+	preeof {
+		print( "eof\n" )
+	}
+
+	def start
+		[id*]
+end
+
+C: c = new c()
+parse S: c::start(C)[ "a b" ]
+print( S, "\n" )
+##### COMP_ERR #####
+9:2: preeof must be used inside an existing region

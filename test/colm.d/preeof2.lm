@@ -1,0 +1,20 @@
+# Nor may a preeof block sit in a namespace outside its lex region.
+
+namespace n
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+
+	preeof {
+		print( "eof\n" )
+	}
+
+	def start
+		[id*]
+end
+
+parse S: n::start[ "a b" ]
+print( S, "\n" )
+##### COMP_ERR #####
+9:2: preeof must be used inside an existing region

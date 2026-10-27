@@ -872,7 +872,7 @@ LangStmt *BaseParser::forScope( const InputLoc &loc, const String &data,
 void BaseParser::preEof( const InputLoc &loc, StmtList *stmtList, ObjectDef *localFrame )
 {
 	if ( !insideRegion() )
-		error(loc) << "preeof must be used inside an existing region" << endl;
+		error(loc) << "preeof must be used inside an existing region" << endp;
 
 	CodeBlock *codeBlock = CodeBlock::cons( stmtList, localFrame );
 	codeBlock->context = curStruct();

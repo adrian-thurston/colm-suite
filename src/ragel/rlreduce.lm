@@ -257,7 +257,7 @@ reduction TopLevel
 		bool wasSet = pd->setVariable( data.c_str(),
 				$inline_expr_reparse->inlineList );
 		if ( !wasSet )
-			pd->id->error(@1) << "bad variable name: " << $variable_name->data << endl;
+			pd->id->error(@1) << "bad variable name: " << data << endl;
 	}
 
 	ragel::statement :Access
@@ -2524,7 +2524,7 @@ reduction TopLevel
 		}
 
 		if ( api.end() )
-			pd->id->error( @1 ) << "invalid parameter reference \"$" << $1->data << "\"" << endl;
+			pd->id->error( @1 ) << "invalid parameter reference \"$" << data << "\"" << endl;
 		else {
 			$$->inlineItem->substPos = api.pos();
 		}

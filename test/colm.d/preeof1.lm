@@ -1,0 +1,19 @@
+# A preeof block at the top level, outside a lex region, is a compile error.
+# The compiler must stop there, with status 1, rather than go on and crash.
+
+lex
+	token id /[a-z]+/
+	ignore /space+/
+end
+
+preeof {
+	print( "eof\n" )
+}
+
+def start
+	[id*]
+
+parse S: start[ "a b" ]
+print( S, "\n" )
+##### COMP_ERR #####
+9:1: preeof must be used inside an existing region

@@ -245,6 +245,9 @@ EXTRA_DIST = \
 	parsetree1.lm \
 	pointer1.lm \
 	postfix.lm \
+	preeof1.lm \
+	preeof2.lm \
+	preeof3.lm \
 	print1.lm \
 	prints.lm \
 	pull1.lm \

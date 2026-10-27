@@ -69,12 +69,13 @@ void TopLevel::tryMachineDef( const InputLoc &loc, std::string name,
 	
 long TopLevel::tryLongScan( const InputLoc &loc, const char *data )
 {
-	/* Convert the priority number to a long. Check for overflow. */
+	/* Convert the priority number, which is used as an int. Check for
+	 * overflow. */
 	long priorityNum;
 	errno = 0;
 
 	long aug = strtol( data, 0, 10 );
-	if ( errno == ERANGE && aug == LONG_MAX ) {
+	if ( ( errno == ERANGE && aug == LONG_MAX ) || aug > INT_MAX ) {
 		/* Priority number too large. Recover by setting the priority to 0. */
 		pd->id->error(loc) << "priority number " << data << 
 				" overflows" << endl;

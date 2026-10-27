@@ -1453,11 +1453,12 @@ reduction TopLevel
 
 	ragel::factor_rep_num :RepNum
 	{
-		// Convert the priority number to a long. Check for overflow.
+		// Convert the repetition number, which is used as an int. Check for
+		// overflow.
 		string data( $uint->data, $uint->length );
 		errno = 0;
 		long rep = strtol( data.c_str(), 0, 10 );
-		if ( errno == ERANGE && rep == LONG_MAX ) {
+		if ( ( errno == ERANGE && rep == LONG_MAX ) || rep > INT_MAX ) {
 			// Repetition too large. Recover by returing repetition 1. */
 			pd->id->error(@uint) << "repetition number " << data << " overflows" << endl;
 			$$->rep = 1;
@@ -2083,18 +2084,23 @@ reduction TopLevel
 
 	ragel::nfa_round_spec :Spec
 	{
-		// Convert the depth and group to longs. Check for overflow.
+		// Convert the depth and group, which are used as ints. Check for
+		// overflow. Recover with zero, since -V still builds the machine.
 		string depth( $Depth->data, $Depth->length );
 		errno = 0;
 		$$->depth = strtol( depth.c_str(), 0, 10 );
-		if ( $$->depth == LONG_MAX && errno == ERANGE )
+		if ( ( errno == ERANGE && $$->depth == LONG_MAX ) || $$->depth > INT_MAX ) {
 			pd->id->error(@Depth) << "rounds " << depth << " overflows" << endl;
+			$$->depth = 0;
+		}
 
 		string group( $Group->data, $Group->length );
 		errno = 0;
 		$$->group = strtol( group.c_str(), 0, 10 );
-		if ( $$->group == LONG_MAX && errno == ERANGE )
+		if ( ( errno == ERANGE && $$->group == LONG_MAX ) || $$->group > INT_MAX ) {
 			pd->id->error(@Group) << "group " << group << " overflows" << endl;
+			$$->group = 0;
+		}
 	}
 
 	# def nfa_round_list

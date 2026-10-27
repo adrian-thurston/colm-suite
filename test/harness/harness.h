@@ -117,6 +117,7 @@ struct Step
 	std::string stdinFile;
 	Capture stdoutTo;
 	int expectExit;          /* -1: not checked */
+	bool expectFailure;      /* any exit value but 0 */
 
 	/* Exec: errors found in the program, which fail the case: errorExit, the
 	 * exit value of a checker it runs under (valgrind) that found some, and
@@ -149,7 +150,7 @@ struct Step
 
 	Step( Kind kind )
 		: kind(kind), role(Run), stdoutTo(CaptureNone),
-		expectExit(-1), errorExit(-1), stderrIsOutput(false),
+		expectExit(-1), expectFailure(false), errorExit(-1), stderrIsOutput(false),
 		ignoreWs(false), stripCr(false) {}
 
 	static Step exec( Role role, const Words &argv, const std::string &cwd );
@@ -162,6 +163,7 @@ struct Step
 	Step &stdinFrom( const std::string &file ) { stdinFile = file; return *this; }
 	Step &capture( Capture c ) { stdoutTo = c; return *this; }
 	Step &exit( int e ) { expectExit = e; return *this; }
+	Step &fails() { expectExit = -1; expectFailure = true; return *this; }
 	Step &environment( const std::string &setting ) { env.push_back( setting ); return *this; }
 	Step &errorsFrom( int e, const std::string &prefix, const std::string &known )
 		{ errorExit = e; errorPrefix = prefix; knownErrors = known; return *this; }

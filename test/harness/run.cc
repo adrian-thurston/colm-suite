@@ -255,6 +255,11 @@ static void runJob( const Config &config, Job &job )
 					break;
 				}
 
+				if ( step.expectFailure && exitCode == 0 ) {
+					job.log += "[exit 0]\n";
+					job.fail( run + "exit value: got 0 expected non-zero" );
+				}
+
 				if ( step.expectExit >= 0 && exitCode != step.expectExit ) {
 					char buf[64];
 					snprintf( buf, sizeof(buf), "%d", exitCode );

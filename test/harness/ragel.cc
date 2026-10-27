@@ -13,9 +13,14 @@
  * dot written to standard out is compared against the OUTPUT section. The
  * case holds no host code, so each binary must produce the same graph.
  *
+ * An error case is input every ragel binary must reject. Each binary must
+ * exit with a value other than 0, and its standard error, without the
+ * working/NAME.rl: in front of each line, must be the OUTPUT section. Like a
+ * graphviz case, it holds no host code.
+ *
  * Directives:
  *
- *   @LANG:               indep, graphviz, or the host language
+ *   @LANG:               indep, graphviz, error, or the host language
  *   @PROHIBIT_LANGUAGES: indep only: languages not to translate into
  *   @PROHIBIT_FLAGS:     generation flags not to test, added to the
  *                        language's own list
@@ -397,6 +402,45 @@ static void runGraphviz( const RagelCase &rc, const std::string &translated,
 	}
 }
 
+/* The errors for input every binary must reject. */
+static void runError( const RagelCase &rc, const std::string &translated,
+		const std::string &root, int depIdx, JobList &jobs )
+{
+	const Config &config = *rc.config;
+	const char *suite = "ragel.d";
+
+	std::vector< std::pair<std::string, std::string> > bins;
+	hostBinaries( config, bins );
+
+	/* Ragel's errors are the output, without the path in front. */
+	std::string path = translated;
+	replaceAll( path, ".", "\\." );
+
+	for ( size_t b = 0; b < bins.size(); b++ ) {
+		const std::string &lang = bins[b].first;
+		if ( !langSelected( config, lang ) )
+			continue;
+
+		std::string stem = root + "_" + lang;
+		Job *job = new Job( suite, stem );
+		job->reportPath = joinPath( rc.wk, stem + ".diff" );
+		if ( depIdx >= 0 )
+			job->deps.push_back( depIdx );
+		jobs.append( job );
+
+		/* An output file of its own, should ragel wrongly succeed. */
+		Words argv;
+		argv.push_back( bins[b].second );
+		argv.push_back( "-o" );
+		argv.push_back( "working/" + stem + ".out" );
+		argv.push_back( translated );
+		job->steps.push_back( Step::exec( Step::Run, argv, rc.build )
+				.fails().stderrOutput() );
+		job->steps.push_back( Step::filter( "sed -e 's|^" + path + ":||'", rc.build ) );
+		job->steps.push_back( Step::compare( rc.expected, "" ) );
+	}
+}
+
 void enumerateRagel( const Config &config, const Selection &sel, JobList &jobs )
 {
 	const char *suite = "ragel.d";
@@ -510,6 +554,8 @@ void enumerateRagel( const Config &config, const Selection &sel, JobList &jobs )
 
 			if ( lang == "graphviz" )
 				runGraphviz( rc, translated, lroot, depIdx, jobs );
+			else if ( lang == "error" )
+				runError( rc, translated, lroot, depIdx, jobs );
 			else
 				runOptions( rc, lang, translated, lroot, depIdx, jobs );
 		}

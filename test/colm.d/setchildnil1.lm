@@ -1,0 +1,150 @@
+#
+# A child of a tree can't be nil. Assigning nil to a child's label, or a
+# variable that holds nil, stops the program with "fatal: setting a child to
+# nil" and exit status 1, after the output printed before it. So does nil
+# assigned to a label the tree's production doesn't have. A nil child given to
+# make_tree stops it with "fatal: make_tree with a nil child". An attribute
+# can be nil. The host sends standard error to standard output, so the message
+# is in the output. The stop ends the host too: it never gets back from
+# colm_run_program. The argument picks the use. With "tree", each use has a
+# value that isn't nil, and the match and the for loop after them run.
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	token equals /'='/
+	ignore /[ \n]+/
+end
+
+def assign
+	T: id
+	[Name: id equals Val: num]
+
+def item
+	[Name: id]
+|	[Val: num]
+
+K: str = argv->pop()
+print( K, "\n" )
+
+# Nil, unless the run is "tree".
+N: id
+NV: num
+if K == "tree" {
+	N = make_token( typeid<id>, "y" )
+	NV = make_token( typeid<num>, "3" )
+}
+
+X: id = make_token( typeid<id>, "z" )
+E: equals = make_token( typeid<equals>, "=" )
+V: num = make_token( typeid<num>, "2" )
+
+A: assign = parse assign[ "x = 1" ]
+I: item = parse item[ "7" ]
+
+# An attribute can be nil.
+A.T = nil
+print( "attr <", A.T, ">\n" )
+
+if K == "tree" || K == "label" {
+	A.Name = N
+	print( "label <", A, ">\n" )
+}
+if K == "nil" {
+	A.Name = nil
+	print( "nil\n" )
+}
+if K == "absent" {
+	I.Name = N
+	print( "absent\n" )
+}
+if K == "tree" || K == "make_tree" {
+	M1: assign = make_tree( typeid<assign>, N, E, V )
+	print( "make_tree <", M1, ">\n" )
+}
+if K == "tree" || K == "make_tree_last" {
+	M2: assign = make_tree( typeid<assign>, X, E, NV )
+	print( "make_tree_last <", M2, ">\n" )
+}
+
+# A match and a for loop on a tree with a nil child crashed.
+if match A [id equals num]
+	print( "match\n" )
+for C: id in A
+	print( "for ", $C, "\n" )
+
+print( "done\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+tree
+##### EXP #####
+tree
+attr <NIL>
+label <y= 1>
+make_tree <y=2>
+make_tree_last <z=3>
+match
+for y
+done
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+label
+##### EXP #####
+label
+attr <NIL>
+fatal: setting a child to nil
+##### EXIT #####
+1
+##### ARGS #####
+nil
+##### EXP #####
+nil
+attr <NIL>
+fatal: setting a child to nil
+##### EXIT #####
+1
+##### ARGS #####
+absent
+##### EXP #####
+absent
+attr <NIL>
+fatal: setting a child to nil
+##### EXIT #####
+1
+##### ARGS #####
+make_tree
+##### EXP #####
+make_tree
+attr <NIL>
+fatal: make_tree with a nil child
+##### EXIT #####
+1
+##### ARGS #####
+make_tree_last
+##### EXP #####
+make_tree_last
+attr <NIL>
+fatal: make_tree with a nil child
+##### EXIT #####
+1

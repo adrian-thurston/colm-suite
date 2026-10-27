@@ -1882,6 +1882,9 @@ again:
 			tree_t *val = vm_pop_tree();
 			if ( obj == 0 )
 				runtime_error( prg, "setting a child of a nil tree" );
+			/* A child can't be nil. An attribute can: IN_SET_FIELD_TREE_WC sets it. */
+			if ( val == 0 )
+				runtime_error( prg, "setting a child to nil" );
 			colm_tree_downref( prg, sp, obj );
 
 			read_byte( len );
@@ -3416,6 +3419,12 @@ again:
 			tree_t *arg[nargs];
 			for ( i = nargs-1; i >= 0; i-- )
 				arg[i] = vm_pop_tree();
+
+			/* Each argument after the type is a child, and a child can't be nil. */
+			for ( i = 1; i < nargs; i++ ) {
+				if ( arg[i] == 0 )
+					runtime_error( prg, "make_tree with a nil child" );
+			}
 
 			tree_t *result = make_tree( prg, arg, nargs );
 			for ( i = 1; i < nargs; i++ )

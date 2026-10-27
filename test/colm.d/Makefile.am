@@ -313,6 +313,7 @@ EXTRA_DIST = \
 	sendnil1.lm \
 	sendnilmsg1.lm \
 	sendstream.lm \
+	setchildnil1.lm \
 	sprintf.lm \
 	stds1.lm \
 	streampush1.lm \

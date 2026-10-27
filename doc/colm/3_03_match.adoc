@@ -225,6 +225,14 @@ Assigning to a child of a tree changes the tree: `S.Name = cons id "height"`
 replaces the `Name` child of `S`. A label from a `match` is a copy, so
 assigning to it changes the label, and leaves the tree as it was.
 
+A child can't be nil. Assigning nil to one, as `S.Name = nil` does, or
+assigning a variable that holds nil, stops the program: it prints
+`fatal: setting a child to nil` and exits with status 1, as
+xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]
+says. It stops even when the production of `S` has no `Name`. An attribute,
+which xref:3_05_reduction.adoc#attributes[the attributes section] describes,
+can be set to nil.
+
 Ignored text belongs to the token before it. Ignored text at the start of the
 input, before any token, belongs to the first token. So a tree that is
 replaced takes the ignored text after it with it, and the ignored text before
@@ -327,7 +335,9 @@ actions.
 Use `make_tree` only for a def with one production. Make a tree of a def
 with more than one production with `cons`. Colm doesn't check that the
 children fit the production: give it one tree of each element's type, in
-order. A literal in backtick form has no `typeid`, so the def's production
+order. It does check that none of them is nil: a nil child stops the
+program, which prints `fatal: make_tree with a nil child` and exits with
+status 1. A literal in backtick form has no `typeid`, so the def's production
 must use named tokens, such as `+token equals /'='/+`, not literals.
 
 [source,colm]

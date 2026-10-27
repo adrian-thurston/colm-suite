@@ -2083,15 +2083,18 @@ reduction TopLevel
 
 	ragel::nfa_round_spec :Spec
 	{
-		// Convert the priority number to a long. Check for overflow.
+		// Convert the depth and group to longs. Check for overflow.
+		string depth( $Depth->data, $Depth->length );
 		errno = 0;
-		$$->depth = strtol( $Depth->data, 0, 10 );
+		$$->depth = strtol( depth.c_str(), 0, 10 );
 		if ( $$->depth == LONG_MAX && errno == ERANGE )
-			pd->id->error(@Depth) << "rounds " << $Depth->data << " overflows" << endl;
+			pd->id->error(@Depth) << "rounds " << depth << " overflows" << endl;
 
-		$$->group = strtol( $Group->data, 0, 10 );
+		string group( $Group->data, $Group->length );
+		errno = 0;
+		$$->group = strtol( group.c_str(), 0, 10 );
 		if ( $$->group == LONG_MAX && errno == ERANGE )
-			pd->id->error(@Groups) << "group " << $Group->data << " overflows" << endl;
+			pd->id->error(@Group) << "group " << group << " overflows" << endl;
 	}
 
 	# def nfa_round_list

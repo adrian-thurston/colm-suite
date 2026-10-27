@@ -32,6 +32,13 @@ using std::string;
 using std::cerr;
 using std::endl;
 
+/* Writes the tree a host's read needs, which stops the program, with msg, when
+ * the tree is nil. */
+static void writeHostTree( ostream &out, const char *msg )
+{
+	out << "colm_host_tree( __prg, __tree, \"" << msg << "\" )";
+}
+
 void Compiler::openNameSpace( ostream &out, Namespace *nspace )
 {
 	if ( nspace == rootNamespace )
@@ -123,8 +130,9 @@ void Compiler::generateExports()
 					out << "\t\t" << prod->_name << " = " << prod->prodNum << ",\n";
 			}
 			out << "	};\n";
-			out << "	enum prod_name prodName() " <<
-					"{ return (enum prod_name)__tree->prod_num; }\n";
+			out << "	enum prod_name prodName() { return (enum prod_name)";
+			writeHostTree( out, "reading the production of a nil tree" );
+			out << "->prod_num; }\n";
 		}
 
 		out << "};";
@@ -190,8 +198,11 @@ void Compiler::generateExportsImpl()
 					if ( ut != 0 && ut->typeId == TYPE_TREE  ) {
 						out << ut->langEl->refName << " " << lel->declName <<
 							"::" << field->name << "() { return " <<
-							ut->langEl->refName << "( __prg, colm_get_attr( __tree, " <<
-							field->offset << ") ); }\n";
+							ut->langEl->refName << "( __prg, "
+							"colm_get_attr( ";
+						writeHostTree( out,
+							"reading an attribute of a nil tree" );
+						out << ", " << field->offset << ") ); }\n";
 					}
 				}
 
@@ -209,8 +220,11 @@ void Compiler::generateExportsImpl()
 							out << ", " << rg->prodEl->pos;
 						}
 
-						out << "}; return " << ut->langEl->refName << 
-							"( __prg, colm_get_rhs_val( __prg, __tree, a ) ); }\n";
+						out << "}; return " << ut->langEl->refName <<
+							"( __prg, colm_get_rhs_val( __prg, ";
+						writeHostTree( out,
+							"reading a child of a nil tree" );
+						out << ", a ) ); }\n";
 					}
 				}
 			}

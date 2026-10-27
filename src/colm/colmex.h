@@ -30,10 +30,18 @@ struct ExportTree
 		: __prg(prg), __tree(tree) {}
 
 	std::string text() { return printTreeStr( __prg, __tree, true ); }
-	colm_location *loc() { return colm_find_location( __prg, __tree ); }
+	colm_location *loc()
+	{
+		return colm_find_location( __prg, colm_host_tree( __prg, __tree,
+				"reading the location of a nil tree" ) );
+	}
 	std::string text_notrim() { return printTreeStr( __prg, __tree, false ); }
 	std::string text_ws() { return printTreeStr( __prg, __tree, false ); }
-	colm_data *data() { return __tree->tokdata; }
+	colm_data *data()
+	{
+		return colm_host_tree( __prg, __tree,
+				"reading the data of a nil tree" )->tokdata;
+	}
 	operator colm_tree *() { return __tree; }
 
 	colm_program *__prg;
@@ -65,7 +73,8 @@ template <class SearchType> struct RepeatIter
 		memset( &kid, 0, sizeof(kid) );
 
 		first.next = &kid;
-		kid.tree = root.__tree;
+		kid.tree = colm_host_tree( prg, root.__tree,
+				"RepeatIter over a nil tree" );
 		cur = &first;
 		next();
 	}

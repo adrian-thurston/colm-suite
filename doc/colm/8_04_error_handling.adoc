@@ -252,7 +252,10 @@ Some mistakes stop the program where they happen:
   describes;
 * pushing nil onto an input with `push` or `push_ignore`, as
   xref:3_01_lex.adoc#token-actions[the section on token actions] describes,
-  or pushing onto an input variable that is nil.
+  or pushing onto an input variable that is nil;
+* a {cpp} host reading from a nil tree through the export header, other than
+  its text, or walking one with `RepeatIter`, as
+  xref:8_01_embedding.adoc#exports[the exports section] describes.
 
 What the program printed before comes out first. Then the program prints
 `fatal:` and what went wrong to `stderr`, and exits with status 1. A pop from

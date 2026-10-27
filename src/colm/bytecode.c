@@ -202,6 +202,17 @@ location_t *colm_reduce_loc( program_t *prg, location_t *loc, const char *msg )
 	return loc;
 }
 
+/* The tree a C++ host reads from, through the code colm writes for -e and -x
+ * or through colmex.h, as in a child of an exported global. It gives back the
+ * tree. A nil tree stops the program, with msg, as the same read stops it in
+ * the program. */
+tree_t *colm_host_tree( program_t *prg, tree_t *tree, const char *msg )
+{
+	if ( tree == 0 )
+		runtime_error( prg, msg );
+	return tree;
+}
+
 /* A map holds an element while the element's height is above 0. A new element
  * starts at 0, and map_detach sets it back to 0. The parents of an element in
  * a map lead up to that map's root. */

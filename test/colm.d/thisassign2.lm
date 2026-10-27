@@ -1,0 +1,18 @@
+# Assigning to this in a preeof block is a compile error too, with an object
+# of the context on the right as well as with nil.
+context c
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+
+		preeof {
+			this = new c()
+		}
+	end
+	def start [id*]
+end
+C: c = new c()
+parse S: c::start( C )[ "a b" ]
+print( S, "\n" )
+##### COMP_ERR #####
+9:4: cannot assign to "this"

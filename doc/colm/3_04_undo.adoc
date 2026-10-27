@@ -81,8 +81,9 @@ chapter] says.
 
 In a token action written in a context, `this` is the parse's context, an
 object of that context. The action uses the context's variables by name, or
-through `this`, as in `+this->N+`. A parse that the action starts, of a type
-in the same context, must be given it, as in
+through `this`, as in `+this->N+`. It can't assign to `this` itself:
+`this = nil` is a compile error, `cannot assign to "this"`. A parse that the
+action starts, of a type in the same context, must be given it, as in
 `+parse_stop T( this input )[]+`. A token action outside a context has no
 `this`.
 

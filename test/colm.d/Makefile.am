@@ -138,6 +138,8 @@ EXTRA_DIST = \
 	indent.lm \
 	inpush1.lm \
 	inpushbt1.lm \
+	inputassign1.lm \
+	inputassign2.lm \
 	inputclose1.lm \
 	inputclose2.lm \
 	inputdel1.lm \
@@ -333,6 +335,8 @@ EXTRA_DIST = \
 	tags3.lm \
 	tags4.lm \
 	tcontext1.lm \
+	thisassign1.lm \
+	thisassign2.lm \
 	til.lm \
 	toppush1.lm \
 	toppush2.lm \

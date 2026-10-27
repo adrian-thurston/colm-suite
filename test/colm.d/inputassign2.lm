@@ -1,0 +1,17 @@
+# A token action outside a context has input too, and assigning to it is a
+# compile error there as well, in a block inside the action.
+lex
+	token word /[a-z]+/
+	{
+		if ( match_length > 0 ) {
+			input = input
+		}
+		input->push( make_token( typeid<word>, input->pull( match_length ) ) )
+	}
+	ignore /space+/
+end
+def start [word*]
+parse S: start[ "a b" ]
+print( S, "\n" )
+##### COMP_ERR #####
+7:4: cannot assign to "input"

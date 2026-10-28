@@ -236,6 +236,9 @@ Some mistakes stop the program where they happen:
 * reading or setting a child or an attribute of a nil tree, as
   xref:3_02_parse.adoc#parsing[the parsing chapter] and
   xref:3_05_reduction.adoc#attributes[the attributes section] describe;
+* setting a child to nil, by assigning nil to its label or by giving
+  `make_tree` a nil child, as
+  xref:3_03_match.adoc#changing[the patterns chapter] describes;
 * a pull of more characters than an input or a stream has, or of a negative
   number of them, as xref:3_01_lex.adoc#token-actions[the lexing chapter] and
   xref:3_06_send.adoc#send[the send chapter] describe;

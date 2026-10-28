@@ -1,0 +1,7 @@
+# list_iter given a map.
+M: map<str, str> = new map<str, str>()
+M->insert( "k", "v" )
+for E: list_el<str> in list_iter( M )
+	print( E->value, "\n" )
+##### COMP_ERR #####
+4:24: list_iter takes a list

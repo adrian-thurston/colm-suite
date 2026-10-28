@@ -1,0 +1,7 @@
+# A loop over map_iter, which gives the elements, with a str loop variable.
+M: map<str, str> = new map<str, str>()
+M->insert( "k", "v" )
+for S: str in map_iter( M )
+	print( S, "\n" )
+##### COMP_ERR #####
+4:5: loop variable S must have the map's element type

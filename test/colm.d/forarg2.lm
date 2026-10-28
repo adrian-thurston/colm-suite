@@ -1,0 +1,11 @@
+# rev_list_iter given a tree.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def start [id*]
+T: start = parse start[ "a b" ]
+for S: str in rev_list_iter( T )
+	print( S, "\n" )
+##### COMP_ERR #####
+8:15: rev_list_iter takes a list

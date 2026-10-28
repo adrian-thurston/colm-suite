@@ -2687,6 +2687,49 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	ObjectField **paramRefs = iterCall->langTerm->varRef->evaluateArgs(
 			pd, code, lookup, iterCall->langTerm->args );
 
+	/* A loop over a list or a map. Its iterator walks one kind, and gives the
+	 * values or the elements as they are stored. So the argument must be of
+	 * that kind, and the loop variable must take what the iterator gives. */
+	GenericType *generic = 0;
+	if ( iterImpl->useGenericId ) {
+		bool overMap = iterImpl->type == IterImpl::MapEl ||
+				iterImpl->type == IterImpl::MapVal;
+		bool overEls = iterImpl->type == IterImpl::ListEl ||
+				iterImpl->type == IterImpl::MapEl;
+		const char *kind = overMap ? "map" : "list";
+
+		LangVarRef *iterRef = iterCall->langTerm->varRef;
+		CodeVect unused;
+		UniqueType *argUT =
+				iterCall->langTerm->args->data[0]->expr->evaluate( pd, unused );
+		if ( argUT->typeId != TYPE_GENERIC ||
+				argUT->generic->typeId != ( overMap ? GEN_MAP : GEN_LIST ) )
+		{
+			error(iterRef->loc) << iterRef->name << " takes a " << kind << endp;
+		}
+
+		generic = argUT->generic;
+
+		if ( overEls ) {
+			if ( searchUT != generic->elUt ) {
+				error(loc) << "loop variable " << objField->name <<
+						" must have the " << kind << "'s element type" << endp;
+			}
+		}
+		else if ( !castAssignment( pd, unused, searchUT, 0, generic->valueUt ) ) {
+			/* With no iterator named, the element type selects the elements. */
+			if ( iterUT->iterDef->type == IterDef::Tree ) {
+				error(loc) << "loop variable " << objField->name <<
+						" must have the " << kind <<
+						"'s value type or its element type" << endp;
+			}
+			else {
+				error(loc) << "loop variable " << objField->name <<
+						" must have the " << kind << "'s value type" << endp;
+			}
+		}
+	}
+
 	if ( pd->revertOn )
 		code.append( iterImpl->inCreateWV );
 	else
@@ -2704,13 +2747,8 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	if ( iterImpl->useSearchUT )
 		code.appendHalf( searchUT->langEl->id );
 
-	if ( iterImpl->useGenericId ) {
-		CodeVect unused; 
-		UniqueType *ut = 
-				iterCall->langTerm->args->data[0]->expr->evaluate( pd, unused );
-
-		code.appendHalf( ut->generic->id );
-	}
+	if ( iterImpl->useGenericId )
+		code.appendHalf( generic->id );
 
 	compileForIterBody( pd, code, iterUT );
 

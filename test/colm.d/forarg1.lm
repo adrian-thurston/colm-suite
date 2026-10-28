@@ -1,0 +1,7 @@
+# rev_list_iter given a map.
+M: map<str, str> = new map<str, str>()
+M->insert( "k", "v" )
+for S: str in rev_list_iter( M )
+	print( S, "\n" )
+##### COMP_ERR #####
+4:15: rev_list_iter takes a list

@@ -1459,7 +1459,7 @@ reduction TopLevel
 		errno = 0;
 		long rep = strtol( data.c_str(), 0, 10 );
 		if ( ( errno == ERANGE && rep == LONG_MAX ) || rep > INT_MAX ) {
-			// Repetition too large. Recover by returing repetition 1. */
+			// Repetition too large. Recover by returning repetition 1.
 			pd->id->error(@uint) << "repetition number " << data << " overflows" << endl;
 			$$->rep = 1;
 		}

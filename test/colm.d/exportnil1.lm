@@ -1,0 +1,193 @@
+#
+# A C++ host reads an exported tree through the code -e and -x write, and
+# colmex.h. Each read that needs the tree stops the program on a nil tree,
+# with exit status 1, after the output printed before it, as the same read
+# does in the program. The host sends standard error to standard output, so
+# the message is in the output. The argument picks the read. In the buffered
+# run, what the host printed without flushing comes out after the message.
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	ignore /[ \n]+/
+end
+
+def pair
+	T: id
+	[L: id R: num] :Two
+|	[L: id] :One
+
+def outer
+	[pair]
+|	[num]
+
+def items
+	[pair*]
+
+export P: pair
+export O: outer
+export Is: items
+export N: pair
+export NIs: items
+
+export pair failed()
+{
+	return parse pair[ "9 9" ]
+}
+
+# T is set on a local: setting an attribute of an exported global aborts.
+parse Q: pair[ "x 1" ]
+Q.T = Q.L
+P = Q
+O = parse outer[ "7" ]
+Is = parse items[ "a 1 b" ]
+print( "before\n" )
+##### HOST #####
+
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include "working/exportnil1.if.h"
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *prg = colm_new_program( &colm_object );
+	colm_run_program( prg, argc, argv );
+
+	const char *a = argv[1];
+	pair Nil = N( prg );
+	printf( "host: %s\n", a );
+	fflush( stdout );
+
+	if ( strcmp( a, "tree" ) == 0 ) {
+		pair Q = P( prg );
+		printf( "%s %s %s\n", Q.T().text().c_str(), Q.L().text().c_str(),
+				Q.R().text().c_str() );
+		printf( "line %ld\n", Q.loc()->line );
+		printf( "data %.*s\n", (int)Q.L().data()->length, Q.L().data()->data );
+		printf( "two %d\n", Q.prodName() == pair::Two );
+		for ( RepeatIter<pair> I( Is( prg ) ); !I.end(); I.next() )
+			printf( "item %s\n", I.value().text().c_str() );
+		pair A = O( prg ).pair();
+		printf( "absent %d %s\n", A == 0, A.text().c_str() );
+		printf( "nil %d %s\n", Nil == 0, Nil.text().c_str() );
+	}
+	else if ( strcmp( a, "child" ) == 0 )
+		Nil.L();
+	else if ( strcmp( a, "attr" ) == 0 )
+		Nil.T();
+	else if ( strcmp( a, "loc" ) == 0 )
+		Nil.loc();
+	else if ( strcmp( a, "data" ) == 0 )
+		Nil.data();
+	else if ( strcmp( a, "prod_name" ) == 0 )
+		Nil.prodName();
+	else if ( strcmp( a, "repeat" ) == 0 )
+		RepeatIter<pair> I( NIs( prg ) );
+	else if ( strcmp( a, "failed" ) == 0 )
+		failed( prg ).L();
+	else if ( strcmp( a, "absent" ) == 0 )
+		O( prg ).pair().L();
+	else if ( strcmp( a, "buffered" ) == 0 ) {
+		printf( "host: unflushed\n" );
+		Nil.L();
+	}
+
+	printf( "host: read it\n" );
+	int status = colm_delete_program( prg );
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+tree
+##### EXP #####
+before
+host: tree
+x x 1
+line 1
+data x
+two 1
+item a 1
+item b
+absent 1 NIL
+nil 1 NIL
+host: read it
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+child
+##### EXP #####
+before
+host: child
+fatal: reading a child of a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+attr
+##### EXP #####
+before
+host: attr
+fatal: reading an attribute of a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+loc
+##### EXP #####
+before
+host: loc
+fatal: reading the location of a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+data
+##### EXP #####
+before
+host: data
+fatal: reading the data of a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+prod_name
+##### EXP #####
+before
+host: prod_name
+fatal: reading the production of a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+repeat
+##### EXP #####
+before
+host: repeat
+fatal: RepeatIter over a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+failed
+##### EXP #####
+before
+host: failed
+fatal: reading a child of a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+absent
+##### EXP #####
+before
+host: absent
+fatal: reading a child of a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+buffered
+##### EXP #####
+before
+host: buffered
+fatal: reading a child of a nil tree
+host: unflushed
+##### EXIT #####
+1

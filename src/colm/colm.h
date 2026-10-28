@@ -100,6 +100,11 @@ struct colm_tree *colm_get_left_repeat_next( struct colm_tree *tree );
 struct colm_tree *colm_get_left_repeat_val( struct colm_tree *tree );
 struct colm_location *colm_find_location( struct colm_program *prg, struct colm_tree *tree );
 
+/* For the code -e and -x write: gives back the tree, and stops the program,
+ * with msg, if it is nil. */
+struct colm_tree *colm_host_tree( struct colm_program *prg, struct colm_tree *tree,
+		const char *msg );
+
 static inline const colm_alph_t *colm_alph_from_cstr( const char *cstr ) { return (const colm_alph_t*)cstr; }
 static inline const char *colm_cstr_from_alph( const colm_alph_t *alph ) { return (const char*)alph; }
 

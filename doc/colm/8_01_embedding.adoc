@@ -232,13 +232,37 @@ including `str` and the types colm makes for itself. Each derives from
   for nil. `text()` of a nil tree is `NIL`.
 * A method for each child that has a label, or that the program can read by
   its type's name. It returns the child: `Key()` and `Value()` in the example
-  below.
+  below. A child that the tree's production doesn't have is nil.
+* A method for each attribute that is a `str`, a token or a def, which returns
+  the attribute. An attribute of another type, such as `int`, has none.
 * `prodName()`, when the def's productions have names: the name of the tree's
   production, from an `enum prod_name` of them.
 
 `RepeatIter<T>`, also in `colmex.h`, walks a tree, stopping at each `T` in it,
 in order, without going into the ``T``s it finds. `value()` is the `T` it is
 at, `next()` moves on, and `end()` is true when there are no more.
+
+On a nil tree, only the conversion to `colm_tree *`, `text()` and `text_ws()`
+work. Each of the other members stops the program, as reading from a nil tree
+does in the program, and so does a `RepeatIter` over one. What the program
+printed comes out first. Then the program prints `fatal:` and what went wrong
+to `stderr`, and exits with status 1, which ends the host, as
+xref:8_04_error_handling.adoc#run-time-errors[errors at run time] do. Reading
+a child of a nil tree prints:
+
+----
+fatal: reading a child of a nil tree
+----
+
+The message is written at once, but what the host printed with its own stdio,
+such as `printf`, goes through the buffer of `stdout`. On a pipe or a file,
+what is still in the buffer when the program stops comes out only as the
+process exits, after the message. For it to come first, the host flushes
+`stdout` with `fflush( stdout )` before the read, or makes it unbuffered
+before the run, with `setvbuf( stdout, 0, _IONBF, 0 )`.
+
+Test a tree that can be nil, such as the result of a parse, before reading
+from it.
 
 Types in a colm `namespace` are in a {cpp} namespace of the same name, such as
 `ns::item`, one level deep.

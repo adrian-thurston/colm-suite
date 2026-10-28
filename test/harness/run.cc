@@ -255,9 +255,13 @@ static void runJob( const Config &config, Job &job )
 					break;
 				}
 
-				if ( step.expectFailure && exitCode == 0 ) {
-					job.log += "[exit 0]\n";
-					job.fail( run + "exit value: got 0 expected non-zero" );
+				/* Whatever the value, so a crash that printed nothing shows. */
+				if ( step.expectFailure ) {
+					char buf[64];
+					snprintf( buf, sizeof(buf), "%d", exitCode );
+					job.log += std::string( "[exit " ) + buf + "]\n";
+					if ( exitCode == 0 )
+						job.fail( run + "exit value: got 0 expected non-zero" );
 				}
 
 				if ( step.expectExit >= 0 && exitCode != step.expectExit ) {

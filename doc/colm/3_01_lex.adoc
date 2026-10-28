@@ -482,6 +482,9 @@ can't do.
 When the action starts, the matched text is still in the input. In the action:
 
 * `match_text` is the matched text, and `match_length` its length.
+* `input` is the input the scanner reads, which the calls below work on. The
+  action can't assign to it: `input = nil` is a compile error,
+  `cannot assign to "input"`.
 * `+input->pull( N )+` takes `N` characters off the input and returns them as a
   string. A pull of more characters than the input has stops the program, as
   xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]

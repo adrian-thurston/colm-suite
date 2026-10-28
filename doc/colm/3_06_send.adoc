@@ -31,7 +31,11 @@ handling chapter] says. So do `+finish()+`, `+P->tree+`, `+P->error+` and
 
 `+finish()+` returns nil when the input doesn't form a tree of the type.
 After the input has ended, `+P->tree+` is the tree, or nil, and `+P->error+`
-is nil, or a message that says where the parse failed.
+is nil, or a message that says where the parse failed. Both are read-only.
+`+P->tree = T+` is a compile error, `field "tree" is const`, and so is a
+change through it, such as `+P->tree.N = 1+`:
+`left hand side qualification "tree" is const`. To change the tree, copy it
+into a variable, as in `+T: program = P->tree+`, and change the copy.
 
 A parser is a reference. Assigning it to another variable, or passing it to a
 function, doesn't copy it. Sends through either go to the same parser, as the

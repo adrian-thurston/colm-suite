@@ -2479,6 +2479,12 @@ void LangVarRef::assignValue( Compiler *pd, CodeVect &code,
 	if ( lookup.objField->isConst )
 		error(loc) << "field \"" << name << "\" is const" << endp;
 
+	/* input and this, in a token action or a preeof block, are the parse's
+	 * input and context. Nothing sets them: they have no set instructions. A
+	 * qualified name is never one of them, so this->N = 1 still compiles. */
+	if ( lookup.objField->isInbuiltObject() )
+		error(loc) << "cannot assign to \"" << name << "\"" << endp;
+
 	/* Writing guarantees the field is dirty. tree is dirty. */
 	lookup.objField->dirtyTree = true;
 

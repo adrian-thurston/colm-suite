@@ -1451,6 +1451,11 @@ UniqueType *LangTerm::evaluateCast( Compiler *pd, CodeVect &code ) const
 	if ( ut->typeId != TYPE_TREE || ut->langEl == pd->strLangEl )
 		error(loc) << "can only cast to a tree type" << endp;
 
+	/* An il holds ignored text in its children and has no text of its own.
+	 * A cast would give it the text of X, which is never printed or freed. */
+	if ( ut->langEl == pd->ignoreLangEl )
+		error(loc) << "cannot cast to il" << endp;
+
 	UniqueType *exprUT = expr->evaluate( pd, code );
 	if ( exprUT->typeId != TYPE_TREE && exprUT->typeId != TYPE_REF )
 		error(loc) << "can only cast a tree" << endp;
@@ -2515,6 +2520,17 @@ UniqueType *LangTerm::evaluateMakeToken( Compiler *pd, CodeVect &code ) const
 	int numArgs = args != 0 ? args->length() : 0;
 	if ( numArgs < 2 )
 		error(loc) << "need at least two arguments" << endp;
+
+	/* An il holds ignored text in its children and has no text of its own,
+	 * so make_token can't make one. An id that isn't typeid<il> written out
+	 * goes unchecked. */
+	LangExpr *idExpr = args->data[0]->expr;
+	if ( idExpr->type == LangExpr::TermType &&
+			idExpr->term->type == LangTerm::TypeIdType &&
+			idExpr->term->typeRef->uniqueType->langEl == pd->ignoreLangEl )
+	{
+		error(loc) << "make_token cannot make an il" << endp;
+	}
 
 	for ( CallArgVect::Iter pe = *args; pe.lte(); pe++ ) {
 		/* Evaluate. */

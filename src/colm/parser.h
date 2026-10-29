@@ -97,6 +97,7 @@ struct BaseParser
 			bool ignore, bool noPreIgnore, bool noPostIgnore );
 
 	void zeroDef( const InputLoc &loc, const String &name );
+	void checkPredefined( const InputLoc &loc, Namespace *nspace, const String &name );
 	void literalDef( const InputLoc &loc, const String &data,
 			bool noPreIgnore, bool noPostIgnore );
 

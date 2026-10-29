@@ -1,0 +1,5 @@
+# typeid<il> in parentheses is the same expression, so make_token can't
+# make an il from it either.
+A: any = make_token( ( typeid<il> ), "xyz" )
+##### COMP_ERR #####
+3:10: make_token cannot make an il

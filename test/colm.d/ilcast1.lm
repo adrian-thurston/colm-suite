@@ -1,0 +1,10 @@
+# A cast to il is an error. An il holds ignored text in its children and has
+# no text of its own, so the token's text would never be printed or freed.
+lex
+	token name /[a-z]+/
+	ignore /[ ]+/
+end
+parse T: name[ "abc " ]
+A: any = cast<il> T
+##### COMP_ERR #####
+8:10: cannot cast to il

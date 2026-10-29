@@ -1334,6 +1334,7 @@ struct LoadColm
 	void walkCflDef( cfl_def cflDef )
 	{
 		String name = cflDef.id().data();
+		checkPredefined( cflDef.id().loc(), curNspace(), name );
 		ObjectDef *objectDef = walkVarDefList( cflDef.VarDefList() );
 		objectDef->name = name;
 
@@ -1351,6 +1352,7 @@ struct LoadColm
 	void walkCflRedef( cfl_redef cflRedef )
 	{
 		String name = cflRedef.id().data();
+		checkPredefined( cflRedef.id().loc(), curNspace(), name );
 		ObjectDef *objectDef = walkVarDefList( cflRedef.VarDefList() );
 		objectDef->name = name;
 

@@ -135,6 +135,16 @@ EXTRA_DIST = \
 	ignore3.lm \
 	ignore4.lm \
 	ignore5.lm \
+	ilcast1.lm \
+	ilmake1.lm \
+	ilmake2.lm \
+	ilres1.lm \
+	ilres2.lm \
+	ilres3.lm \
+	ilres4.lm \
+	ilres5.lm \
+	ilres6.lm \
+	ilwork1.lm \
 	include1.lm \
 	indent.lm \
 	inpush1.lm \

@@ -1,0 +1,6 @@
+# A struct can't take the name _notoken outside a namespace.
+struct _notoken
+	I: int
+end
+##### COMP_ERR #####
+2:8: _notoken is a predefined type

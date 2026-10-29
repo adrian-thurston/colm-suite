@@ -81,7 +81,9 @@ keywords are all lower case, so a name that starts with a capital letter
 never clashes with one. The examples in these chapters give their variables
 such names.
 
-`str`, `any`, `argv` and `stdin` are predefined names, not keywords.
+`str`, `any`, `il`, `argv` and `stdin` are predefined names, not keywords.
+Outside a namespace or context, a program can't define a type named `il` or
+`_notoken`.
 
 == Input and output
 

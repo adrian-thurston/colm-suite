@@ -210,6 +210,11 @@ EXTRA_DIST = \
 	namespace9.lm \
 	nestedcomm.lm \
 	new1.lm \
+	newparser1.lm \
+	newparser2.lm \
+	newparser3.lm \
+	newparser4.lm \
+	newparser5.lm \
 	nilchild1.lm \
 	nilchild2.lm \
 	nilchildmsg1.lm \

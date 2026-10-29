@@ -1381,16 +1381,22 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 	if ( newUT->typeId != TYPE_STRUCT && newUT->typeId != TYPE_GENERIC )
 		error(loc) << "can only new a struct or generic" << endp;
 
+	/* A parser gets its input from sends, never from new. One of a type in a
+	 * context is given the context, and nothing else. */
 	bool context = false;
-	if ( newUT->typeId == TYPE_GENERIC &&
-			newUT->generic->typeId == GEN_PARSER &&
-			newUT->generic->elUt->langEl->contextIn != 0 )
-	{
-		if ( fieldInitArgs != 0 && fieldInitArgs->length() > 1 ) {
-			error(loc) << "new parser<" << newUT->generic->elUt->langEl->declName <<
-					"> takes one argument, its context" << endp;
+	if ( newUT->parser() ) {
+		LangEl *langEl = newUT->generic->elUt->langEl;
+		if ( langEl->contextIn != 0 ) {
+			if ( fieldInitArgs != 0 && fieldInitArgs->length() > 1 ) {
+				error(loc) << "new parser<" << langEl->declName <<
+						"> takes one argument, its context" << endp;
+			}
+			context = true;
 		}
-		context = true;
+		else if ( fieldInitArgs != 0 && fieldInitArgs->length() > 0 ) {
+			error(loc) << "new parser<" << langEl->declName <<
+					"> takes no arguments" << endp;
+		}
 	}
 
 	if ( newUT->typeId == TYPE_GENERIC ) {
@@ -1419,17 +1425,15 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 			/* Eval what we are initializing with. */
 			UniqueType *argUT = fieldInitArgs->data[i]->expr->evaluate( pd, code );
 
-			if ( argUT == pd->uniqueTypeInput ) {
-				code.append( IN_SET_PARSER_INPUT );
-			}
-			else if ( argUT->typeId == TYPE_STRUCT ) {
+			if ( argUT->typeId == TYPE_STRUCT ) {
 				checkParserContext( fieldInitArgs->data[i], argUT,
 						newUT->generic->elUt->langEl );
 				code.append( IN_SET_PARSER_CONTEXT );
 				contextGiven = true;
 			}
 			else {
-				error(loc) << "cannot initialize parser with this type, context or input only" << endp;
+				error(loc) << "new parser<" << newUT->generic->elUt->langEl->declName <<
+						"> takes one argument, its context" << endp;
 			}
 		}
 

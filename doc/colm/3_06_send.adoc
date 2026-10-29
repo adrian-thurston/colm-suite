@@ -46,7 +46,10 @@ function `feed` in the next example shows.
 
 A parser can also be given a context, for a grammar defined inside a
 `context` block: `+new parser<ctx::program>( new ctx() )+`.
-xref:3_04_undo.adoc#context[The context chapter] covers contexts.
+xref:3_04_undo.adoc#context[The context chapter] covers contexts. The
+context is all `new` takes. A parser gets its input from what is sent to
+it, so colm doesn't compile `+new parser<T>( input )+`, or a `new parser`
+of a type outside a context given any argument.
 
 == Sending input piece by piece
 
@@ -313,6 +316,9 @@ be done with it there:
 * `+parse_stop T( input )[]+` parses a `T` from the input, from the start of
   the text the token matched, and stops as soon as it has one. The parser the
   token is for goes on after the `T`.
+
+A parser made with `new` can't be given `input`: it reads only what is sent
+to it. A parse from the input in a token action is a `parse_stop`.
 
 This program reads assignments, and lines such as `+#include NAME+`, which
 read the assignments in the file `NAME` in their place:

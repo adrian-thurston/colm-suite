@@ -84,8 +84,9 @@ object of that context. The action uses the context's variables by name, or
 through `this`, as in `+this->N+`. It can't assign to `this` itself:
 `this = nil` is a compile error, `cannot assign to "this"`. A parse that the
 action starts, of a type in the same context, must be given it, as in
-`+parse_stop T( this input )[]+`. A token action outside a context has no
-`this`.
+`+parse_stop T( this input )[]+`. A parser made with `new` takes the context
+alone, and gets its input from sends, so a parse of the action's input is a
+`parse_stop` like this one. A token action outside a context has no `this`.
 
 A `global`, such as `HereEnd` in the example `lex_heredoc` in
 xref:3_01_lex.adoc#lexing[the lexing chapter], can also hold data that actions

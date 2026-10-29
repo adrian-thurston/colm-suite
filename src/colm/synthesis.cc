@@ -1381,6 +1381,10 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 	if ( newUT->typeId != TYPE_STRUCT && newUT->typeId != TYPE_GENERIC )
 		error(loc) << "can only new a struct or generic" << endp;
 
+	/* An input works through an impl that only a parser makes. */
+	if ( newUT == pd->uniqueTypeInput )
+		error(loc) << "cannot new an _input: a parser makes its input" << endp;
+
 	/* A parser gets its input from sends, never from new. One of a type in a
 	 * context is given the context, and nothing else. */
 	bool context = false;

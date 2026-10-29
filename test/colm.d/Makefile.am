@@ -144,6 +144,7 @@ EXTRA_DIST = \
 	inputclose1.lm \
 	inputclose2.lm \
 	inputdel1.lm \
+	inputnew1.lm \
 	inputtree1.lm \
 	inputtree2.lm \
 	island.lm \

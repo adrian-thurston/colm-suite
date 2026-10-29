@@ -239,8 +239,9 @@ Some mistakes stop the program where they happen:
 * setting a child to nil, by assigning nil to its label or by giving
   `make_tree` a nil child, as
   xref:3_03_match.adoc#changing[the patterns chapter] describes;
-* a pull of more characters than an input or a stream has, or of a negative
-  number of them, as xref:3_01_lex.adoc#token-actions[the lexing chapter] and
+* a pull of more characters than an input or a stream has, of more than
+  2147483647 of them, or of a negative number of them, as
+  xref:3_01_lex.adoc#token-actions[the lexing chapter] and
   xref:3_06_send.adoc#send[the send chapter] describe;
 * using a nil `str`: reading its `length`, joining it into a str, or giving
   it to a function that reads it, as xref:2_01_basic.adoc#str[the str

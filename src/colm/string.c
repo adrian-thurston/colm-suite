@@ -29,6 +29,7 @@
 #include <colm/pool.h>
 #include <colm/pdarun.h>
 #include <colm/bytecode.h>
+#include <colm/debug.h>
 
 str_t *string_prefix( program_t *prg, str_t *str, long len )
 {
@@ -135,6 +136,13 @@ head_t *init_str_space( long length )
 {
 	/* Find the length and allocate the space for the shared string. */
 	head_t *head = (head_t*) malloc( sizeof(head_t) + length );
+
+	/* A failed allocation stops the program. What it wrote so far comes out
+	 * before the message, as runtime_error() has it. */
+	if ( head == 0 ) {
+		fflush( 0 );
+		fatal( "out of memory\n" );
+	}
 
 	/* Init the header. */
 	head->data = (char*)(head+1);

@@ -116,7 +116,9 @@ so `for N: T in S` is `for N: T in triter( S )`. Colm has these others:
   empty one at the end back to `L`.
 * `with_ignore( S )` visits the trees that `triter` does, and ignored tokens
   too. An ignore needs a name, as in `+ignore comment /'#' [^\n]*/+`, to be
-  the type of a loop variable.
+  the type of a loop variable. With `il` as the loop variable's type, it
+  visits the lists of ignored text themselves, as
+  xref:3_03_match.adoc#ignore-lists[the patterns chapter] explains.
 
 As in a loop with no iterator named, the loop variable's type selects the
 trees, and `any` takes every one. Loops over a `list` use other iterators,

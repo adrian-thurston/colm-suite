@@ -109,6 +109,15 @@ are.
 A list can't change inside a `for` over it: that is a compile error,
 `reference active, cannot write to object`.
 
+The variable of a `for` over a list takes each value as an assignment to it
+would. Its type is `T`, or `any` when `T` is a tree type, or a tree type
+when `T` is `any`. In a loop over the elements, it is `list_el<T>`. Any
+other type is a compile error, `loop variable V must have the list's value
+type or its element type`. `rev_list_iter` gives only the values, so there
+the error is `loop variable V must have the list's value type`. Given
+something that isn't a list, it is a compile error too, `rev_list_iter takes
+a list`.
+
 A list variable is nil until it is given a list, with `new`. Calling one of
 a nil list's functions or reading one of its fields stops the program, and so
 does a `for` over it, as a loop over a nil tree does
@@ -168,6 +177,10 @@ first, then byte by byte, as xref:1_02_expressions.adoc#operators[the
 expressions chapter] says.
 
 A map can't change inside a `for` over it.
+
+The variable of a `for` over a map takes the values as in a loop over a
+list, or is `map_el<K, V>`, for the elements. Any other type is a compile
+error, `loop variable V must have the map's value type or its element type`.
 
 A map variable is nil until it is given a map, with `new`. Calling one of a
 nil map's functions, reading one of its fields or a `for` over it stops the

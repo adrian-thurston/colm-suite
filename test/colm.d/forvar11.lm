@@ -1,0 +1,7 @@
+# A loop over rev_list_iter of a list of int with a str loop variable.
+L: list<int> = new list<int>()
+L->push_tail( 4 )
+for S: str in rev_list_iter( L )
+	print( S, "\n" )
+##### COMP_ERR #####
+4:5: loop variable S must have the list's value type

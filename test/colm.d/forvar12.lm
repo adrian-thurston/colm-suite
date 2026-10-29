@@ -1,0 +1,7 @@
+# A loop over list_iter, which gives the elements, with a str loop variable.
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+for S: str in list_iter( L )
+	print( S, "\n" )
+##### COMP_ERR #####
+4:5: loop variable S must have the list's element type

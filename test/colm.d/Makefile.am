@@ -106,6 +106,10 @@ EXTRA_DIST = \
 	factor4.lm \
 	factor5.lm \
 	factor6.lm \
+	forarg1.lm \
+	forarg2.lm \
+	forarg3.lm \
+	forarg4.lm \
 	forloop1.lm \
 	forloop2.lm \
 	forloop3.lm \
@@ -119,6 +123,16 @@ EXTRA_DIST = \
 	forvar4.lm \
 	forvar5.lm \
 	forvar6.lm \
+	forvar7.lm \
+	forvar8.lm \
+	forvar9.lm \
+	forvar10.lm \
+	forvar11.lm \
+	forvar12.lm \
+	forvar13.lm \
+	forvar14.lm \
+	forvar15.lm \
+	forvar16.lm \
 	func1.lm \
 	func2.lm \
 	func3.lm \

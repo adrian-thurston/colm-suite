@@ -1,0 +1,58 @@
+# The loop variable types a loop over a list or a map takes.
+alias strlist list<str>
+LL: list<strlist> = new list<strlist>()
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+L->push_tail( "b" )
+LL->push_tail( L )
+for X: list<str> in LL
+	print( "nested ", X->length, "\n" )
+for X: strlist in LL
+	print( "alias ", X->length, "\n" )
+for S: str in L
+	print( "value ", S, "\n" )
+for E: list_el<str> in L
+	print( "el ", E->value, "\n" )
+for E: list_el<str> in list_iter( L )
+	print( "list_iter ", E->value, "\n" )
+for S: str in rev_list_iter( L )
+	print( "rev ", S, "\n" )
+for A: any in L
+	print( "any ", A, "\n" )
+LA: list<any> = new list<any>()
+LA->push_tail( "c" )
+for S: str in LA
+	print( "from any ", S, "\n" )
+M: map<str, str> = new map<str, str>()
+M->insert( "k", "v" )
+for V: str in M
+	print( "map value ", V, "\n" )
+for E: map_el<str, str> in M
+	print( "map el ", E->key, " ", E->value, "\n" )
+for E: map_el<str, str> in map_iter( M )
+	print( "map_iter ", E->key, "\n" )
+for A: any in M
+	print( "map any ", A, "\n" )
+MI: map<str, int> = new map<str, int>()
+MI->insert( "k", 4 )
+for I: int in MI
+	print( "map int ", I, "\n" )
+##### EXP #####
+nested 2
+alias 2
+value a
+value b
+el a
+el b
+list_iter a
+list_iter b
+rev b
+rev a
+any a
+any b
+from any c
+map value v
+map el k v
+map_iter k
+map any v
+map int 4

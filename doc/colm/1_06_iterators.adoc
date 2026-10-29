@@ -16,8 +16,9 @@ goes from left to right. `S` itself is visited first, when it is of type `T`.
 `T` must be a tree type, such as a token, a def, `str` or `any`, here and in
 a loop over any of the iterators below. Any other type, such as `int`, is a
 compile error, `loop variable N must have a tree type`. Loops over a list or
-a map are different: their variable can be an `int`, when that is what the
-list or the map holds.
+a map are different: their variable has the type of the values the list or
+the map holds, such as `int`, or of its elements, as
+xref:2_02_list_map_struct_alias.adoc#lists[the lists section] says.
 
 The type `T` can be a repetition, such as `+item*+`. A list is its first item
 and the rest of the list, which is a list too, down to an empty list at the

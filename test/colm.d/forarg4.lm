@@ -1,0 +1,7 @@
+# map_iter given a list.
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+for E: map_el<str, str> in map_iter( L )
+	print( E->value, "\n" )
+##### COMP_ERR #####
+4:28: map_iter takes a map

@@ -1,0 +1,7 @@
+# A loop over a list of str with an int loop variable.
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+for I: int in L
+	print( I, "\n" )
+##### COMP_ERR #####
+4:5: loop variable I must have the list's value type or its element type

@@ -51,12 +51,14 @@ EXTRA_DIST = \
 	include3/smtp_ip.rl include3/smtp_whitespace.rl \
 	java1.rl java2.rl js1.rl js2.rl js3.rl js4.rl js5.rl julia1.rl keller1.rl lmgoto.rl lmnfa1.rl mailbox1.h \
 	mailbox1.rl mailbox2.rl mailbox3.rl minimize1.rl ncall1.rl next1.rl \
-	next2.rl nfa1.rl nfa2.rl nfa3.rl noignore.rl patact.rl rangei.rl \
+	next2.rl nfa1.rl nfa2.rl nfa3.rl nfaround1.rl nfaround2.rl nfaround3.rl \
+	nfaround4.rl noignore.rl paramref1.rl patact.rl priornum1.rl rangei.rl \
 	range.rl recdescent1.rl recdescent2.rl recdescent4.rl recdescent5.rl \
-	repetition.rl rlscan.rl rpn1.rl ruby1.rl rust1.rl scan1.rl scan2.rl \
+	repetition.rl repnum1.rl rlscan.rl rpn1.rl ruby1.rl rust1.rl scan1.rl scan2.rl \
 	scan3.rl scan4.rl scan5.rl scan6.rl scan7.rl stateact1.rl \
 	statechart1.rl strings1.rl strings2.h strings2.rl strings3.rl targs1.rl \
-	tofrom1.rl tofrom2.rl tokstart1.rl tsreset.rl union.rl url1.rl xmlcommon.rl xml.rl \
+	tofrom1.rl tofrom2.rl tokstart1.rl tsreset.rl union.rl url1.rl varname1.rl \
+	xmlcommon.rl xml.rl \
 	zlen1.rl
 
 CLEANFILES = trans.c

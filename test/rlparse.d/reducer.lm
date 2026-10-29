@@ -2446,7 +2446,7 @@ reduction TopLevel
 
 		$$->group = strtol( $Group->data, 0, 10 );
 		if ( $$->group == LONG_MAX && errno == ERANGE )
-			pd->id->error(@Groups) << "group " << $Group->data << " overflows" << endl;
+			pd->id->error(@Group) << "group " << $Group->data << " overflows" << endl;
 	}
 
 	# def nfa_round_list

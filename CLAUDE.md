@@ -160,6 +160,12 @@ a manual example with a `NAME.reducer.h` is. The section is the `reducer.h`
 the commit code includes, and the case needs a `HOST`, which the commit code
 is linked into.
 
+A ragel.d case with `@LANG: error` is input ragel must reject. Every ragel
+binary runs it, and it passes when each exits with a value other than 0 and
+its error output is the `OUTPUT` section, read without the `working/NAME.rl:`
+ragel prints in front of each `line:col`. Like a graphviz case, it holds just
+a ragel section.
+
 A fix comes with a test case that fails without it: Colm cases go in
 `test/colm.d`, Ragel cases in `test/ragel.d`. For a change to the runtime's
 memory handling (`src/colm/*.c`), also run the cases it touches with

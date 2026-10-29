@@ -1,0 +1,7 @@
+# An _input made with new has no input behind it, so a pull from it
+# segfaulted. Only a parser makes an input.
+
+I: _input = new _input()
+print( I->pull( 1 ), '\n' )
+##### COMP_ERR #####
+4:13: cannot new an _input: a parser makes its input

@@ -144,6 +144,7 @@ EXTRA_DIST = \
 	inputclose1.lm \
 	inputclose2.lm \
 	inputdel1.lm \
+	inputnew1.lm \
 	inputtree1.lm \
 	inputtree2.lm \
 	island.lm \
@@ -210,6 +211,11 @@ EXTRA_DIST = \
 	namespace9.lm \
 	nestedcomm.lm \
 	new1.lm \
+	newparser1.lm \
+	newparser2.lm \
+	newparser3.lm \
+	newparser4.lm \
+	newparser5.lm \
 	nilchild1.lm \
 	nilchild2.lm \
 	nilchildmsg1.lm \

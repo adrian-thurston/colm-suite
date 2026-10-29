@@ -29,4 +29,4 @@ C: c = new c()
 parse S: c::start( C )[ "a x b" ]
 print( "N ", C->N, "\n" )
 ##### COMP_ERR #####
-10:22: parsing c::rest needs a context of type c
+10:40: the context of c::rest must be of type c, not _input

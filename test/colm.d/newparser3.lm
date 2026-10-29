@@ -1,0 +1,17 @@
+# A parser made with new, of a type not in a context, given a struct, which
+# parse refuses too.
+
+struct s
+	X: int
+end
+lex
+	token id /[a-z]+/
+	ignore /space+/
+end
+def start [id*]
+S: s = new s()
+P: parser<start> = new parser<start>( S )
+send P "a b" eos
+print( P->tree, "\n" )
+##### COMP_ERR #####
+13:20: new parser<start> takes no arguments

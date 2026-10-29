@@ -1,0 +1,14 @@
+# A parser made with new, of a type in a context, given an int in place of
+# its context.
+
+context c
+	I: int
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+	def start [id*]
+end
+P: parser<c::start> = new parser<c::start>( 1 )
+##### COMP_ERR #####
+12:23: new parser<c::start> takes one argument, its context

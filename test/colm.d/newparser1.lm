@@ -1,0 +1,24 @@
+# A parser made with new, of a type not in a context, given the token
+# action's input. It gets its input from sends, so it takes no arguments.
+
+lex
+	token word /[a-z]+/
+	{
+		W: str = input->pull( match_length )
+		P: parser<rest> = new parser<rest>( input )
+		send P [] eos
+		print( "rest: ", P->tree, " error: ", P->error, "\n" )
+		input->push( make_token( typeid<word>, W ) )
+	}
+	ignore /space+/
+end
+lex
+	token rword /[a-z]+/
+	ignore /space+/
+end
+def rest [rword]
+def start [word*]
+parse S: start[ "a x b" ]
+print( S, "\n" )
+##### COMP_ERR #####
+8:21: new parser<rest> takes no arguments

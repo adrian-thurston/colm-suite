@@ -1,0 +1,13 @@
+# A parser made with new, of a type not in a context, given an int.
+
+lex
+	token id /[a-z]+/
+	ignore /space+/
+end
+def start [id*]
+I: int = 5
+P: parser<start> = new parser<start>( I )
+send P "a b" eos
+print( P->tree, "\n" )
+##### COMP_ERR #####
+9:20: new parser<start> takes no arguments

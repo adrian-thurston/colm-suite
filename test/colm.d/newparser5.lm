@@ -1,0 +1,33 @@
+# A parser made with new, of a type in a context, given its context and the
+# token action's input. It takes the context alone, and gets its input from
+# sends. A parse that needs both is a parse_stop.
+
+context c
+	N: int
+	lex
+		token word /[a-z]+/
+		{
+			W: str = input->pull( match_length )
+			P: parser<rest> = new parser<rest>( this input )
+			send P [] eos
+			input->push( make_token( typeid<word>, W ) )
+		}
+		ignore /space+/
+	end
+	lex
+		token rword /[a-z]+/
+		ignore /space+/
+	end
+	def rw
+		[rword]
+		{
+			N = N + 1
+		}
+	def rest [rw]
+	def start [word*]
+end
+C: c = new c()
+parse S: c::start( C )[ "a x b" ]
+print( "N ", C->N, "\n" )
+##### COMP_ERR #####
+11:22: new parser<c::rest> takes one argument, its context

@@ -1,0 +1,10 @@
+# _notoken is a type colm keeps for itself. A def can't take its name outside
+# a namespace.
+lex
+	token name /[a-z]+/
+	ignore /[ ]+/
+end
+def _notoken
+	[name]
+##### COMP_ERR #####
+7:5: _notoken is a predefined type

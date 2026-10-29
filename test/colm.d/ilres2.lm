@@ -1,0 +1,8 @@
+# A zero-length token can't take the name il outside a namespace.
+lex
+	token name /[a-z]+/
+	ignore /[ ]+/
+	token il -
+end
+##### COMP_ERR #####
+5:8: il is a predefined type

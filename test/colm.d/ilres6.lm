@@ -1,0 +1,4 @@
+# An alias can't take the name il outside a namespace.
+alias il int
+##### COMP_ERR #####
+2:7: il is a predefined type

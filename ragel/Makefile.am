@@ -14,13 +14,13 @@ ragel_SOURCES = \
 	parsedata.h rlparse.h rubytable.h cdfgoto.h cdtable.h csflat.h \
 	dotcodegen.h parsetree.h rlscan.h version.h cdflat.h common.h \
 	csftable.h fsmgraph.h pcheck.h rubycodegen.h xmlcodegen.h cdftable.h \
-	csgoto.h gendata.h ragel.h rubyfflat.h \
+	csgoto.h gendata.h ragel.h rubyfflat.h perlcodegen.h \
 	gocodegen.h gotable.h goftable.h goflat.h gofflat.h gogoto.h gofgoto.h \
 	goipgoto.h gotablish.h \
 	mlcodegen.h mltable.h mlftable.h mlflat.h mlfflat.h mlgoto.h mlfgoto.h \
 	main.cpp parsetree.cpp parsedata.cpp fsmstate.cpp fsmbase.cpp \
 	fsmattach.cpp fsmmin.cpp fsmgraph.cpp fsmap.cpp rlscan.cpp rlparse.cpp \
-	inputdata.cpp common.cpp redfsm.cpp gendata.cpp cdcodegen.cpp \
+	inputdata.cpp common.cpp redfsm.cpp gendata.cpp perlcodegen.cpp cdcodegen.cpp \
 	cdtable.cpp cdftable.cpp cdflat.cpp cdfflat.cpp cdgoto.cpp cdfgoto.cpp \
 	cdipgoto.cpp cdsplit.cpp javacodegen.cpp rubycodegen.cpp rubytable.cpp \
 	rubyftable.cpp rubyflat.cpp rubyfflat.cpp rbxgoto.cpp cscodegen.cpp \

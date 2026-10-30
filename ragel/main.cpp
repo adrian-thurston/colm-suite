@@ -124,6 +124,7 @@ void usage()
 "   -Z                   The host language is Go\n"
 "   -J                   The host language is Java\n"
 "   -R                   The host language is Ruby\n"
+"   --P5                 The host language is Perl\n"
 "   -A                   The host language is C#\n"
 "   -O                   The host language is OCaml\n"
 "line directives: (C/D/Ruby/C#/OCaml)\n"
@@ -357,6 +358,8 @@ void processArgs( int argc, const char **argv, InputData &id )
 					usage();
 				else if ( strcmp( arg, "version" ) == 0 )
 					version();
+				else if ( strcmp( arg, "P5" ) == 0 && eq == 0 )
+					hostLang = &hostLangPerl;
 				else if ( strcmp( arg, "error-format" ) == 0 ) {
 					if ( eq == 0 )
 						error() << "expecting '=value' for error-format" << endl;

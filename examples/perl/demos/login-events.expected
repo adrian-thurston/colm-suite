@@ -1,0 +1,3 @@
+user=alice result=OK
+user=carol result=FAIL
+INVALID: LOGIN user=bad-name result=OK

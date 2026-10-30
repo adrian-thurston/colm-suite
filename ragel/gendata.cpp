@@ -66,6 +66,7 @@
 #include "mlfgoto.h"
 
 #include "rubytable.h"
+#include "perlcodegen.h"
 #include "rubyftable.h"
 #include "rubyflat.h"
 #include "rubyfflat.h"
@@ -376,6 +377,11 @@ CodeGenData *makeCodeGen( const char *sourceFileName, const char *fsmName, ostre
 		cgd = goMakeCodeGen( sourceFileName, fsmName, out );
 	else if ( hostLang == &hostLangJava )
 		cgd = javaMakeCodeGen( sourceFileName, fsmName, out );
+	else if ( hostLang == &hostLangPerl ) {
+		cgd = new PerlCodeGen( out );
+		cgd->sourceFileName = sourceFileName;
+		cgd->fsmName = fsmName;
+	}
 	else if ( hostLang == &hostLangRuby )
 		cgd = rubyMakeCodeGen( sourceFileName, fsmName, out );
 	else if ( hostLang == &hostLangCSharp )
@@ -398,6 +404,8 @@ void lineDirective( ostream &out, const char *fileName, int line )
 			goLineDirective( out, fileName, line );
 		else if ( hostLang == &hostLangJava )
 			javaLineDirective( out, fileName, line );
+		else if ( hostLang == &hostLangPerl )
+			rubyLineDirective( out, fileName, line );
 		else if ( hostLang == &hostLangRuby )
 			rubyLineDirective( out, fileName, line );
 		else if ( hostLang == &hostLangCSharp )

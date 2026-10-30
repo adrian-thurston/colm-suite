@@ -1,0 +1,4 @@
+fragmented hello: 200 OK; body=Hello, ALICE!
+health: 200 OK; body=healthy
+unknown path: 404 Not Found; body=Not found
+unsupported method: 400 Bad Request; body=Bad request

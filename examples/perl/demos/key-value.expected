@@ -1,0 +1,4 @@
+color=purple: key=color value=purple
+mode=fast: key=mode value=fast
+bad=: INVALID
+=missing: INVALID

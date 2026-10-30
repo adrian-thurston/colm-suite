@@ -967,7 +967,7 @@ ifstream *Scanner::tryOpenInclude( char **pathChecks, long &found )
 		'getkey' => { 
 			token( KW_GetKey );
 			inlineBlockType = SemiTerminated;
-			if ( hostLang->lang == HostLang::Ruby )
+			if ( hostLang->lang == HostLang::Ruby || hostLang->lang == HostLang::Perl )
 				fcall inline_code_ruby;
 			else
 				fcall inline_code;
@@ -975,7 +975,7 @@ ifstream *Scanner::tryOpenInclude( char **pathChecks, long &found )
 		'access' => { 
 			token( KW_Access );
 			inlineBlockType = SemiTerminated;
-			if ( hostLang->lang == HostLang::Ruby )
+			if ( hostLang->lang == HostLang::Ruby || hostLang->lang == HostLang::Perl )
 				fcall inline_code_ruby;
 			else
 				fcall inline_code;
@@ -983,7 +983,7 @@ ifstream *Scanner::tryOpenInclude( char **pathChecks, long &found )
 		'variable' => { 
 			token( KW_Variable );
 			inlineBlockType = SemiTerminated;
-			if ( hostLang->lang == HostLang::Ruby )
+			if ( hostLang->lang == HostLang::Ruby || hostLang->lang == HostLang::Perl )
 				fcall inline_code_ruby;
 			else
 				fcall inline_code;
@@ -1107,7 +1107,7 @@ ifstream *Scanner::tryOpenInclude( char **pathChecks, long &found )
 				token( '{' );
 				curly_count = 1; 
 				inlineBlockType = CurlyDelimited;
-				if ( hostLang->lang == HostLang::Ruby )
+				if ( hostLang->lang == HostLang::Ruby || hostLang->lang == HostLang::Perl )
 					fcall inline_code_ruby;
 				else
 					fcall inline_code;
@@ -1197,7 +1197,7 @@ void Scanner::do_scan()
 	/* Set up the start state. FIXME: After 5.20 is released the nocs write
 	 * init option should be used, the main machine eliminated and this statement moved
 	 * above the write init. */
-	if ( hostLang->lang == HostLang::Ruby )
+	if ( hostLang->lang == HostLang::Ruby || hostLang->lang == HostLang::Perl )
 		cs = rlscan_en_main_ruby;
 	else
 		cs = rlscan_en_main;

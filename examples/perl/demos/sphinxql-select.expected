@@ -1,0 +1,21 @@
+SQL: SELECT id, title FROM articles WHERE MATCH('@title "state machine" perl | ruby') ORDER BY id DESC LIMIT 10;
+  COLUMNS: id, title
+  INDEX: articles
+  ORDER BY: id
+  LIMIT: 10
+  MATCH expression tokens:
+    QUERY: @title "state machine" perl | ruby
+      PHRASE field=title: state machine
+      WORD field=title: perl
+      OR: |
+      WORD field=title: ruby
+SQL: SELECT * FROM articles WHERE MATCH('@description database query') LIMIT 25;
+  COLUMNS: *
+  INDEX: articles
+  LIMIT: 25
+  MATCH expression tokens:
+    QUERY: @description database query
+      WORD field=description: database
+      WORD field=description: query
+SQL: SELECT id FROM articles WHERE MATCH('perl') LIMIT nope;
+  INVALID (outside supported SQL subset)

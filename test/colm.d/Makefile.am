@@ -53,6 +53,13 @@ EXTRA_DIST = \
 	counting2.lm \
 	counting3.lm \
 	counting4.lm \
+	ctxgram1.lm \
+	ctxgram2.lm \
+	ctxgram3.lm \
+	ctxgram4.lm \
+	ctxgram5.lm \
+	ctxgram6.lm \
+	ctxgram7.lm \
 	ctxthis1.lm \
 	ctxthis2.lm \
 	ctxthis3.lm \

@@ -435,9 +435,10 @@ void BaseParser::literalDef( const InputLoc &loc, const String &data,
 	ObjectDef *objectDef = ObjectDef::cons( ObjectDef::UserType, 
 			name, pd->nextObjectId++ );
 
-	/* The token definition. */
+	/* The token definition. A literal is in the context its lex block is in,
+	 * as a token is. */
 	TokenDef *tokenDef = TokenDef::cons( name, data, true, false, join, 
-			0, loc, nspace, regionSet, objectDef, 0 );
+			0, loc, nspace, regionSet, objectDef, curStruct() );
 
 	nspace->tokenDefList.append( tokenDef );
 

@@ -79,6 +79,19 @@ context variable that holds nil, given as the context, stops the program when
 it runs, as xref:8_04_error_handling.adoc#run-time-errors[the error handling
 chapter] says.
 
+A def outside a context can name the context's defs and tokens in its
+grammar, as `+def top [decls::program]+` would. A parse of `top` would run the
+context's actions, which use the context's variables, but it can't be given
+the context, since `top` isn't in it. A def in another context has the same
+problem: its parse is given that other context. So colm doesn't compile a
+parse, or a `new parser`, of a type whose grammar uses the defs or tokens of a
+context other than its own, directly or through other defs. A literal counts
+as a token of the context its lex block is in. A parse of `top` stops colm
+with the error
+`+top can't be parsed: its grammar uses decls::program, of context decls, and top isn't in decls+`.
+The def can still be used where it isn't parsed itself: in the grammar of a
+type in the context, whose parse is given the context, and in a `construct`.
+
 In a token action written in a context, `this` is the parse's context, an
 object of that context. The action uses the context's variables by name, or
 through `this`, as in `+this->N+`. It can't assign to `this` itself:

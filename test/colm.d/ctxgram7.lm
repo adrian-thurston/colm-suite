@@ -1,0 +1,26 @@
+# A def outside a context can still use the context's defs where it isn't
+# parsed itself: in the grammar of a type in the context, whose parse is given
+# the context, and in a construct.
+
+context c
+	I: int
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+	def item
+		[id]
+		{
+			I = I + 1
+		}
+	def top [start]
+end
+def start [c::item*]
+C: c = new c()
+parse T: c::top( C )[ "a b" ]
+print( T, " ", C->I, "\n" )
+S: start = construct start "c d"
+print( S, "\n" )
+##### EXP #####
+a b 2
+c d

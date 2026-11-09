@@ -1373,6 +1373,59 @@ static void checkParserContext( const FieldInit *arg, UniqueType *argUT,
 			qualifiedName( argUT->structEl ) << endp;
 }
 
+/* The context a def or a token is defined in, or 0. A literal's is the
+ * context of the lex block that defines it. */
+static StructDef *elContext( LangEl *lel )
+{
+	if ( lel->isLiteral && lel->tokenDef != 0 )
+		return lel->tokenDef->contextIn;
+	return lel->contextIn;
+}
+
+/* The first def or token, in production order, that the grammar of lel uses,
+ * directly or through other defs, and that is defined in a context other than
+ * own. The defs of own and the defs outside any context are looked through. */
+static LangEl *otherContextEl( LangEl *lel, StructDef *own, BstSet<LangEl*> &seen )
+{
+	if ( !seen.insert( lel ) )
+		return 0;
+
+	for ( LelProdList::Iter prod = lel->prodList; prod.lte(); prod++ ) {
+		for ( ProdElList::Iter pe = *prod->prodElList; pe.lte(); pe++ ) {
+			LangEl *el = pe->langEl;
+			if ( el == 0 )
+				continue;
+
+			StructDef *context = elContext( el );
+			if ( context != 0 && context != own )
+				return el;
+
+			if ( el->type == LangEl::NonTerm ) {
+				LangEl *found = otherContextEl( el, own, seen );
+				if ( found != 0 )
+					return found;
+			}
+		}
+	}
+	return 0;
+}
+
+/* A parse runs the actions of the defs and tokens its type's grammar uses, and
+ * an action written in a context uses the context the parse is given. A parse
+ * can be given only the context of its own type, so a type whose grammar uses
+ * the defs or tokens of another context can't be parsed. */
+static void checkGrammarContext( const InputLoc &loc, LangEl *root )
+{
+	BstSet<LangEl*> seen;
+	LangEl *el = otherContextEl( root, root->contextIn, seen );
+	if ( el != 0 ) {
+		String context = qualifiedName( elContext( el )->structEl );
+		error( loc ) << root->declName << " can't be parsed: its grammar uses " <<
+				el->declName << ", of context " << context << ", and " <<
+				root->declName << " isn't in " << context << endp;
+	}
+}
+
 UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 {
 	/* What is being newstructed. */
@@ -1390,6 +1443,8 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 	bool context = false;
 	if ( newUT->parser() ) {
 		LangEl *langEl = newUT->generic->elUt->langEl;
+		checkGrammarContext( loc, langEl );
+
 		if ( langEl->contextIn != 0 ) {
 			if ( fieldInitArgs != 0 && fieldInitArgs->length() > 1 ) {
 				error(loc) << "new parser<" << langEl->declName <<
@@ -1638,6 +1693,8 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 	if ( stop )
 		targetUT->langEl->parseStop = true;
 	int stopId = stop ? targetUT->langEl->id : 0;
+
+	checkGrammarContext( loc, targetUT->langEl );
 
 	bool context = false;
 	if ( fieldInitArgs != 0 ) {

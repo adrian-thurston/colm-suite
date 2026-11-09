@@ -1,0 +1,22 @@
+# A context's def that the grammar reaches through another def outside the
+# context counts too, and new parser is refused as parse is.
+
+context c
+	I: int
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+	def item
+		[id]
+		{
+			I = I + 1
+		}
+end
+def mid [c::item*]
+def start [mid]
+P: parser<start> = new parser<start>()
+send P "a b" eos
+print( P->tree, "\n" )
+##### COMP_ERR #####
+18:20: start can't be parsed: its grammar uses c::item, of context c, and start isn't in c

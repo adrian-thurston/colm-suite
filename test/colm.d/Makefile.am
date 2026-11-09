@@ -40,6 +40,7 @@ EXTRA_DIST = \
 	cast12.lm \
 	cast13.lm \
 	cast14.lm \
+	cast15.lm \
 	collect.lm \
 	commitbt.lm \
 	comperr1.lm \
@@ -231,6 +232,7 @@ EXTRA_DIST = \
 	maketree2.lm \
 	maketree3.lm \
 	maketree4.lm \
+	maketree5.lm \
 	map1.lm \
 	map2.lm \
 	map3.lm \

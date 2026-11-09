@@ -1565,9 +1565,10 @@ UniqueType *LangTerm::evaluateCast( Compiler *pd, CodeVect &code ) const
 	/* A cast keeps to its kind. A token's text is its own, and a def's is in
 	 * its children, as an il's is. A cast across them would give a token with
 	 * no text, or a def whose text never prints. A cast of an any is checked
-	 * when it runs, and a cast to any isn't checked. */
+	 * when it runs, and a cast to any isn't checked. A ref to a type that
+	 * isn't a tree has no lang el, and is left as it was. */
 	LangEl *from = exprUT->langEl, *to = ut->langEl;
-	if ( from != pd->anyLangEl && to != pd->anyLangEl ) {
+	if ( from != 0 && from != pd->anyLangEl && to != pd->anyLangEl ) {
 		bool fromToken = from->type == LangEl::Term && from != pd->ignoreLangEl;
 		bool toToken = to->type == LangEl::Term;
 		if ( toToken && from == pd->ignoreLangEl )
@@ -2692,10 +2693,12 @@ UniqueType *LangTerm::evaluateMakeTree( Compiler *pd, CodeVect &code ) const
 
 	/* make_tree makes a def, or an il, whose text is in its children. A token
 	 * or a str has text of its own, which make_tree can't give it. An id that
-	 * isn't typeid<T> written out is checked when it runs. */
+	 * isn't typeid<T> written out is checked when it runs. A typeid of a type
+	 * that isn't a tree has no lang el, and evaluating it reports that. */
 	LangExpr *idExpr = args->data[0]->expr;
 	if ( idExpr->type == LangExpr::TermType &&
-			idExpr->term->type == LangTerm::TypeIdType )
+			idExpr->term->type == LangTerm::TypeIdType &&
+			idExpr->term->typeRef->uniqueType->typeId == TYPE_TREE )
 	{
 		LangEl *langEl = idExpr->term->typeRef->uniqueType->langEl;
 		if ( langEl->type == LangEl::Term && langEl != pd->ignoreLangEl )

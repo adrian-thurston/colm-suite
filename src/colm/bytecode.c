@@ -42,6 +42,8 @@
 #include <colm/debug.h>
 #include <colm/colm.h>
 
+#include "rterror.h"
+
 #define TRUE_VAL  1
 #define FALSE_VAL 0
 
@@ -162,24 +164,68 @@ static void flush_streams( program_t *prg )
 	}
 }
 
+/* Set once the program is stopping on an error, as runtime_error writes out
+ * stdout and stderr. A write that fails then is ignored: the program is
+ * stopping anyway, and the message to print is the first one. A C library
+ * that keeps the unwritten data after a failed write would otherwise fail the
+ * same flush again, and stop again, without end. It is set only on the way to
+ * exit, so one flag serves every program in the process. */
+static int stopping = 0;
+
 /* Stops the program on an error at run time, such as a pop from an empty
  * list. What the program wrote so far comes out first, then "fatal: " and the
  * message on standard error, and the process exits with status 1. That ends a
  * host program too, unlike an exit in the code colm_run_program runs, which
  * unwinds the VM and returns to the host where it can (see exit_now).
  * Whether an error should unwind the VM instead is still open. Every check
- * that stops the program goes through here, so that is one change. */
+ * that stops the program goes through here, so that is one change. A read or
+ * write on a stream that fails comes here from stream.c, through
+ * colm_stream_error. */
 static void runtime_error( program_t *prg, const char *msg )
 {
+	stopping = 1;
 	flush_streams( prg );
 	fatal( "%s\n", msg );
 }
 
-/* An exit the VM can't unwind ends the process at once, as exit_hard does,
- * after what the program wrote so far comes out. */
+/* A read or write on a stream that the system refuses stops the program, with
+ * "could not read NAME: REASON" or "could not write NAME: REASON". stream.c
+ * calls it right after the call that failed, with that call's errno: the C
+ * library forgets the reason after that. While the program is stopping
+ * already, it does nothing. The message is never freed: the process ends. */
+void colm_stream_error( program_t *prg, const char *what, const char *name, int err )
+{
+	if ( stopping )
+		return;
+
+	const char *reason = strerror( err );
+	char *msg = malloc( strlen( what ) + strlen( name ) + strlen( reason ) + 16 );
+	sprintf( msg, "could not %s %s: %s", what, name, reason );
+	runtime_error( prg, msg );
+}
+
+/* Closes every stream the program has open, which writes out what was sent to
+ * it. A stream with no file, or one closed already, is passed over. A write
+ * that fails stops the program. */
+static void close_streams( program_t *prg )
+{
+	struct colm_struct *s;
+	for ( s = prg->heap.head; s != 0; s = s->next ) {
+		if ( s->id == prg->rtd->struct_stream_id ) {
+			struct stream_impl *si = ((stream_t*)s)->impl;
+			si->funcs->close_stream( prg, si );
+		}
+	}
+}
+
+/* An exit the VM can't unwind ends the process at once, as exit_hard does.
+ * What the program wrote to stdout and stderr comes out first, then every
+ * stream it left open is closed, as colm_delete_program would close it. A
+ * write that fails stops the program with status 1 instead. */
 static void exit_now( program_t *prg )
 {
 	flush_streams( prg );
+	close_streams( prg );
 	exit( prg->exit_status );
 }
 
@@ -5338,7 +5384,7 @@ again:
 				vm_pop_tree();
 				prg->exit_status = vm_pop_type(long);
 				prg->induce_exit = 1;
-				exit( prg->exit_status );
+				exit_now( prg );
 			}
 			case FN_EXIT: {
 				/* The unwind code follows the exit call (exception, see
@@ -5358,10 +5404,8 @@ again:
 				 * unwind stops at, so the unwind can't get back to the host.
 				 * End the process instead, as exit_hard does, once what the
 				 * program printed is out. */
-				if ( exec->export_call ) {
-					flush_streams( prg );
-					exit( prg->exit_status );
-				}
+				if ( exec->export_call )
+					exit_now( prg );
 
 				while ( true ) {
 					/* The call or parse we are in sits on words the stack

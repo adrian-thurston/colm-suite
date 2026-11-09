@@ -184,7 +184,8 @@ program at once, and so does one reached through a call given a `ref` argument
 other than a local variable or a parameter, such as `P.item` or a global. colm
 can't unwind the stack there. What the program printed comes out, and the
 process exits with the status, as `exit_hard( N )` does: a host's process ends
-too.
+too. A write that fails as the streams are closed then stops the program with
+status 1 instead, as <<io-errors>> says.
 
 To fail the parse instead, and let the parser try another way, a production's
 action uses `reject`, which xref:3_02_parse.adoc#reject[the parsing chapter]
@@ -274,3 +275,30 @@ fatal: pop from an empty list
 
 This is not `exit`. Nothing after the mistake runs, not even in a C or {cpp}
 host: the host's process ends too, at once.
+
+[[io-errors]]
+== Read and write errors
+
+A read or a write on a stream that the system refuses stops the program, as
+the mistakes in <<run-time-errors>> do: what the program printed comes out
+first, then the message, and the program exits with status 1. The message
+names the stream, as `open` was given it, or `<stdin>`, `<stdout>` or
+`<stderr>`, and says what the system said:
+
+----
+fatal: could not write out.txt: No space left on device
+----
+
+Reading a directory that `open` opened is such a read, and so is reading a
+stream opened for writing. Sending to a stream opened for reading is such a
+write. What a program sends to a stream is written out in blocks, so the
+write can fail at a later `send`, at `+S->close()+`, or after the program
+ends, when the streams it left open are closed. In a C or {cpp} host,
+`colm_delete_program` closes them, and a write that fails there ends the
+host's process too.
+
+`stdout` and `stderr` are streams like the others: a program whose output
+can't be written stops with status 1, even after its own code has ended.
+When `stderr` is the stream that fails, the message is lost, but the status
+is still 1. A write that fails while the program is stopping already is
+ignored, and the message is the first one.

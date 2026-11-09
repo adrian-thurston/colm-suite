@@ -1854,6 +1854,22 @@ again:
 			colm_struct_set_field( obj, tree_t*, field, val );
 			break;
 		}
+		case IN_MAP_EL_KEY_CHECK: {
+			short field;
+			read_half( field );
+
+			debug( prg, REALM_BYTECODE, "IN_MAP_EL_KEY_CHECK %hd\n", field );
+
+			/* The element is on top, and stays there for the instruction
+			 * that writes the key. That instruction stops on a nil one. */
+			struct_t *strct = (struct_t*)vm_top();
+			if ( strct != 0 ) {
+				map_el_t *map_el = colm_struct_get_addr( strct, map_el_t*, field );
+				if ( map_el->height != 0 )
+					runtime_error( prg, "setting the key of an element in a map" );
+			}
+			break;
+		}
 		case IN_GET_RHS_VAL_R: {
 			debug( prg, REALM_BYTECODE, "IN_GET_RHS_VAL_R\n" );
 			int i, done = 0;

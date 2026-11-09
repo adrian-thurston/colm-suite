@@ -390,6 +390,17 @@ long sizeOfField( UniqueType *fieldUT )
 	return size;
 }
 
+/* The key of a map element, the only GenericDependentType field. A write to
+ * it, or to a child or an attribute inside it, is checked first: the element
+ * must not be in a map, which would no longer find it by its key. */
+static void mapElKeyCheck( CodeVect &code, ObjectField *el )
+{
+	if ( el->type == ObjectField::GenericDependentType ) {
+		code.append( IN_MAP_EL_KEY_CHECK );
+		code.appendHalf( el->offset );
+	}
+}
+
 void ObjectDef::referenceField( Compiler *pd, ObjectField *field )
 {
 	field->beenReferenced = true;
@@ -419,6 +430,8 @@ UniqueType *LangVarRef::loadField( Compiler *pd, CodeVect &code,
 	else {
 		/* If it's a reference then we load it read always. */
 		if ( forWriting ) {
+			mapElKeyCheck( code, el );
+
 			/* The instruction, depends on whether or not we are reverting. */
 			if ( elUT->typeId == TYPE_ITER )
 				code.append( el->iterImpl->inGetCurWC );
@@ -764,6 +777,8 @@ void LangVarRef::setField( Compiler *pd, CodeVect &code,
 {
 	/* Ensure that the field is referenced. */
 	inObject->referenceField( pd, el );
+
+	mapElKeyCheck( code, el );
 
 	if ( exprUT->val()  ) {
 		if ( pd->revertOn && revert )

@@ -80,7 +80,11 @@ is never nil. A `str` or a tree can be set back to nil: `S = nil`.
 
 Any tree can be assigned to an `any` variable, and a `list<any>` can hold
 trees of different types. An `any` can be assigned to a variable of any tree
-type. Colm doesn't check that the tree has that type.
+type. Colm doesn't check that the tree has that type. A token variable given a
+def or an `il` this way holds a tree with no text of its own, and reading its
+`data`, `file`, `line`, `col` or `pos` stops the program, as
+xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]
+says.
 
 [[conversions]]
 == Conversions

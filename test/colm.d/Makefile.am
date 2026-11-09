@@ -82,6 +82,7 @@ EXTRA_DIST = \
 	decl1.lm \
 	decl2.lm \
 	decl3.lm \
+	deffield1.lm \
 	define1.lm \
 	div.lm \
 	earlytree1.lm \

@@ -112,7 +112,10 @@ as <<run-time-errors>> says. Check the token before reading its fields, as
 the next example does with `if ( First )` before `twice` reads `First.line`.
 
 A def has no location fields: `S.line` on a def doesn't compile. Read them
-from one of its tokens, as the next example does with `S.name`.
+from one of its tokens, as the next example does with `S.name`. A token
+variable given a def or an `il` from an `any` holds a tree that isn't a
+token, and reading `data` or a location field of it stops the program, as
+<<run-time-errors>> says.
 
 This program reads the same settings, and stops when a name is set twice:
 
@@ -233,7 +236,8 @@ Some mistakes stop the program where they happen:
 * a `match`, `require` or `switch` on a nil tree, as
   xref:3_03_match.adoc#match[the patterns chapter] describes;
 * reading or setting a field of a token that is nil, such as `error.line`
-  after a parse that succeeds, as <<locations,the input locations section>>
+  after a parse that succeeds, or reading one from a token variable that
+  holds a def or an `il`, as <<locations,the input locations section>>
   describes;
 * reading or setting a child or an attribute of a nil tree, as
   xref:3_02_parse.adoc#parsing[the parsing chapter] and

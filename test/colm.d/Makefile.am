@@ -349,6 +349,13 @@ EXTRA_DIST = \
 	reducepast3.lm \
 	reducepast4.lm \
 	reducepast5.lm \
+	reducevalue1.lm \
+	reducevalue2.lm \
+	reducevalue3.lm \
+	reducevalue4.lm \
+	reducevalue5.lm \
+	reducevalue6.lm \
+	reducevalue7.lm \
 	ref1.lm \
 	ref2.lm \
 	ref3.lm \

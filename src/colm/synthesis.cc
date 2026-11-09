@@ -2690,6 +2690,18 @@ UniqueType *LangTerm::evaluateMakeTree( Compiler *pd, CodeVect &code ) const
 	if ( numArgs < 1 )
 		error(loc) << "need at least one argument" << endp;
 
+	/* make_tree makes a def, or an il, whose text is in its children. A token
+	 * or a str has text of its own, which make_tree can't give it. An id that
+	 * isn't typeid<T> written out is checked when it runs. */
+	LangExpr *idExpr = args->data[0]->expr;
+	if ( idExpr->type == LangExpr::TermType &&
+			idExpr->term->type == LangTerm::TypeIdType )
+	{
+		LangEl *langEl = idExpr->term->typeRef->uniqueType->langEl;
+		if ( langEl->type == LangEl::Term && langEl != pd->ignoreLangEl )
+			error(loc) << "make_tree cannot make a token or str" << endp;
+	}
+
 	for ( CallArgVect::Iter pe = *args; pe.lte(); pe++ ) {
 		/* Evaluate. */
 		UniqueType *exprUT = (*pe)->expr->evaluate( pd, code );

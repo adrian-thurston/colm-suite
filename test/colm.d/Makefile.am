@@ -227,6 +227,9 @@ EXTRA_DIST = \
 	mailbox.lm \
 	maketoken1.lm \
 	maketree1.lm \
+	maketree2.lm \
+	maketree3.lm \
+	maketree4.lm \
 	map1.lm \
 	map2.lm \
 	map3.lm \

@@ -241,6 +241,8 @@ Some mistakes stop the program where they happen:
 * setting a child to nil, by assigning nil to its label or by giving
   `make_tree` a nil child, as
   xref:3_03_match.adoc#changing[the patterns chapter] describes;
+* `make_tree` given the id of a token type or of `str` another way than
+  `typeid<T>`, as xref:3_03_match.adoc#make[the patterns chapter] describes;
 * a pull of more characters than an input or a stream has, of more than
   2147483647 of them, or of a negative number of them, as
   xref:3_01_lex.adoc#token-actions[the lexing chapter] and

@@ -3452,6 +3452,12 @@ again:
 			for ( i = nargs-1; i >= 0; i-- )
 				arg[i] = vm_pop_tree();
 
+			/* make_tree makes a def or an il. A token or a str has text of its
+			 * own, which make_tree can't give it. */
+			long id = (long)(value_t)arg[0];
+			if ( id < prg->rtd->first_non_term_id && id != LEL_ID_IGNORE )
+				runtime_error( prg, "make_tree of a token type or str" );
+
 			/* Each argument after the type is a child, and a child can't be nil. */
 			for ( i = 1; i < nargs; i++ ) {
 				if ( arg[i] == 0 )

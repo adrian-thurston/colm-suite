@@ -1,0 +1,10 @@
+# make_tree can't make a token. A token's text is its own, and make_tree has
+# none to give it, so reading the token's line segfaulted.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+T: id = make_tree( typeid<id> )
+print( T.line, "\n" )
+##### COMP_ERR #####
+7:9: make_tree cannot make a token or str

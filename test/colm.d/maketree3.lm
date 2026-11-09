@@ -1,0 +1,6 @@
+# make_tree can't make a str either. The str had no value, and printing it
+# segfaulted.
+M: any = make_tree( typeid<str> )
+print( M, "\n" )
+##### COMP_ERR #####
+3:10: make_tree cannot make a token or str

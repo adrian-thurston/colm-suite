@@ -1,0 +1,99 @@
+#
+# A write can go through a child of a tree, a child named by its label or by
+# its type: setting an attribute of the child, the text of a token in it, or
+# a child of it. A child that another variable shares is copied first, so
+# that variable keeps its value. The argument picks the write.
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	ignore /[ \n]+/
+end
+
+def pair
+	A: int
+	T: id
+	[L: id R: num]
+
+def wrap
+	[pair]
+
+global G: wrap = parse wrap[ "g 7" ]
+
+void set_global()
+{
+	G.pair.L.data = 'f'
+}
+
+K: str = argv->pop()
+parse W: wrap[ "x 1" ]
+S: wrap = W
+I: id = make_token( typeid<id>, 'k' )
+print( K, '\n' )
+
+if K == 'attr'
+	W.pair.A = 4
+elsif K == 'tree_attr'
+	W.pair.T = I
+elsif K == 'data'
+	W.pair.L.data = 'z'
+elsif K == 'child'
+	W.pair.L = I
+elsif K == 'loop' {
+	for X: pair in W
+		X.L.data = 'z'
+}
+elsif K == 'global' {
+	G.pair.L.data = 'z'
+	W = G
+}
+elsif K == 'function' {
+	set_global()
+	W = G
+}
+
+print( 'W: ', W.pair.A, ' <', W.pair.T, '> ', $W, '\n' )
+print( 'S: ', S.pair.A, ' <', S.pair.T, '> ', $S, '\n' )
+##### ARGS #####
+attr
+##### EXP #####
+attr
+W: 4 <NIL> x 1
+S: 0 <NIL> x 1
+##### ARGS #####
+tree_attr
+##### EXP #####
+tree_attr
+W: 0 <k> x 1
+S: 0 <NIL> x 1
+##### ARGS #####
+data
+##### EXP #####
+data
+W: 0 <NIL> z 1
+S: 0 <NIL> x 1
+##### ARGS #####
+child
+##### EXP #####
+child
+W: 0 <NIL> k1
+S: 0 <NIL> x 1
+##### ARGS #####
+loop
+##### EXP #####
+loop
+W: 0 <NIL> z 1
+S: 0 <NIL> x 1
+##### ARGS #####
+global
+##### EXP #####
+global
+W: 0 <NIL> z 7
+S: 0 <NIL> x 1
+##### ARGS #####
+function
+##### EXP #####
+function
+W: 0 <NIL> f 7
+S: 0 <NIL> x 1

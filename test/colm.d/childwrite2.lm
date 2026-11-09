@@ -1,0 +1,206 @@
+#
+# In a production's action, a write can go through a child of a global's
+# tree, and of the action's lhs. The write stays when the parse keeps the
+# reduction, and is undone when the parser backs up over it. The first
+# argument picks the input: "keep" ends it with ";", which keeps the
+# reduction of wrapper, and "back" ends it with "!", which makes the parser
+# back up over it. The second picks the write. Setting a child of a global's
+# tree that the tree's production doesn't have stops the program with
+# "fatal: setting a child the tree's production doesn't have" and exit status
+# 1. The host sends standard error to standard output, so the message is in
+# the output.
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	literal `; `!
+	ignore /[ \n]+/
+end
+
+def pair
+	T: id
+	[L: id R: num]
+
+def wrap
+	[pair]
+|	[num]
+
+global B: str = argv->pop()
+global K: str = argv->pop()
+global G: wrap = parse wrap[ "x 1" ]
+global M: wrap = parse wrap[ "5" ]
+global C: pair = parse pair[ "c 9" ]
+
+void set_global()
+{
+	G.pair.L.data = 'f'
+}
+
+def item
+	[id num]
+
+def wrapper
+	[item]
+	{
+		if K == 'data'
+			G.pair.L.data = 'z'
+		elsif K == 'attr'
+			G.pair.T = make_token( typeid<id>, 'q' )
+		elsif K == 'child'
+			G.pair.L = make_token( typeid<id>, 'w' )
+		elsif K == 'set'
+			G.pair = C
+		elsif K == 'function'
+			set_global()
+		elsif K == 'lhs'
+			lhs.item.id.data = 'v'
+		elsif K == 'absent'
+			M.pair = C
+	}
+
+def start
+	[wrapper id `;]
+|	[item id `!]
+
+print( B, ' ', K, '\n' )
+In: str = "y 3 u ;"
+if B == 'back'
+	In = "y 3 u !"
+parse S: start[ In ]
+print( 'S: ', S, '\n' )
+print( 'G: ', G, ' <', G.pair.T, '>\n' )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+keep data
+##### EXP #####
+keep data
+S: y 3 u ;
+G: z 1 <NIL>
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+back data
+##### EXP #####
+back data
+S: y 3 u !
+G: x 1 <NIL>
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+keep attr
+##### EXP #####
+keep attr
+S: y 3 u ;
+G: x 1 <q>
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+back attr
+##### EXP #####
+back attr
+S: y 3 u !
+G: x 1 <NIL>
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+keep child
+##### EXP #####
+keep child
+S: y 3 u ;
+G: w1 <NIL>
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+back child
+##### EXP #####
+back child
+S: y 3 u !
+G: x 1 <NIL>
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+keep set
+##### EXP #####
+keep set
+S: y 3 u ;
+G: c 9 <NIL>
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+back set
+##### EXP #####
+back set
+S: y 3 u !
+G: x 1 <NIL>
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+keep function
+##### EXP #####
+keep function
+S: y 3 u ;
+G: f 1 <NIL>
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+back function
+##### EXP #####
+back function
+S: y 3 u !
+G: x 1 <NIL>
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+keep lhs
+##### EXP #####
+keep lhs
+S: v 3 u ;
+G: x 1 <NIL>
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+back lhs
+##### EXP #####
+back lhs
+S: y 3 u !
+G: x 1 <NIL>
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+keep absent
+##### EXP #####
+keep absent
+fatal: setting a child the tree's production doesn't have
+##### EXIT #####
+1

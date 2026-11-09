@@ -60,9 +60,10 @@ type, such as the `term` in `+[id `* term]+`, give it a label, as the next
 example does with `Mark: urgent?`.
 
 A child that isn't in the production of `T` is nil, so a test such as
-`if ( T.declaration )` tells which production `T` has. An optional child,
-`x?`, is always there, but has no text when `x` is absent. To test it, label
-it and compare its text with `""`.
+`if ( T.declaration )` tells which production `T` has. Setting such a child
+stops the program, as xref:3_03_match.adoc#changing[the patterns chapter]
+describes. An optional child, `x?`, is always there, but has no text when `x`
+is absent. To test it, label it and compare its text with `""`.
 
 `T` itself must not be nil. Reading a child of a nil tree, such as the result
 of a `parse` that failed, stops the program: it prints

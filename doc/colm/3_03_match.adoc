@@ -225,6 +225,11 @@ Assigning to a child of a tree changes the tree: `S.Name = cons id "height"`
 replaces the `Name` child of `S`. A label from a `match` is a copy, so
 assigning to it changes the label, and leaves the tree as it was.
 
+A write can also go inside a child, at any depth. `S.Value.data = "36"` sets
+the text of the `Value` token of `S`. For a def `pair` with an attribute `A`
+and a child `L`, `W.pair.A = 4` sets the attribute of the `pair` child of
+`W`, and `W.pair.L = X` replaces the `L` child of that child.
+
 A child can't be nil. Assigning nil to one, as `S.Name = nil` does, or
 assigning a variable that holds nil, stops the program: it prints
 `fatal: setting a child to nil` and exits with status 1, as
@@ -232,6 +237,12 @@ xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]
 says. It stops even when the production of `S` has no `Name`. An attribute,
 which xref:3_05_reduction.adoc#attributes[the attributes section] describes,
 can be set to nil.
+
+Assigning a tree to a child that the production of `S` doesn't have stops the
+program too, with `fatal: setting a child the tree's production doesn't
+have`. Reading such a child gives nil, as
+xref:3_02_parse.adoc#parsing[the parsing chapter] says, so a write inside it
+stops as a write inside a nil tree does.
 
 Ignored text belongs to the token before it. Ignored text at the start of the
 input, before any token, belongs to the first token. So a tree that is
@@ -255,7 +266,8 @@ Assigning to the label `N` leaves `S` as it was. Assigning to `S.Name`
 replaces the name, and the space after `width` goes with it.
 `cons id "depth "` ends with a space, which stays with the new name. The
 space before `80` belongs to the `=`, so it stays when the value is
-replaced.
+replaced. Setting `S.Value.data` changes the value's text, and leaves the
+token in its place.
 
 [[cons]]
 == Constructing trees: `cons`

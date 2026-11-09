@@ -7,6 +7,7 @@ EXTRA_DIST = \
 	accumbt3.lm \
 	accumbt4.lm \
 	accumbt5.lm \
+	actattr1.lm \
 	actlong1.lm \
 	argv1.lm \
 	argv2.lm \
@@ -34,6 +35,11 @@ EXTRA_DIST = \
 	cast6.lm \
 	cast7.lm \
 	cast8.lm \
+	childwrite1.lm \
+	childwrite2.lm \
+	childwrite3.lm \
+	childwrite4.lm \
+	childwritemsg1.lm \
 	collect.lm \
 	commitbt.lm \
 	comperr1.lm \

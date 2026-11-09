@@ -30,3 +30,7 @@ print( "with a space: ", $S, "\n" )
 # The space before the value belongs to the =, so it stays.
 S.Value = cons num "24"
 print( "value: ", $S, "\n" )
+
+# A write can go inside a child. This one sets the value's text.
+S.Value.data = "36"
+print( "inside: ", $S, "\n" )

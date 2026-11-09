@@ -35,7 +35,7 @@ def item
 			R = M->remove( "b" )
 		elsif ( Mode == "insert_el" || Mode == "insert_el_moved" )
 			M->insert_el( G )
-		elsif ( Mode == "insert" )
+		elsif ( Mode == "insert" || Mode == "insert_moved" )
 			M->insert( "d", "4" )
 		elsif ( Mode == "key" )
 			G->key = "z"
@@ -61,6 +61,11 @@ str move()
 	elsif ( Mode == "insert_el_moved" ) {
 		M->detach_el( G )
 		O->insert_el( G )
+	}
+	elsif ( Mode == "insert_moved" ) {
+		R = M->find_el( "d" )
+		M->detach_el( R )
+		O->insert_el( R )
 	}
 	elsif ( Mode == "key" )
 		M->insert_el( G )
@@ -155,6 +160,14 @@ fatal: backing up over insert_el of an element no longer in the map
 1
 ##### ARGS #####
 insert
+##### EXP #####
+action
+moved
+fatal: backing up over insert of an element no longer in the map
+##### EXIT #####
+1
+##### ARGS #####
+insert_moved
 ##### EXP #####
 action
 moved

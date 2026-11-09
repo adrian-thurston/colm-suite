@@ -344,6 +344,7 @@ typedef unsigned char uchar;
 #define IN_SET_STRUCT_VAL_WV     0x94
 #define IN_SET_STRUCT_VAL_WC     0x95
 #define IN_SET_STRUCT_VAL_BKT    0x5d
+#define IN_MAP_EL_KEY_CHECK      0x85
 #define IN_NEW_STRUCT            0xfe
 
 #define IN_GET_LOCAL_VAL_R       0x91

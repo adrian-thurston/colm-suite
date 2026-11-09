@@ -1,0 +1,69 @@
+# Moving an element to a new key in a reduction action, with detach_el, a key
+# write and insert_el, doesn't stop, and backtracking undoes all three. Input
+# ending in "; ^" is parsed as A1, keeping the move. Input ending in ";" is
+# parsed as A1 first, then backs up to A2, and the element is back under its
+# old key.
+
+global M: map<str, str> = new map<str, str>()
+
+lex
+	ignore /[ \t]+/
+	literal `+ `^ `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+def item
+	[`+]
+	{
+		E: map_el<str, str> = M->detach_el( M->find_el( "a" ) )
+		E->key = "z"
+		M->insert_el( E )
+		print( "moved a to z, length [M->length]\n" )
+	}
+
+def plain_item
+	[`+]
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 plain_item* `; NL]
+
+M->insert( "a", "1" )
+M->insert( "b", "2" )
+M->insert( "c", "3" )
+M->insert( "d", "4" )
+M->insert( "e", "5" )
+
+parse S: start[ stdin ]
+print( S )
+for V: map_el<str, str> in M
+	print( "[V->key] [V->value]\n" )
+if ( M->find_el( "a" ) )
+	print( "find_el a found it\n" )
+if ( M->find_el( "z" ) )
+	print( "find_el z found it\n" )
+##### IN #####
++ ; ^
+##### EXP #####
+moved a to z, length 5
++ ; ^
+b 2
+c 3
+d 4
+e 5
+z 1
+find_el z found it
+##### IN #####
++ ;
+##### EXP #####
+moved a to z, length 5
++ ;
+a 1
+b 2
+c 3
+d 4
+e 5
+find_el a found it

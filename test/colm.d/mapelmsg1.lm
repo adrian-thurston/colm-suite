@@ -22,6 +22,8 @@ elsif ( A == "insert_nil" )
 	M->insert_el( N )
 elsif ( A == "insert_held" )
 	M->insert_el( F )
+elsif ( A == "key_held" )
+	E->key = "z"
 
 print( "after\n" )
 ##### HOST #####
@@ -69,5 +71,12 @@ insert_held
 ##### EXP #####
 before
 fatal: insert_el of an element already in a map
+##### EXIT #####
+1
+##### ARGS #####
+key_held
+##### EXP #####
+before
+fatal: setting the key of an element in a map
 ##### EXIT #####
 1

@@ -206,6 +206,8 @@ Some mistakes stop the program where they happen:
 * giving a map's `insert_el` or `detach_el` nil, `insert_el` an element that
   a map holds already, or `detach_el` one that the map doesn't hold, as
   xref:2_02_list_map_struct_alias.adoc#maps[the maps section] describes;
+* setting the `key` of an element that a map holds, or a child or an
+  attribute of such a key, as the maps section describes;
 * reading or setting a field of a nil struct, as
   xref:2_02_list_map_struct_alias.adoc#structs[the structs section] describes,
   or the `value` or `key` of a nil list or map element, or reading such an

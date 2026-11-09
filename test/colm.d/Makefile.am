@@ -220,6 +220,9 @@ EXTRA_DIST = \
 	mapel1.lm \
 	mapel2.lm \
 	mapelmsg1.lm \
+	mapkey1.lm \
+	mapkey2.lm \
+	mapkey3.lm \
 	mapmsg1.lm \
 	matchex.lm \
 	matchnil1.lm \
@@ -426,6 +429,7 @@ EXTRA_DIST = \
 	undomap3.lm \
 	undomap4.lm \
 	undomap5.lm \
+	undomap6.lm \
 	undopush1.lm \
 	undosplit1.lm \
 	undosplit2.lm \

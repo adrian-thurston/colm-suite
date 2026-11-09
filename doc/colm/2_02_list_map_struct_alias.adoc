@@ -156,6 +156,11 @@ makes an empty one. Its functions and fields are reached with `+->+` too.
 * An element's `key` and `value` read them, and setting `value` changes the
   map. Reading or setting them on a nil element, such as `find_el` gives for
   a missing key, stops the program, and so does reading its `next` or `prev`.
+  Setting the `key` of an element that a map holds stops the program too,
+  and so does setting a child or an attribute of such a key, as
+  `E->key.Id = X` does for a tree key with a child `Id`: the map could no
+  longer find the element by its key. To give the element a new key, take it
+  out with `detach_el`, set the key, and put it back with `insert_el`.
 * `remove( K )` takes the key out, and gives its element, or nil if it wasn't
   there.
 * `detach_el( E )` takes the element `E` out of the map, and gives it back.

@@ -1,0 +1,89 @@
+# Setting the key of an element that a map holds, or changing anything inside
+# such a key, ends the program with exit status 1: the map would keep the
+# element where its old key goes, and find_el and insert would miss it. The
+# output before it is kept.
+
+lex
+	token id /[a-z]+/
+	ignore /[ \t\n]+/
+end
+
+def k [Id: id]
+
+new M: map<str, str>()
+M->insert( "a", "1" )
+M->insert( "b", "2" )
+M->insert( "c", "3" )
+M->insert( "d", "4" )
+M->insert( "e", "5" )
+
+new I: map<int, str>()
+I->insert( 1, "1" )
+I->insert( 2, "2" )
+I->insert( 3, "3" )
+
+new T: map<k, str>()
+T->insert( parse k[ "a" ], "1" )
+T->insert( parse k[ "b" ], "2" )
+T->insert( parse k[ "c" ], "3" )
+
+A: str = argv->pop()
+print( "before\n" )
+
+if ( A == "str" ) {
+	E: map_el<str, str> = M->find_el( "a" )
+	E->key = "z"
+}
+elsif ( A == "int" ) {
+	F: map_el<int, str> = I->find_el( 1 )
+	F->key = 9
+}
+elsif ( A == "inside" ) {
+	G: map_el<k, str> = T->find_el( parse k[ "a" ] )
+	G->key.Id = parse id[ "z" ]
+}
+elsif ( A == "loop" ) {
+	for L: map_el<str, str> in M {
+		if ( L->key == "c" )
+			L->key = "z"
+	}
+}
+elsif ( A == "same" ) {
+	# The key it has already.
+	S: map_el<str, str> = M->find_el( "b" )
+	S->key = "b"
+}
+
+print( "after\n" )
+for V: map_el<str, str> in M
+	print( "[V->key] [V->value]\n" )
+##### ARGS #####
+str
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+int
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+inside
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+loop
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+same
+##### EXP #####
+before
+##### EXIT #####
+1

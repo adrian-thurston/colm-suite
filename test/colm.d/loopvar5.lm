@@ -1,0 +1,9 @@
+# An assignment to the variable of a loop over a list.
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+for E: str in L
+	E = "b"
+print( L->head, "\n" )
+print( "done\n" )
+##### COMP_ERR #####
+5:2: cannot assign to E, the variable of a loop over a list or a map

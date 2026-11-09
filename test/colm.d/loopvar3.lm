@@ -1,0 +1,13 @@
+# The variable of a loop over a list passed as a ref argument.
+void f( R: ref<str> )
+{
+	print( R, "\n" )
+}
+
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+for E: str in L
+	f( E )
+print( "done\n" )
+##### COMP_ERR #####
+10:5: cannot take a reference to E, the variable of a loop over a list or a map

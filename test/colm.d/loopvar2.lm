@@ -1,0 +1,14 @@
+# A yield of the variable of a loop over a map.
+iter it( M: map<str, str> )
+{
+	for E: str in M
+		yield E
+}
+
+M: map<str, str> = new map<str, str>()
+M->insert( "k", "v" )
+for I: str in it( M )
+	print( I, "\n" )
+print( "done\n" )
+##### COMP_ERR #####
+5:9: cannot yield E, the variable of a loop over a list or a map

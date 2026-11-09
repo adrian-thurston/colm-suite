@@ -72,6 +72,8 @@ explains where the ignored text of a replaced tree goes.
 Rewrite through a loop over a variable that isn't `global`, such as `Colors`
 below. Changes made through the loop variable of a loop over a `global`
 variable, or over a field of a struct, are lost: the loop works on a copy.
+The variable of a loop over a list or a map can't be assigned to at all, as
+xref:2_02_list_map_struct_alias.adoc#lists[the lists section] says.
 
 This program reads a list of colors, which can hold lists of their own. It
 replaces each `green` with two colors, and each `lime` with `red`:
@@ -165,7 +167,10 @@ the loop's body runs with `N` holding it. The iterator then goes on after the
 doesn't take an expression: `yield "x"` is a parse error. The variable must
 hold a tree, or be a `ref` to one. A yield of an `int`, a `bool`, a struct, a
 list or a map is a compile error, `can only yield a tree`, and so is a yield
-of a field that holds one, such as an `int` attribute of a tree.
+of a field that holds one, such as an `int` attribute of a tree. A yield of
+the variable of a loop over a list or a map is a compile error too, `cannot
+yield V, the variable of a loop over a list or a map`, even when it holds a
+tree. Copy it to a local, and yield that.
 
 A function that the iterator calls can yield too, and so can a function that
 it calls in turn. The loop gets the value as it gets one from the iterator's

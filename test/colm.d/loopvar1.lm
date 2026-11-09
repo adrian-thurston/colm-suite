@@ -1,0 +1,14 @@
+# A yield of the variable of a loop over a list.
+iter it( L: list<str> )
+{
+	for E: str in L
+		yield E
+}
+
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+for I: str in it( L )
+	print( I, "\n" )
+print( "done\n" )
+##### COMP_ERR #####
+5:9: cannot yield E, the variable of a loop over a list or a map

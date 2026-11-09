@@ -1,0 +1,20 @@
+# A loop over the variable of a loop over a list.
+lex
+	token id /[a-z]+/
+	literal `( `)
+	ignore /[ \n]+/
+end
+
+def item
+	[`( id* `)]
+
+parse P: item[ "( a b )" ]
+L: list<item> = new list<item>()
+L->push_tail( P )
+for E: item in L {
+	for X: id in E
+		print( ^X, "\n" )
+}
+print( "done\n" )
+##### COMP_ERR #####
+15:15: cannot take a reference to E, the variable of a loop over a list or a map

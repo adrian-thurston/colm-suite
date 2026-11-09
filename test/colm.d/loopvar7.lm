@@ -1,0 +1,18 @@
+# A write inside the variable of a loop over a list.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def item
+	A: int
+	[id]
+
+parse P: item[ "x" ]
+L: list<item> = new list<item>()
+L->push_tail( P )
+for E: item in L
+	E.A = 4
+print( "done\n" )
+##### COMP_ERR #####
+15:2: cannot write to E, the variable of a loop over a list or a map

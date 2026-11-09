@@ -1,0 +1,9 @@
+# An assignment to the int variable of a loop over a list of ints. It was a
+# type mismatch before the loop variable's own check.
+L: list<int> = new list<int>()
+L->push_tail( 1 )
+for E: int in L
+	E = 2
+print( "done\n" )
+##### COMP_ERR #####
+6:2: cannot assign to E, the variable of a loop over a list or a map

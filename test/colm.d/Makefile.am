@@ -180,6 +180,7 @@ EXTRA_DIST = \
 	inputtree2.lm \
 	ioerr1.lm \
 	ioerr2.lm \
+	ioerr3.lm \
 	island.lm \
 	itemtype1.lm \
 	itemtype2.lm \

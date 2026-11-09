@@ -1,0 +1,10 @@
+# A redef of il is an error. Before, it took the name il over for the
+# program's own def.
+lex
+	token name /[a-z]+/
+	ignore /[ ]+/
+end
+redef il
+	[name]
+##### COMP_ERR #####
+7:7: il is a predefined type

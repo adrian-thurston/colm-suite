@@ -314,6 +314,9 @@ void BaseParser::defineToken( const InputLoc &loc, String name, LexJoin *join,
 	if ( !ignore && name == 0 )
 		error(loc) << "tokens must have a name" << endp;
 
+	if ( name != 0 )
+		checkPredefined( loc, curNspace(), name );
+
 	/* Give a default name to ignores. */ 
 	if ( name == 0 )
 		name.setAs( 32, "_ignore_%.4x", pd->nextTokenId );
@@ -368,10 +371,25 @@ void BaseParser::defineToken( const InputLoc &loc, String name, LexJoin *join,
 	}
 }
 
+/* The root namespace holds colm's own types: il, the ignore list that holds
+ * the ignored text around a tree, and _notoken. A program can't define a
+ * type of either name there. */
+void BaseParser::checkPredefined( const InputLoc &loc, Namespace *nspace,
+		const String &name )
+{
+	if ( nspace == pd->rootNamespace &&
+			( strcmp( name.data, "il" ) == 0 || strcmp( name.data, "_notoken" ) == 0 ) )
+	{
+		error(loc) << name << " is a predefined type" << endp;
+	}
+}
+
 void BaseParser::zeroDef( const InputLoc &loc, const String &name )
 {
 	if ( !insideRegion() )
 		error(loc) << "zero token should be inside token" << endp;
+
+	checkPredefined( loc, curNspace(), name );
 
 	RegionSet *regionSet = regionStack.top();
 	Namespace *nspace = curNspace();
@@ -1052,6 +1070,8 @@ void BaseParser::structVarDef( const InputLoc &loc, ObjectField *objField )
 void BaseParser::structHead( const InputLoc &loc, Namespace *inNspace,
 		const String &data, ObjectDef::Type objectType )
 {
+	checkPredefined( loc, inNspace, data );
+
 	ObjectDef *objectDef = ObjectDef::cons( objectType,
 			data, pd->nextObjectId++ ); 
 
@@ -1104,6 +1124,8 @@ PredDecl *BaseParser::predTokenLit( const InputLoc &loc, const String &data,
 void BaseParser::alias( const InputLoc &loc, const String &data, TypeRef *typeRef )
 {
 	Namespace *nspace = curNspace();
+	checkPredefined( loc, nspace, data );
+
 	TypeAlias *typeAlias = new TypeAlias( loc, nspace, data, typeRef );
 	nspace->typeAliasList.append( typeAlias );
 }

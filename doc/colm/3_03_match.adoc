@@ -339,6 +339,8 @@ order. It does check that none of them is nil: a nil child stops the
 program, which prints `fatal: make_tree with a nil child` and exits with
 status 1. A literal in backtick form has no `typeid`, so the def's production
 must use named tokens, such as `+token equals /'='/+`, not literals.
+`make_tree` also makes a list of ignored text, as <<ignore-lists,the last
+section>> explains.
 
 [source,colm]
 .pat_make.lm
@@ -355,3 +357,49 @@ include::code/pat_make.exp[]
 `make_setting` makes a token of each type, and a setting from them. The
 tokens have no ignored text, so the setting has no spaces. It matches a
 pattern with spaces all the same, since ignored text doesn't count.
+
+[[ignore-lists]]
+== Ignored text: `il`
+
+The ignored text around a tree is kept in trees of the type `il`, ignore
+lists. An ignore list holds the ignore tokens of one stretch of ignored text,
+in order, as its children. A plain loop, a pattern and a label never see
+ignore lists. A loop over `with_ignore( T )`, in
+xref:1_06_iterators.adoc#iterators[the iterators chapter], visits them, with
+`il` as the loop variable's type. Printing an `il`, or `%I`, gives its text.
+`$I` gives nothing, since all of it is ignored text.
+
+`+make_tree( typeid<il>, Ignore, ... )+` makes an ignore list of the tokens it
+is given, which are ignore tokens, such as ones `make_token` makes.
+`make_tree( typeid<il> )` makes an empty one. Assigning an ignore list to the
+loop variable puts it in place of the one the loop is at.
+
+This program prints the comments in its input, then puts a line break in
+place of each stretch of ignored text:
+
+[source,colm]
+.pat_ignore.lm
+----
+include::code/pat_ignore.lm[]
+----
+
+It reads this input:
+
+----
+include::code/pat_ignore.in[]
+----
+
+and prints:
+
+----
+include::code/pat_ignore.exp[]
+----
+
+`child( I )` visits the tokens of the ignore list, and `comment` as the loop
+variable's type picks out the comments. `NL` is declared as an `il` because
+`make_tree` gives an `any`, which can't be assigned to the loop variable.
+
+An `il` has no text of its own, so `cast<il> X` is an error, and so is
+`make_token( typeid<il>, Text )`. Outside a namespace or context, a program
+can't define a type named `il`, nor one named `_notoken`, a type colm keeps
+for its own use.

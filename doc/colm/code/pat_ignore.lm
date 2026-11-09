@@ -1,0 +1,22 @@
+lex
+	token word /[a-z]+/
+	ignore comment /'#' [^\n]*/
+	ignore ws /[ \t\n]+/
+end
+
+def text
+	[word*]
+
+parse T: text[ stdin ]
+
+# Print the comments, then put a line break in place of each list of ignored
+# text.
+for I: il in with_ignore( T ) {
+	for C: comment in child( I )
+		print( "comment: ", $C, "\n" )
+
+	NL: il = make_tree( typeid<il>, make_token( typeid<ws>, "\n" ) )
+	I = NL
+}
+
+print( T )

@@ -1,0 +1,8 @@
+# il is colm's type for ignored text. A token can't take its name outside a
+# namespace.
+lex
+	token il /'q'/
+	ignore /[ ]+/
+end
+##### COMP_ERR #####
+4:8: il is a predefined type

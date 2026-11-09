@@ -1,0 +1,5 @@
+# make_token can't make an il. An il holds ignored text in its children and
+# has no text of its own, so the text would never be printed or freed.
+A: any = make_token( typeid<il>, "xyz" )
+##### COMP_ERR #####
+3:10: make_token cannot make an il

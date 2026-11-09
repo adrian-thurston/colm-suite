@@ -111,6 +111,7 @@ set(MANUAL_CODE
 	code/pat_change.lm       code/pat_change.exp
 	code/pat_cons.lm         code/pat_cons.exp         code/pat_cons.in
 	code/pat_copy.lm         code/pat_copy.exp
+	code/pat_ignore.lm       code/pat_ignore.exp       code/pat_ignore.in
 	code/pat_make.lm         code/pat_make.exp
 	code/pat_match.lm        code/pat_match.exp        code/pat_match.in
 	code/pat_require.lm      code/pat_require.exp      code/pat_require.in

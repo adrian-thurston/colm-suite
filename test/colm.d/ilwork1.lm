@@ -1,0 +1,35 @@
+# il stays a type a program can use. A with_ignore loop gives the lists of
+# ignored text in a tree, and make_tree makes one: an empty one here, which
+# takes the ignored text out. A namespace can have a type of its own named il,
+# which cast and make_token take like any token.
+namespace n
+	lex
+		token il /'q'/
+	end
+end
+
+lex
+	token word /[a-z]+/
+	ignore ws /[ ]+/
+end
+
+def text
+	[word*]
+
+parse T: text[ " ab  cd " ]
+for I: il in with_ignore( T ) {
+	print( "il: <", I, "> <", %I, "> <", $I, ">\n" )
+	E: il = make_tree( typeid<il> )
+	I = E
+}
+print( "text: <", T, ">\n" )
+
+Q: n::il = make_token( typeid<n::il>, "q" )
+R: n::il = cast<n::il> Q
+print( "n::il: ", Q, " ", R, "\n" )
+##### EXP #####
+il: < > < > <>
+il: <  > <  > <>
+il: < > < > <>
+text: <abcd>
+n::il: q q

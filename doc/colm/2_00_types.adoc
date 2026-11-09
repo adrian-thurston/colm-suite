@@ -17,7 +17,8 @@ The types are:
   chapter]
 * trees: each token and each def is a type, as xref:3_01_lex.adoc#lexing[the
   lexing chapter] and xref:3_02_parse.adoc#parsing[the parsing chapter]
-  explain, and `any` holds any tree
+  explain, `any` holds any tree, and `il` holds ignored text, as
+  xref:3_03_match.adoc#ignore-lists[the patterns chapter] explains
 * structs, in xref:2_02_list_map_struct_alias.adoc#structs[the structs
   section]
 * `list<T>` and `map<K, V>`, and their elements, `list_el<T>` and

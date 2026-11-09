@@ -76,6 +76,9 @@ typedef struct colm_stream
 	struct stream_impl *impl;
 } stream_t;
 
+/* In a list, an element's list_prev is the element before it, and the head's
+ * points to the head itself, so an element in a list always has one. An
+ * element that no list holds, new or detached, has both links nil. */
 #define COLM_LIST_EL_SIZE 2
 typedef struct colm_list_el
 {

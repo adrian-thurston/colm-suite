@@ -110,8 +110,9 @@ tree_t *colm_rev_list_iter_advance( program_t *prg, tree_t ***psp, generic_iter_
 		/* Have a previous item, continue searching from there. */
 		//iterFind( prg, psp, iter, false );
 
+		/* The head points to itself, and ends the walk. */
 		list_el_t *list_el = (list_el_t*)iter->ref.kid;
-		list_el = list_el->list_prev;
+		list_el = list_el->list_prev != list_el ? list_el->list_prev : 0;
 		iter->ref.kid = (kid_t*)list_el;
 		iter->ref.next = 0;
 	}

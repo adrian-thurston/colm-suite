@@ -196,6 +196,8 @@ EXTRA_DIST = \
 	list2.lm \
 	list3.lm \
 	list4.lm \
+	listel1.lm \
+	listel2.lm \
 	listhead1.lm \
 	listmsg1.lm \
 	listpop1.lm \
@@ -444,6 +446,7 @@ EXTRA_DIST = \
 	undofrag2.lm \
 	undofrag3.lm \
 	undolist1.lm \
+	undolist2.lm \
 	undomap1.lm \
 	undomap2.lm \
 	undomap3.lm \

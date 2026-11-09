@@ -1,0 +1,29 @@
+# A production with no elements has no $1 or @1. colm used to crash on one,
+# writing the commit code.
+
+lex
+	literal `;
+	token number /[0-9]+/
+	ignore /space+/
+end
+
+def opt
+	[number] :Num
+|	[] :None
+
+def line
+	[opt `;] :Line
+
+def lines
+	[line*]
+
+reduction Sum
+	opt :None
+	{
+		printf( "%p\n", (void*)$1 );
+	}
+end
+
+reduce Sum lines[ stdin ]
+##### COMP_ERR #####
+23:26: $1 in the reduction action for opt :None is past the end of the production, which has no elements

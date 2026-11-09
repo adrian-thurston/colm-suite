@@ -932,6 +932,27 @@ void Compiler::findReductionActionProds()
 			}
 
 			rai->production = prod;
+
+			/* A $N, @N or $*N must name an element of the production. */
+			long length = prod->prodElList->length();
+			for ( ReduceTextItemList::Iter i = rai->itemList; i.lte(); i++ ) {
+				if ( ( i->type == ReduceTextItem::RhsRef ||
+						i->type == ReduceTextItem::RhsLoc ||
+						i->type == ReduceTextItem::TreeRef ) && i->n > length )
+				{
+					std::ostream &out = error( i->loc );
+					out << i->txt << " in the reduction action for " <<
+							prod->prodName->name << " :" << prod->_name <<
+							" is past the end of the production, which has ";
+					if ( length == 0 )
+						out << "no elements";
+					else if ( length == 1 )
+						out << "1 element";
+					else
+						out << length << " elements";
+					out << endp;
+				}
+			}
 		}
 	}
 }

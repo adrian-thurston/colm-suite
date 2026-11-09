@@ -1,0 +1,24 @@
+# $*N past the end of the action's production is an error, as $N and @N are.
+
+lex
+	literal `;
+	token number /[0-9]+/
+	ignore /space+/
+end
+
+def line
+	[number `;] :Line
+
+def lines
+	[line*]
+
+reduction Sum
+	line :Line
+	{
+		colm_tree *t = $*5;
+	}
+end
+
+reduce Sum lines[ stdin ]
+##### COMP_ERR #####
+18:18: $*5 in the reduction action for line :Line is past the end of the production, which has 2 elements

@@ -328,6 +328,11 @@ EXTRA_DIST = \
 	redecl12.lm \
 	rediv.lm \
 	reduceloc1.lm \
+	reducepast1.lm \
+	reducepast2.lm \
+	reducepast3.lm \
+	reducepast4.lm \
+	reducepast5.lm \
 	ref1.lm \
 	ref2.lm \
 	ref3.lm \

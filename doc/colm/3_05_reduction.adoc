@@ -217,6 +217,13 @@ label `name`. An element without a label can be named by its type, when no
 other element of the production has that type. For a def, this is a pointer
 to the element's value. For a token, it is a `colm_data *`. Its `data` is the
 token's text, which isn't NUL-terminated, so read it with its `length`.
+An `N` past the production's last element, in `$N` or `@N`, is a compile
+error. For `@3` in the action for `line :Line`, whose production has two
+elements, colm reports:
++
+----
+@3 in the reduction action for line :Line is past the end of the production, which has 2 elements
+----
 
 `@N`, `@name`::
 The location of a token element, a `colm_location *`. Its `line`, `column`

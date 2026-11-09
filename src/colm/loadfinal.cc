@@ -26,6 +26,8 @@
  * each bring in the appropriate dependency, then include this file. */
 
 #include <stdbool.h>
+#include <stdlib.h>
+#include <limits.h>
 #include <string.h>
 #include <iostream>
 
@@ -2639,6 +2641,14 @@ struct LoadColm
 		namespaceStack.pop();
 	}
 
+	/* The N of a $N, @N or $*N. One too big for an int is past the end of
+	 * any production. */
+	static int refNumber( const char *digits )
+	{
+		long n = strtol( digits, 0, 10 );
+		return n > INT_MAX ? INT_MAX : n;
+	}
+
 	void walkRedItem( host_item item, ReduceTextItemList &list )
 	{
 		if ( item.RED_LHS() != 0 ) {
@@ -2667,19 +2677,25 @@ struct LoadColm
 		else if ( item.RED_RHS_NREF() != 0 ) {
 			ReduceTextItem *rti = new ReduceTextItem;
 			rti->type = ReduceTextItem::RhsRef;
-			rti->n = atoi( item.RED_RHS_NREF().text().c_str() + 1 );
+			rti->txt = item.RED_RHS_NREF().text().c_str();
+			rti->n = refNumber( rti->txt.data + 1 );
+			rti->loc = item.RED_RHS_NREF().loc();
 			list.append( rti );
 		}
 		else if ( item.RED_TREE_NREF() != 0 ) {
 			ReduceTextItem *rti = new ReduceTextItem;
 			rti->type = ReduceTextItem::TreeRef;
-			rti->n = atoi( item.RED_TREE_NREF().text().c_str() + 2 );
+			rti->txt = item.RED_TREE_NREF().text().c_str();
+			rti->n = refNumber( rti->txt.data + 2 );
+			rti->loc = item.RED_TREE_NREF().loc();
 			list.append( rti );
 		}
 		else if ( item.RED_RHS_NLOC() != 0 ) {
 			ReduceTextItem *rti = new ReduceTextItem;
 			rti->type = ReduceTextItem::RhsLoc;
-			rti->n = atoi( item.RED_RHS_NLOC().text().c_str() + 1 );
+			rti->txt = item.RED_RHS_NLOC().text().c_str();
+			rti->n = refNumber( rti->txt.data + 1 );
+			rti->loc = item.RED_RHS_NLOC().loc();
 			list.append( rti );
 		}
 		else if ( item.RED_OPEN() != 0 ) {

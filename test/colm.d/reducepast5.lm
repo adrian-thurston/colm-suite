@@ -1,0 +1,25 @@
+# An N too big for an int is past the end of any production. colm used to
+# read @4294967298 as @2, and @2147483649 crashed it.
+
+lex
+	literal `;
+	token number /[0-9]+/
+	ignore /space+/
+end
+
+def line
+	[number `;] :Line
+
+def lines
+	[line*]
+
+reduction Sum
+	line :Line
+	{
+		printf( "%ld\n", @4294967298->line );
+	}
+end
+
+reduce Sum lines[ stdin ]
+##### COMP_ERR #####
+19:20: @4294967298 in the reduction action for line :Line is past the end of the production, which has 2 elements

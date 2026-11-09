@@ -1,0 +1,25 @@
+# $N two or more past the end of the action's production is an error. colm
+# used to crash on it, writing the commit code.
+
+lex
+	literal `;
+	token number /[0-9]+/
+	ignore /space+/
+end
+
+def line
+	[number `;] :Line
+
+def lines
+	[line*]
+
+reduction Sum
+	line :Line
+	{
+		printf( "%p\n", (void*)$9 );
+	}
+end
+
+reduce Sum lines[ stdin ]
+##### COMP_ERR #####
+19:26: $9 in the reduction action for line :Line is past the end of the production, which has 2 elements

@@ -1,0 +1,16 @@
+# A ref to a def can't be cast to a token type either.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def start
+	[id*]
+void show( R: ref<start> )
+{
+	T: id = cast<id> R
+	print( T.line, "\n" )
+}
+parse S: start[ "ab cd" ]
+show( S )
+##### COMP_ERR #####
+10:10: cannot cast a def to a token type

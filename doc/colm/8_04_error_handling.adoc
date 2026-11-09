@@ -251,7 +251,8 @@ Some mistakes stop the program where they happen:
 * `reject` outside a production's action, in a function or an iterator
   called from the top-level code, a token action, a `preeof` block or a C or
   {cpp} host, as xref:3_02_parse.adoc#reject[the parsing chapter] describes;
-* a `cast` of a nil tree or str, as xref:1_02_expressions.adoc#cast[the
+* a `cast` of a nil tree or str, or of an `any` holding a tree of the other
+  kind from the type it is cast to, as xref:1_02_expressions.adoc#cast[the
   expressions chapter] describes;
 * reading `@N` or `@name` in a reduction action when the element has no
   location, as xref:3_05_reduction.adoc#reductions[the reductions chapter]

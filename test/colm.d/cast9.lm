@@ -1,0 +1,14 @@
+# A def can't be cast to a token type. A token's text is its own, and a def's
+# is in its children, so the cast gave a token with no text, and reading its
+# line segfaulted.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def start
+	[id*]
+parse S: start[ "ab cd" ]
+T: id = cast<id> S
+print( T.line, "\n" )
+##### COMP_ERR #####
+11:9: cannot cast a def to a token type

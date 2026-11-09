@@ -34,6 +34,12 @@ EXTRA_DIST = \
 	cast6.lm \
 	cast7.lm \
 	cast8.lm \
+	cast9.lm \
+	cast10.lm \
+	cast11.lm \
+	cast12.lm \
+	cast13.lm \
+	cast14.lm \
 	collect.lm \
 	commitbt.lm \
 	comperr1.lm \

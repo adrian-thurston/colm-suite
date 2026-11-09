@@ -118,6 +118,19 @@ the error is `loop variable V must have the list's value type`. Given
 something that isn't a list, it is a compile error too, `rev_list_iter takes
 a list`.
 
+The variable can't change either. Assigning to it is a compile error,
+`cannot assign to V, the variable of a loop over a list or a map`, and so is
+changing something inside it, as `V.A = 1` does: `cannot write to V, the
+variable of a loop over a list or a map`. Nor can it, or anything inside it,
+be given to a `ref` parameter, of a function or an iterator, or looped over,
+as `for X: id in V` does: that is `cannot take a reference to V, the
+variable of a loop over a list or a map`. Nor can it be yielded, as
+xref:1_06_iterators.adoc#iterators[the iterators chapter] says. Copy it to a
+local first, as `C: T = V` does, and use the copy. To change a value in the
+list, set an element's `value` in a loop over the elements. A list, a map or
+a struct that the variable holds can still change, as `V->push_tail( X )`
+shows.
+
 A list variable is nil until it is given a list, with `new`. Calling one of
 a nil list's functions or reading one of its fields stops the program, and so
 does a `for` over it, as a loop over a nil tree does
@@ -181,6 +194,9 @@ A map can't change inside a `for` over it.
 The variable of a `for` over a map takes the values as in a loop over a
 list, or is `map_el<K, V>`, for the elements. Any other type is a compile
 error, `loop variable V must have the map's value type or its element type`.
+
+The variable of a loop over a map can't change, be passed as a `ref`, be
+looped over or be yielded either, as in a loop over a list.
 
 A map variable is nil until it is given a map, with `new`. Calling one of a
 nil map's functions, reading one of its fields or a `for` over it stops the

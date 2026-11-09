@@ -250,6 +250,20 @@ static map_el_t *detach_el_check( program_t *prg, map_t *map, struct_t *s, short
 	return map_el;
 }
 
+/* A push of a nil element, or of one that is in a list already, this one or
+ * another, stops the program. An element in a list always has a list_prev:
+ * the head's points to itself. A new element has none, and colm_list_detach
+ * clears it. */
+static list_el_t *push_el_check( program_t *prg, struct_t *s, short gen_id )
+{
+	if ( s == 0 )
+		runtime_error( prg, "pushing a nil element" );
+	list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
+	if ( list_el->list_prev != 0 )
+		runtime_error( prg, "pushing an element already in a list" );
+	return list_el;
+}
+
 /* A send to a nil parser stops the program. */
 static void parser_check( program_t *prg, parser_t *parser )
 {
@@ -4648,10 +4662,8 @@ again:
 				if ( list == 0 )
 					runtime_error( prg, "push to a nil list" );
 				struct_t *s = vm_pop_struct();
-				if ( s == 0 )
-					runtime_error( prg, "pushing a nil element" );
 
-				list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
+				list_el_t *list_el = push_el_check( prg, s, gen_id );
 				colm_list_prepend( list, list_el );
 
 				//colm_tree_upref( prg, prg->trueVal );
@@ -4668,10 +4680,8 @@ again:
 				if ( list == 0 )
 					runtime_error( prg, "push to a nil list" );
 				struct_t *s = vm_pop_struct();
-				if ( s == 0 )
-					runtime_error( prg, "pushing a nil element" );
 
-				list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
+				list_el_t *list_el = push_el_check( prg, s, gen_id );
 				colm_list_prepend( list, list_el );
 
 				//colm_tree_upref( prg, prg->trueVal );
@@ -4700,10 +4710,8 @@ again:
 				if ( list == 0 )
 					runtime_error( prg, "push to a nil list" );
 				struct_t *s = vm_pop_struct();
-				if ( s == 0 )
-					runtime_error( prg, "pushing a nil element" );
 
-				list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
+				list_el_t *list_el = push_el_check( prg, s, gen_id );
 				colm_list_append( list, list_el );
 
 				//colm_tree_upref( prg, prg->trueVal );
@@ -4720,10 +4728,8 @@ again:
 				if ( list == 0 )
 					runtime_error( prg, "push to a nil list" );
 				struct_t *s = vm_pop_struct();
-				if ( s == 0 )
-					runtime_error( prg, "pushing a nil element" );
 
-				list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
+				list_el_t *list_el = push_el_check( prg, s, gen_id );
 				colm_list_append( list, list_el );
 
 				//colm_tree_upref( prg, prg->trueVal );

@@ -1,0 +1,133 @@
+# A list's push_el, push_head_el and push_tail_el don't stop on an element no
+# list holds: a new one, or one a pop took off. Elements move between three
+# lists, off and onto either end, emptying each list on the way, and each
+# list's length and its walks both ways agree after. Out of a list, an
+# element's next and prev are nil.
+
+new A: list<int>()
+new B: list<int>()
+new C: list<int>()
+I: int = 0
+while ( I < 7 ) {
+	A->push_tail( I )
+	I = I + 1
+}
+Moves: int = 0
+R: int = 0
+while ( R < 20 ) {
+	# A onto B's tail, from A's head.
+	while ( A->length > 0 ) {
+		E: list_el<int> = A->pop_head_el()
+		B->push_tail_el( E )
+		Moves = Moves + 1
+	}
+	# Half of B onto C's head, from B's tail.
+	J: int = B->length / 2
+	while ( J > 0 ) {
+		E: list_el<int> = B->pop_tail_el()
+		C->push_head_el( E )
+		Moves = Moves + 1
+		J = J - 1
+	}
+	# The rest of B onto A, from B's head.
+	while ( B->length > 0 ) {
+		E: list_el<int> = B->pop_el()
+		A->push_el( E )
+		Moves = Moves + 1
+	}
+	# C onto A's tail, from C's tail.
+	while ( C->length > 0 ) {
+		E: list_el<int> = C->pop_tail_el()
+		A->push_tail_el( E )
+		Moves = Moves + 1
+	}
+	# One of A through C, a list of one, and back.
+	E: list_el<int> = A->pop_tail_el()
+	C->push_tail_el( E )
+	F: list_el<int> = C->pop_head_el()
+	A->push_head_el( F )
+	Moves = Moves + 2
+	R = R + 1
+}
+print "moves [Moves]\n"
+print "A [A->length]:"
+for V: int in A
+	print " [V]"
+print "\nA rev:"
+for V: int in rev_list_iter( A )
+	print " [V]"
+print "\nB [B->length] C [C->length]\n"
+
+N: int = 0
+X: list_el<int> = A->head_el
+while ( X ) {
+	N = N + 1
+	X = X->next
+}
+P: int = 0
+X = A->tail_el
+while ( X ) {
+	P = P + 1
+	X = X->prev
+}
+print "next walk [N], prev walk [P]\n"
+
+# New elements, pushed and pushed again after a pop.
+new D: list<int>()
+new G: list_el<int>()
+G->value = 100
+D->push_tail_el( G )
+new H: list_el<int>()
+H->value = 101
+D->push_head_el( H )
+G = D->pop_tail_el()
+D->push_el( G )
+print "D [D->length]:"
+for V: int in D
+	print " [V]"
+print "\nD rev:"
+for V: int in rev_list_iter( D )
+	print " [V]"
+print "\n"
+
+# Next and prev in a list, and out of it.
+new L: list<str>()
+L->push_tail( "a" )
+L->push_tail( "b" )
+L->push_tail( "c" )
+L->push_tail( "d" )
+if ( !L->head_el->prev )
+	print "head: prev nil\n"
+if ( !L->tail_el->next )
+	print "tail: next nil\n"
+Hd: list_el<str> = L->pop_head_el()
+if ( !Hd->next && !Hd->prev )
+	print "popped head [Hd->value]: next nil, prev nil\n"
+Tl: list_el<str> = L->pop_tail_el()
+if ( !Tl->next && !Tl->prev )
+	print "popped tail [Tl->value]: next nil, prev nil\n"
+print "L head [L->head_el->value], prev of its next [L->head_el->next->prev->value]\n"
+S: str = L->pop()
+O: list_el<str> = L->head_el
+if ( !O->next && !O->prev )
+	print "only [O->value]: next nil, prev nil\n"
+O = L->pop_el()
+if ( !O->next && !O->prev )
+	print "popped only [O->value]: next nil, prev nil\n"
+print "L [L->length]\n"
+##### EXP #####
+moves 380
+A 7: 0 1 2 3 4 5 6
+A rev: 6 5 4 3 2 1 0
+B 0 C 0
+next walk 7, prev walk 7
+D 2: 100 101
+D rev: 101 100
+head: prev nil
+tail: next nil
+popped head a: next nil, prev nil
+popped tail d: next nil, prev nil
+L head b, prev of its next b
+only c: next nil, prev nil
+popped only c: next nil, prev nil
+L 0

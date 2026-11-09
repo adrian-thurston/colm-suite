@@ -195,14 +195,15 @@ covers.
 
 Some mistakes stop the program where they happen:
 
-* popping a value off a list that is empty or nil, as
+* popping a value or an element off a list that is empty or nil, as
   xref:2_02_list_map_struct_alias.adoc#lists[the lists section] describes;
 * reading the `head`, `tail` or `top` of such a list;
 * any other use of a nil list or map, such as a push, an `insert` or a read
   of its `length`, as the lists section and
   xref:2_02_list_map_struct_alias.adoc#maps[the maps section] describe;
 * pushing a nil element onto a list, with `push_el`, `push_head_el` or
-  `push_tail_el`;
+  `push_tail_el`, or an element that a list holds already, as the lists
+  section describes;
 * giving a map's `insert_el` or `detach_el` nil, `insert_el` an element that
   a map holds already, or `detach_el` one that the map doesn't hold, as
   xref:2_02_list_map_struct_alias.adoc#maps[the maps section] describes;

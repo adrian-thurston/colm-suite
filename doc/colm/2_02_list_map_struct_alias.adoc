@@ -105,6 +105,18 @@ are.
   and `tail_el` are nil. Reading or setting a nil element's `value`, or
   reading its `next` or `prev`, stops the program. `for E: list_el<T> in L`
   gives the elements.
+* `pop_head_el()` and `pop_tail_el()` take the element off the head or the
+  tail and give it back, and `pop_el()` is `pop_head_el()`. On an empty or
+  nil list they stop the program, as `pop_head()` does. Out of the list, the
+  element's `next` and `prev` are nil.
+* `push_head_el( E )` and `push_tail_el( E )` put the element `E` in at the
+  head or the tail, and `push_el( E )` is `push_head_el( E )`. `E` is one a
+  pop took off, this list or another, or a new one, made with
+  `new list_el<T>()` and given a `value`. An element is in one list at most.
+  Giving a push an element that a list holds, this one or another, or nil,
+  stops the program, as
+  xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]
+  says.
 
 A list can't change inside a `for` over it: that is a compile error,
 `reference active, cannot write to object`.

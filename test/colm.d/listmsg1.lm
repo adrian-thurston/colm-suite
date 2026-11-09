@@ -42,6 +42,10 @@ elsif ( A == "nil_element" ) {
 	E: list_el<int>
 	L->push_el( E )
 }
+elsif ( A == "held_element" ) {
+	L->push( 1 )
+	L->push_tail_el( L->head_el )
+}
 
 print( "after\n" )
 ##### HOST #####
@@ -145,5 +149,12 @@ nil_element
 ##### EXP #####
 before
 fatal: pushing a nil element
+##### EXIT #####
+1
+##### ARGS #####
+held_element
+##### EXP #####
+before
+fatal: pushing an element already in a list
 ##### EXIT #####
 1

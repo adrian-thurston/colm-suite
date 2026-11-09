@@ -2292,7 +2292,7 @@ long colm_parse_frag( program_t *prg, tree_t **sp,
 		while ( pcr != PCR_DONE ) {
 
 			/* COROUTINE */
-			pda_run->suspended = true;
+			pda_run->suspended = pcr != PCR_REVERSE;
 			return pcr;
 			case PCR_REDUCTION:
 			case PCR_GENERATION:
@@ -2337,7 +2337,7 @@ long colm_parse_undo_frag( program_t *prg, tree_t **sp, struct pda_run *pda_run,
 		while ( pcr != PCR_DONE ) {
 
 			/* COROUTINE */
-			pda_run->suspended = true;
+			pda_run->suspended = pcr != PCR_REVERSE;
 			return pcr;
 			case PCR_REDUCTION:
 			case PCR_GENERATION:

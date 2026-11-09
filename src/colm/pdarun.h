@@ -363,9 +363,11 @@ struct pda_run
 	int in_reduction_action;
 
 	/* Set while colm_parse_frag() or colm_parse_undo_frag() has stopped for
-	 * code of the parse to run: an action, a preeof block or reverse code.
-	 * Starting another parse of this pda_run then would clobber the one
-	 * waiting, so the VM stops the program instead. */
+	 * an action or a preeof block of the parse to run. Starting another parse
+	 * of this pda_run then would clobber the one waiting, so the VM stops the
+	 * program instead. Not set while the parse waits on reverse code: a send
+	 * to this parser that the reverse code undoes was made after the steps
+	 * the parse is backing up to, so its undo has nothing to do. */
 	int suspended;
 };
 

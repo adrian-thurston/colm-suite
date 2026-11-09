@@ -384,6 +384,7 @@ EXTRA_DIST = \
 	sendown1.lm \
 	sendown2.lm \
 	sendown3.lm \
+	sendown4.lm \
 	sendstream.lm \
 	setchildnil1.lm \
 	sprintf.lm \

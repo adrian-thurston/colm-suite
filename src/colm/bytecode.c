@@ -250,11 +250,16 @@ static map_el_t *detach_el_check( program_t *prg, map_t *map, struct_t *s, short
 	return map_el;
 }
 
-/* A send to a nil parser stops the program. */
+/* A send to a nil parser stops the program. So does a send to a parser whose
+ * parse is stopped for an action of it to run, from that action, a function
+ * it calls or a parse it sends to: it would start a second parse of the
+ * parser, over the one waiting. */
 static void parser_check( program_t *prg, parser_t *parser )
 {
 	if ( parser == 0 )
 		runtime_error( prg, "send to a nil parser" );
+	if ( parser->pda_run->suspended )
+		runtime_error( prg, "send to a parser while one of its actions runs" );
 }
 
 static void colm_parser_set_context( program_t *prg, tree_t **sp, parser_t *parser, struct_t *val )
@@ -3066,6 +3071,13 @@ again:
 
 			read_parser( parser );
 			read_word( steps );
+
+			/* Backtracking over a send to a parser whose parse is stopped
+			 * for an action of it, as a parse an action sends to can, would
+			 * start a second parse of it too. */
+			if ( parser->pda_run->suspended )
+				runtime_error( prg, "backtracking over a send to a parser "
+						"while one of its actions runs" );
 
 			vm_push_parser( parser );
 

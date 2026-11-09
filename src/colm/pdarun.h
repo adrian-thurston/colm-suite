@@ -361,6 +361,12 @@ struct pda_run
 
 	/* Set while a production's action runs, the only code that can reject. */
 	int in_reduction_action;
+
+	/* Set while colm_parse_frag() or colm_parse_undo_frag() has stopped for
+	 * code of the parse to run: an action, a preeof block or reverse code.
+	 * Starting another parse of this pda_run then would clobber the one
+	 * waiting, so the VM stops the program instead. */
+	int suspended;
 };
 
 void colm_pda_init( struct colm_program *prg, struct pda_run *pda_run,

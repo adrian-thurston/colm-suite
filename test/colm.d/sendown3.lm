@@ -1,0 +1,44 @@
+# Two parsers can send to each other from their actions, as long as neither
+# sends to the other while one of the other's actions runs: Q's action sends
+# to P, and later, once that parse of P is done, P's action sends to Q. A
+# parser that an action sent to can be sent to again once the action is
+# over.
+lex
+	literal `a `b `p `q
+	ignore /space+/
+end
+
+def qitem
+	[`a]
+	{
+		print( "qitem\n" )
+		send P ["p "]
+	}
+
+def qstart
+	[qitem `b `b]
+
+def pitem
+	[`p]
+	{
+		print( "pitem\n" )
+		send Q ["b"]
+	}
+
+def pstart
+	[pitem `q]
+
+global P: parser<pstart> = new parser<pstart>()
+global Q: parser<qstart> = new parser<qstart>()
+
+send Q ["a b"]
+send P ["q"]
+QS: qstart = Q->finish()
+PS: pstart = P->finish()
+print( "Q: ", QS, "\n" )
+print( "P: ", PS, "\n" )
+##### EXP #####
+qitem
+pitem
+Q: a bb
+P: p q

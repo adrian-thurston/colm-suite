@@ -1,0 +1,150 @@
+# A send to a parser while one of its actions runs stops the program: from a
+# production's action, with each kind of send (text, a tree, a stream,
+# nothing, and finish()), from a token action, from a preeof block, from a
+# function a production's action calls, and from the action of a second
+# parser that a production's action sends to. The host sends standard error
+# to standard output, so the message is in the output, after what the
+# program printed before it. The stop ends the host too: it never gets back
+# from colm_run_program.
+global A: str = argv->pop()
+
+lex
+	token word /[a-z]+/
+	{
+		if ( A == "token" )
+			send P [" xy "]
+		input->push( make_token( typeid<word>, input->pull( match_length ) ) )
+	}
+	ignore /space+/
+
+	preeof {
+		if ( A == "preeof" )
+			send P [" xy "]
+	}
+end
+
+void more()
+{
+	send P [" xy "]
+}
+
+def item
+	[word]
+	{
+		if ( A == "text" )
+			send P [" xy "]
+		elsif ( A == "tree" )
+			send_tree P [$r1]
+		elsif ( A == "stream" )
+			send P [stdin]
+		elsif ( A == "nothing" )
+			send P []
+		elsif ( A == "finish" )
+			T: start = P->finish()
+		elsif ( A == "function" )
+			more()
+		elsif ( A == "other" )
+			send Q [$r1 " "]
+	}
+
+def start
+	[item*]
+
+def qitem
+	[word]
+	{
+		send P [" xy "]
+	}
+
+def qstart
+	[qitem*]
+
+global P: parser<start> = new parser<start>()
+global Q: parser<qstart> = new parser<qstart>()
+
+print( "before\n" )
+send P ["ab cd"]
+S: start = P->finish()
+print( "parsed: ", S, "\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+text
+##### EXP #####
+before
+fatal: send to a parser while one of its actions runs
+##### EXIT #####
+1
+##### ARGS #####
+tree
+##### EXP #####
+before
+fatal: send to a parser while one of its actions runs
+##### EXIT #####
+1
+##### ARGS #####
+stream
+##### EXP #####
+before
+fatal: send to a parser while one of its actions runs
+##### EXIT #####
+1
+##### ARGS #####
+nothing
+##### EXP #####
+before
+fatal: send to a parser while one of its actions runs
+##### EXIT #####
+1
+##### ARGS #####
+finish
+##### EXP #####
+before
+fatal: send to a parser while one of its actions runs
+##### EXIT #####
+1
+##### ARGS #####
+token
+##### EXP #####
+before
+fatal: send to a parser while one of its actions runs
+##### EXIT #####
+1
+##### ARGS #####
+preeof
+##### EXP #####
+before
+fatal: send to a parser while one of its actions runs
+##### EXIT #####
+1
+##### ARGS #####
+function
+##### EXP #####
+before
+fatal: send to a parser while one of its actions runs
+##### EXIT #####
+1
+##### ARGS #####
+other
+##### EXP #####
+before
+fatal: send to a parser while one of its actions runs
+##### EXIT #####
+1

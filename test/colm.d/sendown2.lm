@@ -1,0 +1,70 @@
+# Backtracking over a send to a parser while one of its actions runs stops
+# the program. Q's action sends to P while P is waiting for input. Later, P's
+# action sends to Q, which fails the first alternative of qstart, so Q
+# backtracks over its action, and would undo its send to P in the middle of
+# P's action. The host sends standard error to standard output, so the
+# message is in the output, after what the program printed before it. The
+# stop ends the host too: it never gets back from colm_run_program.
+lex
+	literal `a `c `x `y `p
+end
+
+def qitem
+	[`a]
+	{
+		print( "qitem\n" )
+		send P ["p"]
+	}
+
+def qstart
+	[qitem `c `x]
+|	[`a `c `y]
+
+global Once: bool = false
+
+def pitem
+	[`p]
+	{
+		if ( !Once ) {
+			Once = true
+			print( "pitem\n" )
+			send Q ["y"]
+		}
+	}
+
+def pstart
+	[pitem*]
+
+global P: parser<pstart> = new parser<pstart>()
+global Q: parser<qstart> = new parser<qstart>()
+
+print( "before\n" )
+send Q ["ac"]
+send P ["p"]
+print( "after\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### EXP #####
+before
+qitem
+pitem
+fatal: backtracking over a send to a parser while one of its actions runs
+##### EXIT #####
+1

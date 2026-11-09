@@ -1728,14 +1728,13 @@ again:
 			short field;
 			read_half( field );
 
-			debug( prg, REALM_BYTECODE, "IN_GET_STRUCT_BKT\n" );
+			debug( prg, REALM_BYTECODE, "IN_GET_STRUCT_BKT %hd\n", field );
 
+			/* The object is a struct, as in IN_GET_STRUCT_WV. */
 			tree_t *obj = vm_pop_tree();
-			colm_tree_downref( prg, sp, obj );
-
-			tree_t *split = get_field_split( prg, obj, field );
-			colm_tree_upref( prg, split );
-			vm_push_tree( split );
+			tree_t *val = colm_struct_get_field( obj, tree_t*, field );
+			colm_tree_upref( prg, val );
+			vm_push_tree( val );
 			break;
 		}
 		case IN_SET_STRUCT_WC: {
@@ -5608,6 +5607,13 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_SET_FIELD_TREE_BKT %hd\n", field );
 
 			colm_tree_downref( prg, sp, val );
+			break;
+		}
+		case IN_GET_STRUCT_BKT: {
+			debug_decl( short, field );
+			debug_read_half( field );
+
+			debug( prg, REALM_BYTECODE, "IN_GET_STRUCT_BKT %hd\n", field );
 			break;
 		}
 		case IN_SET_STRUCT_BKT: {

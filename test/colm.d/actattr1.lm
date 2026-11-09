@@ -1,0 +1,74 @@
+#
+# In a production's action, setting an attribute of a global's tree, or of a
+# context variable's tree, stays when the parse keeps the reduction, and is
+# undone when the parser backs up over it. The first argument picks the
+# input: "keep" ends it with ";", which keeps the reduction of wrapper, and
+# "back" ends it with "!", which makes the parser back up over it. The second
+# picks the tree: "global" or "context".
+#
+
+lex
+	token id /[a-z]+/
+	token number /[0-9]+/
+	literal `; `!
+	ignore /[ \n]+/
+end
+
+def holder
+	S: str
+	[id]
+
+global B: str = argv->pop()
+global K: str = argv->pop()
+global G: holder = cons holder [ "g" ]
+
+context ctx
+	H: holder
+
+	def item
+		[id number]
+
+	def wrapper
+		[item]
+		{
+			if K == 'global'
+				G.S = "set"
+			elsif K == 'context'
+				H.S = "set"
+		}
+
+	def start
+		[wrapper id `;]
+	|	[item id `!]
+end
+
+print( B, ' ', K, '\n' )
+G.S = "before"
+C: ctx = new ctx()
+C->H = cons holder [ "h" ]
+C->H.S = "before"
+In: str = "x 3 y ;"
+if B == 'back'
+	In = "x 3 y !"
+parse S: ctx::start( C )[ In ]
+print( S, ' ', G.S, ' ', C->H.S, '\n' )
+##### ARGS #####
+keep global
+##### EXP #####
+keep global
+x 3 y ; set before
+##### ARGS #####
+back global
+##### EXP #####
+back global
+x 3 y ! before before
+##### ARGS #####
+keep context
+##### EXP #####
+keep context
+x 3 y ; before set
+##### ARGS #####
+back context
+##### EXP #####
+back context
+x 3 y ! before before

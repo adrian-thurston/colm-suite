@@ -7,6 +7,7 @@ EXTRA_DIST = \
 	accumbt3.lm \
 	accumbt4.lm \
 	accumbt5.lm \
+	actattr1.lm \
 	actlong1.lm \
 	argv1.lm \
 	argv2.lm \

@@ -584,6 +584,40 @@ static tree_t *get_local_split( program_t *prg, execution_t *exec, long field )
 	return split;
 }
 
+/* Reads the child table that follows a RHS_VAL instruction: a count, then a
+ * production number and a child position for each production that has the
+ * child. Gives the child's position in the production of obj, or -1 if that
+ * production doesn't have the child, and moves past the table. */
+static long rhs_val_pos( tree_t *obj, code_t **pinstr )
+{
+	code_t *instr = *pinstr;
+	long pos = -1;
+	int i;
+	uchar len;
+
+	read_byte( len );
+	for ( i = 0; i < len; i++ ) {
+		uchar prod_num, child_num;
+		read_byte( prod_num );
+		read_byte( child_num );
+		if ( pos < 0 && obj->prod_num == prod_num )
+			pos = child_num;
+	}
+
+	*pinstr = instr;
+	return pos;
+}
+
+/* Gives obj's child at pos, ready to write: copied first if it is shared, as
+ * get_field_split does for an attribute. */
+static tree_t *get_rhs_el_split( program_t *prg, tree_t *obj, long pos )
+{
+	kid_t *kid = get_rhs_el_kid( prg, obj, pos );
+	tree_t *split = split_tree( prg, kid->tree );
+	kid->tree = split;
+	return split;
+}
+
 static void downref_local_trees( program_t *prg, tree_t **sp,
 		execution_t *exec, struct local_info *locals, long locals_len )
 {
@@ -1871,43 +1905,75 @@ again:
 		}
 		case IN_GET_RHS_VAL_R: {
 			debug( prg, REALM_BYTECODE, "IN_GET_RHS_VAL_R\n" );
-			int i, done = 0;
-			uchar len;
 
 			tree_t *obj = vm_pop_tree(), *val = 0;
 			if ( obj == 0 )
 				runtime_error( prg, "reading a child of a nil tree" );
 			colm_tree_downref( prg, sp, obj );
 
-			read_byte( len );
-			for ( i = 0; i < len; i++ ) {
-				uchar prod_num, child_num;
-				read_byte( prod_num );
-				read_byte( child_num );
-				if ( !done && obj->prod_num == prod_num ) {
-					val = get_rhs_el( prg, obj, child_num );
-					done = 1;
-				}
-			}
+			long pos = rhs_val_pos( obj, &instr );
+			if ( pos >= 0 )
+				val = get_rhs_el( prg, obj, pos );
 
 			colm_tree_upref( prg, val );
 			vm_push_tree( val );
 			break;
 		}
-		case IN_GET_RHS_VAL_WC:
-			fatal( "UNIMPLEMENTED INSRUCTION: IN_GET_RHS_VAL_WC\n" );
-			break;
-		case IN_GET_RHS_VAL_WV:
-			fatal( "UNIMPLEMENTED INSRUCTION: IN_GET_RHS_VAL_WV\n" );
-			break;
-		case IN_GET_RHS_VAL_BKT:
-			fatal( "UNIMPLEMENTED INSRUCTION: IN_GET_RHS_VAL_BKT\n" );
-			break;
+		case IN_GET_RHS_VAL_WC: {
+			debug( prg, REALM_BYTECODE, "IN_GET_RHS_VAL_WC\n" );
 
-		case IN_SET_RHS_VAL_WC:
+			tree_t *obj = vm_pop_tree(), *split = 0;
+			if ( obj == 0 )
+				runtime_error( prg, "reading a child of a nil tree" );
+			colm_tree_downref( prg, sp, obj );
+
+			/* A child the production doesn't have is nil, and the write that
+			 * follows stops on it. */
+			long pos = rhs_val_pos( obj, &instr );
+			if ( pos >= 0 )
+				split = get_rhs_el_split( prg, obj, pos );
+
+			colm_tree_upref( prg, split );
+			vm_push_tree( split );
+			break;
+		}
+		case IN_GET_RHS_VAL_WV: {
+			debug( prg, REALM_BYTECODE, "IN_GET_RHS_VAL_WV\n" );
+
+			tree_t *obj = vm_pop_tree(), *split = 0;
+			if ( obj == 0 )
+				runtime_error( prg, "reading a child of a nil tree" );
+			colm_tree_downref( prg, sp, obj );
+
+			long pos = rhs_val_pos( obj, &instr );
+			if ( pos >= 0 ) {
+				split = get_rhs_el_split( prg, obj, pos );
+
+				/* Set up the reverse instruction. */
+				rcode_code( exec, IN_GET_RHS_VAL_BKT );
+				rcode_half( exec, pos );
+			}
+
+			colm_tree_upref( prg, split );
+			vm_push_tree( split );
+			break;
+		}
+		case IN_GET_RHS_VAL_BKT: {
+			short pos;
+			read_half( pos );
+
+			debug( prg, REALM_BYTECODE, "IN_GET_RHS_VAL_BKT %hd\n", pos );
+
+			tree_t *obj = vm_pop_tree();
+			colm_tree_downref( prg, sp, obj );
+
+			tree_t *split = get_rhs_el_split( prg, obj, pos );
+			colm_tree_upref( prg, split );
+			vm_push_tree( split );
+			break;
+		}
+		case IN_SET_RHS_VAL_WC: {
 			debug( prg, REALM_BYTECODE, "IN_SET_RHS_VAL_WC\n" );
-			int i, done = 0;
-			uchar len;
 
 			tree_t *obj = vm_pop_tree();
 			tree_t *val = vm_pop_tree();
@@ -1918,28 +1984,58 @@ again:
 				runtime_error( prg, "setting a child to nil" );
 			colm_tree_downref( prg, sp, obj );
 
-			read_byte( len );
-			for ( i = 0; i < len; i++ ) {
-				uchar prod_num, child_num;
-				read_byte( prod_num );
-				read_byte( child_num );
-				if ( !done && obj->prod_num == prod_num ) {
-					tree_t *prev = get_rhs_el( prg, obj, child_num );
-					colm_tree_downref( prg, sp, prev );
-					set_rhs_el( prg, obj, child_num, val );
-					done = 1;
-				}
-			}
+			long pos = rhs_val_pos( obj, &instr );
+			if ( pos < 0 )
+				runtime_error( prg, "setting a child the tree's production doesn't have" );
 
-			//colm_tree_upref( prg, val );
-			//vm_push_tree( val );
+			tree_t *prev = get_rhs_el( prg, obj, pos );
+			colm_tree_downref( prg, sp, prev );
+			set_rhs_el( prg, obj, pos, val );
 			break;
-		case IN_SET_RHS_VAL_WV:
-			fatal( "UNIMPLEMENTED INSRUCTION: IN_SET_RHS_VAL_WV\n" );
+		}
+		case IN_SET_RHS_VAL_WV: {
+			debug( prg, REALM_BYTECODE, "IN_SET_RHS_VAL_WV\n" );
+
+			tree_t *obj = vm_pop_tree();
+			tree_t *val = vm_pop_tree();
+			if ( obj == 0 )
+				runtime_error( prg, "setting a child of a nil tree" );
+			if ( val == 0 )
+				runtime_error( prg, "setting a child to nil" );
+			colm_tree_downref( prg, sp, obj );
+
+			long pos = rhs_val_pos( obj, &instr );
+			if ( pos < 0 )
+				runtime_error( prg, "setting a child the tree's production doesn't have" );
+
+			/* Save the old value, then set the child. */
+			tree_t *prev = get_rhs_el( prg, obj, pos );
+			set_rhs_el( prg, obj, pos, val );
+
+			/* Set up the reverse instruction. */
+			rcode_code( exec, IN_SET_RHS_VAL_BKT );
+			rcode_half( exec, pos );
+			rcode_word( exec, (word_t)prev );
+			rcode_unit_term( exec );
 			break;
-		case IN_SET_RHS_VAL_BKT:
-			fatal( "UNIMPLEMENTED INSRUCTION: IN_SET_RHS_VAL_BKT\n" );
+		}
+		case IN_SET_RHS_VAL_BKT: {
+			short pos;
+			tree_t *val;
+			read_half( pos );
+			read_tree( val );
+
+			debug( prg, REALM_BYTECODE, "IN_SET_RHS_VAL_BKT %hd\n", pos );
+
+			tree_t *obj = vm_pop_tree();
+			colm_tree_downref( prg, sp, obj );
+
+			/* Downref the value the write set, and put the old one back. */
+			tree_t *prev = get_rhs_el( prg, obj, pos );
+			colm_tree_downref( prg, sp, prev );
+			set_rhs_el( prg, obj, pos, val );
 			break;
+		}
 		case IN_POP_TREE: {
 			debug( prg, REALM_BYTECODE, "IN_POP_TREE\n" );
 
@@ -5623,6 +5719,24 @@ again:
 			read_tree( val );
 
 			debug( prg, REALM_BYTECODE, "IN_SET_STRUCT_BKT %hd\n", field );
+
+			colm_tree_downref( prg, sp, val );
+			break;
+		}
+		case IN_GET_RHS_VAL_BKT: {
+			debug_decl( short, pos );
+			debug_read_half( pos );
+
+			debug( prg, REALM_BYTECODE, "IN_GET_RHS_VAL_BKT %hd\n", pos );
+			break;
+		}
+		case IN_SET_RHS_VAL_BKT: {
+			debug_decl( short, pos );
+			tree_t *val;
+			debug_read_half( pos );
+			read_tree( val );
+
+			debug( prg, REALM_BYTECODE, "IN_SET_RHS_VAL_BKT %hd\n", pos );
 
 			colm_tree_downref( prg, sp, val );
 			break;

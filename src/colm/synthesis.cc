@@ -3484,7 +3484,7 @@ void ObjectField::initField()
 			inGetWC =  IN_GET_RHS_VAL_WC;
 			inGetWV =  IN_GET_RHS_VAL_WV;
 			inSetWC =  IN_SET_RHS_VAL_WC;
-			inSetWV =  IN_SET_RHS_VAL_WC;
+			inSetWV =  IN_SET_RHS_VAL_WV;
 			break;
 
 		/* Inbuilts have instructions intialized outside the cons, at place of

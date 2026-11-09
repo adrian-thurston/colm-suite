@@ -211,6 +211,8 @@ Colm undoes:
 
 * assignments to the variables of a context and to globals, and to the fields
   of the structs they hold
+* writes into the trees those variables hold, at any depth: setting a child,
+  a token's text, or an attribute that holds a tree or a `str`
 * additions to lists and maps, and removals from them
 * a token action's pulls and pushes on the input
 * sends to another parser, with the parsing they caused

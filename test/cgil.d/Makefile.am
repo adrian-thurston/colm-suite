@@ -4,6 +4,11 @@ clean-local:
 	rm -Rf working
 
 CASES = \
+	case/ioerr-c-00.args \
+	case/ioerr-c-00.err \
+	case/ioerr-c-01.args \
+	case/ioerr-c-01.err \
+	case/ioerr-c-01.in \
 	case/open-c-00.args \
 	case/open-c-00.err \
 	case/open-c-01.args \

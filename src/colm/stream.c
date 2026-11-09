@@ -35,6 +35,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <errno.h>
 
 #include <colm/pdarun.h>
 #include <colm/debug.h>
@@ -43,6 +44,8 @@
 #include <colm/bytecode.h>
 #include <colm/pool.h>
 #include <colm/struct.h>
+
+#include "rterror.h"
 
 DEF_STREAM_FUNCS( stream_funcs_data, stream_impl_data );
 
@@ -152,10 +155,18 @@ static bool loc_set( location_t *loc )
 	return loc->line != 0;
 }
 
-static void close_stream_file( FILE *file )
+/* Closes the stream's file, which writes out what is left of the output sent
+ * to it. The stream lets go of the file first, so that a failed close, which
+ * stops the program, never flushes the closed file as the program writes out
+ * stdout and stderr. */
+static void close_stream_file( struct colm_program *prg, struct stream_impl_data *si )
 {
+	FILE *file = si->file;
+	si->file = 0;
+
 	if ( file != stdin && file != stdout && file != stderr ) {
-		fclose( file );
+		if ( fclose( file ) != 0 )
+			colm_stream_error( prg, "write", si->name, errno );
 	}
 }
 
@@ -426,7 +437,7 @@ static int data_undo_append_data( struct colm_program *prg, struct stream_impl_d
 static void data_destructor( program_t *prg, tree_t **sp, struct stream_impl_data *si )
 {
 	if ( si->file != 0 && !si->no_file_close )
-		close_stream_file( si->file );
+		close_stream_file( prg, si );
 	
 	if ( si->collect != 0 ) {
 		str_collect_destroy( si->collect );
@@ -464,14 +475,14 @@ static str_collect_t *data_get_collect( struct colm_program *prg, struct stream_
 
 static void data_flush_stream( struct colm_program *prg, struct stream_impl_data *si )
 {
-	if ( si->file != 0 )
-		fflush( si->file );
+	if ( si->file != 0 && fflush( si->file ) != 0 )
+		colm_stream_error( prg, "write", si->name, errno );
 }
 
 static void data_close_stream( struct colm_program *prg, struct stream_impl_data *si )
 {
 	if ( si->file != 0 && !si->no_file_close )
-		close_stream_file( si->file );
+		close_stream_file( prg, si );
 
 	si->file = 0;
 }
@@ -489,8 +500,14 @@ static void data_set_option( struct colm_program *prg, struct stream_impl_data *
 static void data_print_tree( struct colm_program *prg, tree_t **sp,
 		struct stream_impl_data *si, tree_t *tree, int trim )
 {
-	if ( si->file != 0 )
+	if ( si->file != 0 ) {
+		/* The C library buffers the output, so a write fails in whichever
+		 * fwrite fills the buffer. The error stays set, and errno stays the
+		 * failed write's, so one check after the whole tree is enough. */
 		colm_print_tree_file( prg, sp, si, tree, trim );
+		if ( ferror( si->file ) )
+			colm_stream_error( prg, "write", si->name, errno );
+	}
 	else if ( si->collect != 0 )
 		colm_print_tree_collect( prg, sp, si->collect, tree, trim );
 }
@@ -655,10 +672,16 @@ static int data_undo_consume_data( struct colm_program *prg, struct stream_impl_
  * File Inputs
  */
 
+/* A short read is the end of the file, unless the read failed. A failed read,
+ * such as from a directory, stops the program, rather than end the input
+ * there. */
 static int file_get_data_source( struct colm_program *prg, struct stream_impl_data *si,
 		alph_t *dest, int length )
 {
-	return fread( dest, 1, length, si->file );
+	size_t got = fread( dest, 1, length, si->file );
+	if ( got < (size_t)length && ferror( si->file ) )
+		colm_stream_error( prg, "read", si->name, errno );
+	return got;
 }
 
 /*
@@ -887,6 +910,19 @@ static void colm_stream_destroy( program_t *prg, tree_t **sp, struct_t *s )
 {
 	stream_t *stream = (stream_t*) s;
 	struct stream_impl *si = stream->impl;
+
+	/* A close that fails stops the program, which writes out stdout and
+	 * stderr first, so they must not name a stream that is gone.
+	 * colm_delete_program destroys the streams in the order they were made,
+	 * and stdout, made when the program first uses it, can go before a file
+	 * opened after that. */
+	if ( prg->stdin_val == stream )
+		prg->stdin_val = 0;
+	if ( prg->stdout_val == stream )
+		prg->stdout_val = 0;
+	if ( prg->stderr_val == stream )
+		prg->stderr_val = 0;
+
 	si->funcs->destructor( prg, sp, si );
 }
 

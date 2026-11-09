@@ -1,0 +1,174 @@
+#
+# A read or write on a file stream that the system refuses stops the program,
+# with the stream's name and the system's reason. The host sends standard
+# error to standard output, so the message is in the output, after what the
+# program printed before it. The stop ends the host too: when it says its exit
+# status, the program ended without one. The argument picks the read or write.
+#
+
+lex
+	token word /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def start
+	[word*]
+
+Out: stream
+
+int quit()
+{
+	exit( 0 )
+	return 1
+}
+
+A: str = argv->pop()
+print( "before\n" )
+
+if ( A == "read_dir" ) {
+	# A directory opens for reading, but can't be read.
+	In: stream = open( ".", "r" )
+	parse S: start[ In ]
+	print( "parsed\n" )
+}
+elsif ( A == "pull_dir" ) {
+	In: stream = open( ".", "r" )
+	D: str = In->pull( 1 )
+	print( "pulled\n" )
+}
+elsif ( A == "read_w" ) {
+	# A stream opened for writing can't be read.
+	In: stream = open( "working/ioerr1.out", "w" )
+	parse S: start[ In ]
+	print( "parsed\n" )
+}
+elsif ( A == "send_r" ) {
+	# Nor can one opened for reading be written.
+	Out = open( "working/ioerr1.lm", "r" )
+	send Out "text"
+	print( "sent\n" )
+}
+elsif ( A == "send" ) {
+	# More than the stream's buffer holds, so the write fails in a send.
+	Out = open( "/dev/full", "w" )
+	I: int = 0
+	while ( I < 1000 ) {
+		send Out "0123456789012345678901234567890123456789"
+		I = I + 1
+	}
+	print( "sent\n" )
+}
+elsif ( A == "close" ) {
+	Out = open( "/dev/full", "w" )
+	send Out "text"
+	Out->close()
+	print( "closed\n" )
+}
+else {
+	# The rest leave the stream open, so it is written when the program ends.
+	Out = open( "/dev/full", "w" )
+	send Out "text"
+	print( "sent\n" )
+
+	if ( A == "exit" )
+		exit( 0 )
+	elsif ( A == "exit_hard" )
+		exit_hard( 0 )
+	elsif ( A == "exit_expr" ) {
+		# An exit the stack can't be unwound from.
+		I: int = 1 + quit()
+	}
+}
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+read_dir
+##### EXP #####
+before
+fatal: could not read .: Is a directory
+##### EXIT #####
+1
+##### ARGS #####
+pull_dir
+##### EXP #####
+before
+fatal: could not read .: Is a directory
+##### EXIT #####
+1
+##### ARGS #####
+read_w
+##### EXP #####
+before
+fatal: could not read working/ioerr1.out: Bad file descriptor
+##### EXIT #####
+1
+##### ARGS #####
+send_r
+##### EXP #####
+before
+fatal: could not write working/ioerr1.lm: Bad file descriptor
+##### EXIT #####
+1
+##### ARGS #####
+send
+##### EXP #####
+before
+fatal: could not write /dev/full: No space left on device
+##### EXIT #####
+1
+##### ARGS #####
+close
+##### EXP #####
+before
+fatal: could not write /dev/full: No space left on device
+##### EXIT #####
+1
+##### ARGS #####
+end
+##### EXP #####
+before
+sent
+fatal: could not write /dev/full: No space left on device
+##### EXIT #####
+1
+##### ARGS #####
+exit
+##### EXP #####
+before
+sent
+fatal: could not write /dev/full: No space left on device
+##### EXIT #####
+1
+##### ARGS #####
+exit_hard
+##### EXP #####
+before
+sent
+fatal: could not write /dev/full: No space left on device
+##### EXIT #####
+1
+##### ARGS #####
+exit_expr
+##### EXP #####
+before
+sent
+fatal: could not write /dev/full: No space left on device
+##### EXIT #####
+1

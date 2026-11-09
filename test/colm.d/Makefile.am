@@ -38,6 +38,7 @@ EXTRA_DIST = \
 	childwrite1.lm \
 	childwrite2.lm \
 	childwrite3.lm \
+	childwrite4.lm \
 	childwritemsg1.lm \
 	collect.lm \
 	commitbt.lm \

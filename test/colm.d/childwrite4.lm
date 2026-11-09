@@ -1,0 +1,83 @@
+#
+# In a production's action, setting a child of a global's tree, or of a tree
+# in a struct's field, stays when the parse keeps the reduction, and is
+# undone when the parser backs up over it. The global's set is the one-level
+# child set of childwrite2.lm. The struct's goes through a pointer, which
+# starts the reverse code with IN_PTR_ACCESS_WV. Input ending in "; ^" is
+# parsed as A1, keeping the actions. Input ending in ";" is parsed as A1
+# first, then backs up to A2, undoing them. The argument picks the tree.
+#
+
+lex
+	ignore /[ \t]+/
+	literal `+ `; `^
+	token id /[a-z]+/
+	token NL /'\n'/
+end
+
+def k [Id: id]
+
+struct holder
+	K: k
+end
+
+global T: str = argv->pop()
+global G: k = parse k[ "a" ]
+global H: holder = new holder()
+
+def A1 []
+def A2 []
+
+def item
+	[`+]
+	{
+		print( "action\n" )
+		if T == 'global'
+			G.Id = parse id[ "z" ]
+		else
+			H->K.Id = parse id[ "z" ]
+	}
+
+def plain_item
+	[`+]
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 plain_item* `; NL]
+
+H->K = parse k[ "b" ]
+parse S: start[ stdin ]
+print( S )
+print( "[G] [H->K]\n" )
+##### ARGS #####
+global
+##### IN #####
++ ; ^
+##### EXP #####
+action
++ ; ^
+z b
+##### ARGS #####
+global
+##### IN #####
++ ;
+##### EXP #####
+action
++ ;
+a b
+##### ARGS #####
+struct
+##### IN #####
++ ; ^
+##### EXP #####
+action
++ ; ^
+a z
+##### ARGS #####
+struct
+##### IN #####
++ ;
+##### EXP #####
+action
++ ;
+a b

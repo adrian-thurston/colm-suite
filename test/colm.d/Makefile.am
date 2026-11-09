@@ -443,6 +443,9 @@ EXTRA_DIST = \
 	undomap4.lm \
 	undomap5.lm \
 	undomap6.lm \
+	undomap7.lm \
+	undomap8.lm \
+	undomap9.lm \
 	undopush1.lm \
 	undosplit1.lm \
 	undosplit2.lm \

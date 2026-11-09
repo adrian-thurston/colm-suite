@@ -240,6 +240,17 @@ an action that ran before the change, the variable gets back the value it had
 before that action, and the change is lost. While a parse runs, change its
 data only from its actions.
 
+A map's elements are the exception. Putting an element back where an action
+found it would corrupt the maps if the program has moved the element since,
+into a map or out of one, so backing up over the action stops the program
+instead, as xref:8_04_error_handling.adoc#run-time-errors[the error handling
+chapter] describes. Undoing an `insert` or an `insert_el` stops if the map no
+longer holds the element. Undoing a `detach_el` or a `remove`, or a write to
+an element's `key`, stops if a map holds the element, this one or another.
+Other changes from outside the parse are lost as before: if the program puts
+another element into the map under the same key, undoing a `detach_el` leaves
+that one in the map.
+
 == Rejecting a reduction with data
 
 `reject` makes a reduction a parse error, as

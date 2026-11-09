@@ -35,6 +35,7 @@ EXTRA_DIST = \
 	cast7.lm \
 	cast8.lm \
 	collect.lm \
+	collectloc1.lm \
 	commitbt.lm \
 	comperr1.lm \
 	concat1.lm \
@@ -238,6 +239,8 @@ EXTRA_DIST = \
 	mapkey3.lm \
 	mapmsg1.lm \
 	matchex.lm \
+	matchloc1.lm \
+	matchloc2.lm \
 	matchnil1.lm \
 	matchtext1.lm \
 	maxlen.lm \

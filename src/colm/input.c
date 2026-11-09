@@ -77,9 +77,19 @@ static struct seq_buf *new_seq_buf()
 	return rb;
 }
 
+/* The location of the input's next text: that of the first stream in the
+ * queue with text left in its buffers. The text the scanner is at is always
+ * in a buffer, so nothing is read. A token or tree ahead of the text, or no
+ * text left, leaves loc as it is. */
 static void input_transfer_loc( struct colm_program *prg, location_t *loc,
-		struct input_impl_seq *ss )
+		struct input_impl_seq *si )
 {
+	struct seq_buf *buf;
+	for ( buf = si->queue.head; buf != 0 && is_stream( buf ); buf = buf->next ) {
+		buf->si->funcs->transfer_loc( prg, loc, buf->si );
+		if ( loc->line != 0 )
+			break;
+	}
 }
 
 static bool call_destructor( struct seq_buf *buf )

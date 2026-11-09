@@ -1,0 +1,37 @@
+# match_text's location comes from the text the scanner is at, where the
+# input before it is used up: at the next text of a parse's list, and at the
+# next buffer of the same text.
+
+lex
+	token go /'@'/ {
+		print( 'match ', match_text.file, ' ', match_text.line, ' ',
+				match_text.col, ' ', match_text.pos, '\n' )
+		input->pull( match_length )
+	}
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def item
+	[go]
+|	[id]
+
+def items
+	[item*]
+
+# All of stdin is read before the match, which is in the second text.
+parse G: items[ stdin "@" ]
+
+# The first text fills an input buffer, so the match is in a second one.
+S: str = 'a'
+i: int = 0
+while ( i < 13 ) {
+	S = S + S
+	i = i + 1
+}
+parse H: items[ S "@" ]
+##### IN #####
+ab
+##### EXP #####
+match <text2> 1 1 0
+match <text2> 1 8193 8192

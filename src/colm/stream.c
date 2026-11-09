@@ -281,6 +281,21 @@ static void data_transfer_loc( struct colm_program *prg, location_t *loc,
 	loc->byte = ss->byte;
 }
 
+/* The location of the stream's next text, if it has text left in its
+ * buffers. It reads nothing from the source: with no text left in its
+ * buffers, it leaves loc as it is. */
+static void data_transfer_next_loc( struct colm_program *prg, location_t *loc,
+		struct stream_impl_data *ss )
+{
+	struct run_buf *buf;
+	for ( buf = ss->queue.head; buf != 0; buf = buf->next ) {
+		if ( buf->length - buf->offset > 0 ) {
+			data_transfer_loc( prg, loc, ss );
+			break;
+		}
+	}
+}
+
 /*
  * Data inputs: files, strings, etc.
  */
@@ -685,7 +700,7 @@ static struct stream_funcs_data file_funcs =
 	&data_consume_data,
 	&data_undo_consume_data,
 
-	&data_transfer_loc,
+	&data_transfer_next_loc,
 	&data_get_collect,
 	&data_flush_stream,
 	&data_close_stream,
@@ -710,7 +725,7 @@ static struct stream_funcs_data accum_funcs =
 	&data_consume_data,
 	&data_undo_consume_data,
 
-	&data_transfer_loc,
+	&data_transfer_next_loc,
 	&data_get_collect,
 	&data_flush_stream,
 	&data_close_stream,

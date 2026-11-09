@@ -900,8 +900,19 @@ void Compiler::resolvePrecedence()
 void Compiler::resolveReductionActions()
 {
 	for ( ReductionVect::Iter r = rootNamespace->reductions; r.lte(); r++ ) {
-		for ( ReduceNonTermList::Iter rni = (*r)->reduceNonTerms; rni.lte(); rni++ )
+		for ( ReduceNonTermList::Iter rni = (*r)->reduceNonTerms; rni.lte(); rni++ ) {
 			rni->nonTerm->resolveType( this );
+
+			/* The members of a value aren't in a production, so they can't
+			 * refer to one. */
+			for ( ReduceTextItemList::Iter i = rni->itemList; i.lte(); i++ ) {
+				if ( i->type != ReduceTextItem::Txt ) {
+					error( i->loc ) << i->txt << " in the value of " <<
+							rni->nonTerm->typeName << ": only a reduction "
+							"action can refer to a production" << endp;
+				}
+			}
+		}
 
 		for ( ReduceActionList::Iter rai = (*r)->reduceActions; rai.lte(); rai++ )
 			rai->nonTerm->resolveType( this );

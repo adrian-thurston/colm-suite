@@ -191,7 +191,10 @@ end
 The block holds two kinds of item:
 
 * `TYPE { members }` declares the {cpp} value that each tree of the def `TYPE`
-  has, as the members of a struct.
+  has, as the members of a struct. The members are in no production, so the
+  `$` and `@` references of an action can't go in them. For one there, colm
+  reports an error, such as
+  `@number in the value of expr: only a reduction action can refer to a production`.
 * `TYPE :Prod { code }` is the action for the production of `TYPE` named
   `Prod`. A production needs a name to have one. For a name that no
   production of `TYPE` has, colm reports `could not find production "Prod"`.

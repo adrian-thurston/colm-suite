@@ -364,12 +364,6 @@ void Compiler::writeTreeRef( Production *production, ReduceTextItem *i )
 /* An @N or @name, which stops the program when there's no location. */
 void Compiler::writeRhsLoc( Production *production, ReduceTextItem *i, long pos )
 {
-	/* An attribute block has no production, and no location to read. */
-	if ( production == 0 ) {
-		*outStream << "_loc" << pos;
-		return;
-	}
-
 	*outStream << "colm_reduce_loc( prg, _loc" << pos << ", \"";
 	if ( i->n > 0 )
 		*outStream << "@" << i->n;

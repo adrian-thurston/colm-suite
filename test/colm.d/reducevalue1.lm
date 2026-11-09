@@ -1,0 +1,23 @@
+# The members of a reduction's value are plain C++, in no production, so a
+# $, @ or $* reference in them is an error. With -m, colm used to crash on a
+# named reference.
+
+lex
+	literal `;
+	token number /[0-9]+/
+	ignore /space+/
+end
+
+def line
+	[number `;]
+
+def lines
+	[line*]
+
+reduction Count
+	line { long len = $number->length; }
+end
+
+reduce Count lines[ stdin ]
+##### COMP_ERR #####
+18:20: $number in the value of line: only a reduction action can refer to a production

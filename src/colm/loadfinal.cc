@@ -2654,24 +2654,29 @@ struct LoadColm
 		if ( item.RED_LHS() != 0 ) {
 			ReduceTextItem *rti = new ReduceTextItem;
 			rti->type = ReduceTextItem::LhsRef;
+			rti->txt = item.RED_LHS().text().c_str();
+			rti->loc = item.RED_LHS().loc();
 			list.append( rti );
 		}
 		else if ( item.RED_RHS_REF() != 0 ) {
 			ReduceTextItem *rti = new ReduceTextItem;
 			rti->type = ReduceTextItem::RhsRef;
 			rti->txt = item.RED_RHS_REF().text().c_str();
+			rti->loc = item.RED_RHS_REF().loc();
 			list.append( rti );
 		}
 		else if ( item.RED_TREE_REF() != 0 ) {
 			ReduceTextItem *rti = new ReduceTextItem;
 			rti->type = ReduceTextItem::TreeRef;
 			rti->txt = item.RED_TREE_REF().text().c_str();
+			rti->loc = item.RED_TREE_REF().loc();
 			list.append( rti );
 		}
 		else if ( item.RED_RHS_LOC() != 0 ) {
 			ReduceTextItem *rti = new ReduceTextItem;
 			rti->type = ReduceTextItem::RhsLoc;
 			rti->txt = item.RED_RHS_LOC().text().c_str();
+			rti->loc = item.RED_RHS_LOC().loc();
 			list.append( rti );
 		}
 		else if ( item.RED_RHS_NREF() != 0 ) {

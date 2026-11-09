@@ -367,7 +367,8 @@ struct pda_run
 	 * of this pda_run then would clobber the one waiting, so the VM stops the
 	 * program instead. Not set while the parse waits on reverse code: a send
 	 * to this parser that the reverse code undoes was made after the steps
-	 * the parse is backing up to, so its undo has nothing to do. */
+	 * the parse is backing up to, so undoing its parse has nothing to do.
+	 * Only its input is taken back. */
 	int suspended;
 };
 

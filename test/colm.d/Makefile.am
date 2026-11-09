@@ -241,6 +241,7 @@ EXTRA_DIST = \
 	matchex.lm \
 	matchloc1.lm \
 	matchloc2.lm \
+	matchloc3.lm \
 	matchnil1.lm \
 	matchtext1.lm \
 	maxlen.lm \

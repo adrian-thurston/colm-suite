@@ -1,0 +1,13 @@
+# The variable of a loop over a map passed as a ref argument.
+void f( R: ref<str> )
+{
+	print( R, "\n" )
+}
+
+M: map<str, str> = new map<str, str>()
+M->insert( "k", "v" )
+for E: str in M
+	f( E )
+print( "done\n" )
+##### COMP_ERR #####
+10:5: cannot take a reference to E, the variable of a loop over a list or a map

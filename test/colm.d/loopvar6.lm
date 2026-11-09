@@ -1,0 +1,9 @@
+# An assignment to the variable of a loop over a map.
+M: map<str, str> = new map<str, str>()
+M->insert( "k", "v" )
+for E: str in M
+	E = "b"
+print( M->find( "k" ), "\n" )
+print( "done\n" )
+##### COMP_ERR #####
+5:2: cannot assign to E, the variable of a loop over a list or a map

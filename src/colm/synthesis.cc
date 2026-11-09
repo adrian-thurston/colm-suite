@@ -130,6 +130,9 @@ IterImpl::IterImpl( Type type ) :
 		useSearchUT = true;
 		break;
 	
+	/* A list or map iterator can't take a reference to the current value, set
+	 * it or load it for writing: the compiler refuses a loop variable used
+	 * that way. IN_HALT stops a program if it ever misses one. */
 	case ListEl:
 		inCreateWV =   IN_GEN_ITER_FROM_REF;
 		inCreateWC =   IN_GEN_ITER_FROM_REF;
@@ -138,9 +141,9 @@ IterImpl::IterImpl( Type type ) :
 		inAdvance =    IN_LIST_ITER_ADVANCE;
 
 		inGetCurR =    IN_GEN_ITER_GET_CUR_R;
-//		inGetCurWC =   //IN_LIST_ITER_GET_CUR_WC;
-//		inSetCurWC =   //IN_HALT;
-//		inRefFromCur = //IN_LIST_ITER_REF_FROM_CUR;
+		inGetCurWC =   IN_HALT;
+		inSetCurWC =   IN_HALT;
+		inRefFromCur = IN_HALT;
 		useGenericId = true;
 		break;
 
@@ -152,9 +155,9 @@ IterImpl::IterImpl( Type type ) :
 		inAdvance =    IN_LIST_ITER_ADVANCE;
 
 		inGetCurR =    IN_GEN_VITER_GET_CUR_R;
-//		inGetCurWC =   //IN_LIST_ITER_GET_CUR_WC;
-//		inSetCurWC =   //IN_HALT;
-//		inRefFromCur = //IN_LIST_ITER_REF_FROM_CUR;
+		inGetCurWC =   IN_HALT;
+		inSetCurWC =   IN_HALT;
+		inRefFromCur = IN_HALT;
 		useGenericId = true;
 		break;
 
@@ -166,9 +169,9 @@ IterImpl::IterImpl( Type type ) :
 		inAdvance =    IN_REV_LIST_ITER_ADVANCE;
 
 		inGetCurR =    IN_GEN_VITER_GET_CUR_R;
-//		inGetCurWC =   //IN_LIST_ITER_GET_CUR_WC;
-//		inSetCurWC =   //IN_HALT;
-//		inRefFromCur = //IN_LIST_ITER_REF_FROM_CUR;
+		inGetCurWC =   IN_HALT;
+		inSetCurWC =   IN_HALT;
+		inRefFromCur = IN_HALT;
 		useGenericId = true;
 		break;
 
@@ -181,9 +184,9 @@ IterImpl::IterImpl( Type type ) :
 		inAdvance =    IN_MAP_ITER_ADVANCE;
 
 		inGetCurR =    IN_GEN_VITER_GET_CUR_R;
-		inGetCurWC =   IN_GEN_VITER_GET_CUR_R; //IN_HALT; //IN_LIST_ITER_GET_CUR_WC;
-//		inSetCurWC =   IN_HALT;//IN_HALT;
-//		inRefFromCur = IN_HALT;//IN_LIST_ITER_REF_FROM_CUR;
+		inGetCurWC =   IN_HALT;
+		inSetCurWC =   IN_HALT;
+		inRefFromCur = IN_HALT;
 		useGenericId = true;
 		break;
 
@@ -195,9 +198,9 @@ IterImpl::IterImpl( Type type ) :
 		inAdvance =    IN_MAP_ITER_ADVANCE;
 
 		inGetCurR =    IN_GEN_ITER_GET_CUR_R;
-//		inGetCurWC =   //IN_LIST_ITER_GET_CUR_WC;
-//		inSetCurWC =   //IN_HALT;
-//		inRefFromCur = //IN_LIST_ITER_REF_FROM_CUR;
+		inGetCurWC =   IN_HALT;
+		inSetCurWC =   IN_HALT;
+		inRefFromCur = IN_HALT;
 		useGenericId = true;
 		break;
 
@@ -395,6 +398,14 @@ void ObjectDef::referenceField( Compiler *pd, ObjectField *field )
 	field->beenReferenced = true;
 }
 
+/* The variable of a loop over a list or a map. Its iterator gives the values
+ * or the elements as they are stored, and has no instructions to take a
+ * reference to the current one, to set it, or to load it for writing. */
+static bool genericLoopVar( ObjectField *el )
+{
+	return el->iterImpl != 0 && el->iterImpl->useGenericId;
+}
+
 UniqueType *LangVarRef::loadField( Compiler *pd, CodeVect &code, 
 		ObjectDef *inObject, ObjectField *el, bool forWriting, bool revert ) const
 {
@@ -512,6 +523,10 @@ long LangVarRef::loadQualificationRefs( Compiler *pd, CodeVect &code,
 			}
 		}
 		else if ( el->iterImpl != 0 ) {
+			if ( genericLoopVar( el ) ) {
+				error(qi->loc) << "cannot take a reference to " << el->name <<
+						", the variable of a loop over a list or a map" << endp;
+			}
 			code.append( el->iterImpl->inRefFromCur );
 			code.appendHalf( el->offset );
 		}
@@ -571,6 +586,11 @@ void LangVarRef::loadQualification( Compiler *pd, CodeVect &code,
 				 * */
 				lfRevert = true;
 			}
+		}
+
+		if ( lfForWriting && genericLoopVar( el ) ) {
+			error(qi->loc) << "cannot write to " << el->name <<
+					", the variable of a loop over a list or a map" << endp;
 		}
 
 		UniqueType *qualUT = loadField( pd, code, searchScope->owningObj, 
@@ -899,6 +919,10 @@ ObjectField *LangVarRef::evaluateRef( Compiler *pd, CodeVect &code, long pushCou
 		}
 	}
 	else if ( lookup.objField->iterImpl != 0 ) {
+		if ( genericLoopVar( lookup.objField ) ) {
+			error(loc) << "cannot take a reference to " << lookup.objField->name <<
+					", the variable of a loop over a list or a map" << endp;
+		}
 		code.append( lookup.objField->iterImpl->inRefFromCur );
 		code.appendHalf( lookup.objField->offset );
 	}
@@ -2493,6 +2517,11 @@ void LangVarRef::assignValue( Compiler *pd, CodeVect &code,
 	if ( lookup.objField->isInbuiltObject() )
 		error(loc) << "cannot assign to \"" << name << "\"" << endp;
 
+	if ( qual->length() == 0 && genericLoopVar( lookup.objField ) ) {
+		error(loc) << "cannot assign to " << name <<
+				", the variable of a loop over a list or a map" << endp;
+	}
+
 	/* Writing guarantees the field is dirty. tree is dirty. */
 	lookup.objField->dirtyTree = true;
 
@@ -3009,8 +3038,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			}
 
 			/* take a reference and yield it. Immediately reset the referece. */
-			varRef->preEvaluateRef( pd, code );
-			ObjectField *objField = varRef->evaluateRef( pd, code, 0 );
+			ObjectField *objField = varRef->preEvaluateRef( pd, code );
 
 			/* A loop takes what an iterator yields as a tree. A loop
 			 * variable holds a value of its loop's search type. */
@@ -3019,6 +3047,15 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 					yieldTR->searchUniqueType : yieldTR->uniqueType;
 			if ( yieldUT->langEl == 0 )
 				error(varRef->loc) << "can only yield a tree" << endp;
+
+			/* Checked here, before evaluateRef refuses the reference, so the
+			 * error says it is the yield. */
+			if ( varRef->qual->length() == 0 && genericLoopVar( objField ) ) {
+				error(varRef->loc) << "cannot yield " << objField->name <<
+						", the variable of a loop over a list or a map" << endp;
+			}
+
+			varRef->evaluateRef( pd, code, 0 );
 
 			code.append( IN_YIELD );
 

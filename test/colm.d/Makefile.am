@@ -188,6 +188,19 @@ EXTRA_DIST = \
 	locname1.lm \
 	logical1.lm \
 	lookup1.lm \
+	loopvar1.lm \
+	loopvar2.lm \
+	loopvar3.lm \
+	loopvar4.lm \
+	loopvar5.lm \
+	loopvar6.lm \
+	loopvar7.lm \
+	loopvar8.lm \
+	loopvar9.lm \
+	loopvar10.lm \
+	loopvar11.lm \
+	loopvar12.lm \
+	loopvar13.lm \
 	mailbox.lm \
 	maketoken1.lm \
 	maketree1.lm \

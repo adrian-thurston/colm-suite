@@ -1,0 +1,82 @@
+# What the variable of a loop over a list or a map can still do. It can be
+# read, passed to a parameter that isn't a ref, and copied to a local that is
+# changed, looped over or yielded. One that holds a list can change that list.
+# A loop over the elements sets a value.
+lex
+	token id /[a-z]+/
+	literal `( `)
+	ignore /[ \n]+/
+end
+
+def item
+	A: int
+	[`( id* `)]
+
+alias strlist list<str>
+
+void show( T: item )
+{
+	print( "show ", T, "\n" )
+}
+
+iter vals( L: list<item> )
+{
+	for E: item in L {
+		T: item = E
+		yield T
+	}
+}
+
+parse P: item[ "( a b )" ]
+L: list<item> = new list<item>()
+L->push_tail( P )
+
+for E: item in L {
+	print( E, "\n" )
+	show( E )
+	T: item = E
+	T.A = 4
+	print( "copy A=", T.A, "\n" )
+	for X: id in T
+		print( "id ", ^X, "\n" )
+}
+
+for I: item in vals( L )
+	print( "yielded ", I, "\n" )
+
+for El: list_el<item> in L {
+	T: item = El->value
+	T.A = 5
+	El->value = T
+}
+for E: item in L
+	print( "A=", E.A, "\n" )
+
+M: map<str, item> = new map<str, item>()
+M->insert( "k", P )
+for V: item in M {
+	T: item = V
+	for X: id in T
+		print( "map id ", ^X, "\n" )
+}
+
+LL: list<strlist> = new list<strlist>()
+S: list<str> = new list<str>()
+S->push_tail( "a" )
+LL->push_tail( S )
+for X: list<str> in LL
+	X->push_tail( "c" )
+print( "len ", S->length, "\n" )
+print( "done\n" )
+##### EXP #####
+( a b )
+show ( a b )
+copy A=4
+id a
+id b
+yielded ( a b )
+A=5
+map id a
+map id b
+len 2
+done

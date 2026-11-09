@@ -1,0 +1,22 @@
+# A child of the variable of a loop over a list passed as a ref argument.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+
+void g( R: ref<id> )
+{
+	print( R, "\n" )
+}
+
+parse P: item[ "x" ]
+L: list<item> = new list<item>()
+L->push_tail( P )
+for E: item in L
+	g( E.id )
+print( "done\n" )
+##### COMP_ERR #####
+19:5: cannot take a reference to E, the variable of a loop over a list or a map

@@ -1,0 +1,25 @@
+# The grammar of a def in one context can't use another context's defs. The
+# parse is given a d, and c::item's action would use it as a c.
+
+context c
+	I: int
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+	def item
+		[id]
+		{
+			I = I + 1
+		}
+end
+context d
+	S: str
+	def start [c::item*]
+end
+D: d = new d()
+D->S = "hello"
+parse S: d::start( D )[ "a b" ]
+print( S, " ", D->S, "\n" )
+##### COMP_ERR #####
+22:1: d::start can't be parsed: its grammar uses c::item, of context c, and d::start isn't in c

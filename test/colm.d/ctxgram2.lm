@@ -1,0 +1,14 @@
+# The grammar of a def outside a context can't use the context's tokens
+# either, even one with no action, in a parse_stop as in a parse.
+
+context c
+	lex
+		token word /[a-z]+/
+		ignore /space+/
+	end
+end
+def start [c::word c::word]
+parse_stop S: start[ "a b" ]
+print( S, "\n" )
+##### COMP_ERR #####
+11:1: start can't be parsed: its grammar uses c::word, of context c, and start isn't in c

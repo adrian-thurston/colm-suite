@@ -1,0 +1,20 @@
+# A context's literal is one of its tokens. The parse would scan in the
+# context's lex block, where word's action uses the context's variable.
+
+context c
+	N: int
+	lex
+		literal `x
+		token word /[a-z]+/
+		{
+			N = N + 1
+			input->push( make_token( typeid<word>, input->pull( match_length ) ) )
+		}
+		ignore /space+/
+	end
+end
+def start [c::`x c::`x]
+parse S: start[ "x yy" ]
+print( S, "\n" )
+##### COMP_ERR #####
+17:1: start can't be parsed: its grammar uses c::`x, of context c, and start isn't in c

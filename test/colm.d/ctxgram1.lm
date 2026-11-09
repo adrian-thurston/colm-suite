@@ -1,0 +1,21 @@
+# A def outside a context can't be parsed when its grammar uses one of the
+# context's defs. c::item's action uses the context's variable, and a parse of
+# a type outside the context can't be given the context.
+
+context c
+	I: int
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+	def item
+		[id]
+		{
+			I = I + 1
+		}
+end
+def start [c::item*]
+parse S: start[ "a b" ]
+print( S, "\n" )
+##### COMP_ERR #####
+18:1: start can't be parsed: its grammar uses c::item, of context c, and start isn't in c

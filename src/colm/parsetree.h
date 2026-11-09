@@ -915,6 +915,7 @@ struct ReduceTextItem
 	Type type;
 	String txt;
 	int n;
+	InputLoc loc;
 
 	ReduceTextItem *prev, *next;
 };

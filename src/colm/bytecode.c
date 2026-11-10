@@ -3643,6 +3643,12 @@ again:
 			for ( i = nargs-1; i >= 0; i-- )
 				arg[i] = vm_pop_tree();
 
+			/* make_tree makes a def or an il. A token or a str has text of its
+			 * own, which make_tree can't give it. */
+			long id = (long)(value_t)arg[0];
+			if ( id < prg->rtd->first_non_term_id && id != LEL_ID_IGNORE )
+				runtime_error( prg, "make_tree of a token type or str" );
+
 			/* Each argument after the type is a child, and a child can't be nil. */
 			for ( i = 1; i < nargs; i++ ) {
 				if ( arg[i] == 0 )
@@ -3665,6 +3671,20 @@ again:
 			tree_t *tree = vm_pop_tree();
 			if ( tree == 0 )
 				runtime_error( prg, "cast of a nil tree" );
+
+			/* A cast keeps to its kind, which only shows here for a cast of an
+			 * any. A token type takes a tree with text of its own, a token or a
+			 * str. A def type takes one without. */
+			if ( lang_el_id != prg->rtd->any_id ) {
+				int to_token = lang_el_id < prg->rtd->first_non_term_id;
+				if ( to_token && tree->tokdata == 0 ) {
+					runtime_error( prg, tree->id == LEL_ID_IGNORE ?
+							"cast of an il to a token type" :
+							"cast of a def to a token type" );
+				}
+				if ( !to_token && tree->tokdata != 0 )
+					runtime_error( prg, "cast of a token or str to a def type" );
+			}
 
 			tree_t *res = cast_tree( prg, lang_el_id, tree );
 			colm_tree_upref( prg, res );
@@ -3823,6 +3843,8 @@ again:
 			tree_t *tree = vm_pop_tree();
 			if ( tree == 0 )
 				runtime_error( prg, "reading the data of a nil token" );
+			if ( tree->tokdata == 0 )
+				runtime_error( prg, "reading the data of a tree that isn't a token" );
 			head_t *data = string_copy( prg, tree->tokdata );
 			tree_t *str = construct_string( prg, data );
 			colm_tree_upref( prg, str );
@@ -3888,6 +3910,8 @@ again:
 			tree_t *tree = vm_pop_tree();
 			if ( tree == 0 )
 				runtime_error( prg, "reading the file of a nil token" );
+			if ( tree->tokdata == 0 )
+				runtime_error( prg, "reading the file of a tree that isn't a token" );
 			tree_t *str = 0;
 			if ( tree->tokdata->location != 0 &&
 					tree->tokdata->location->name != 0 ) {
@@ -3907,6 +3931,8 @@ again:
 			tree_t *tree = vm_pop_tree();
 			if ( tree == 0 )
 				runtime_error( prg, "reading the line of a nil token" );
+			if ( tree->tokdata == 0 )
+				runtime_error( prg, "reading the line of a tree that isn't a token" );
 			value_t integer = 0;
 			if ( tree->tokdata->location )
 				integer = tree->tokdata->location->line;
@@ -3920,6 +3946,8 @@ again:
 			tree_t *tree = vm_pop_tree();
 			if ( tree == 0 )
 				runtime_error( prg, "reading the col of a nil token" );
+			if ( tree->tokdata == 0 )
+				runtime_error( prg, "reading the col of a tree that isn't a token" );
 			value_t integer = 0;
 			if ( tree->tokdata->location )
 				integer = tree->tokdata->location->column;
@@ -3933,6 +3961,8 @@ again:
 			tree_t *tree = vm_pop_tree();
 			if ( tree == 0 )
 				runtime_error( prg, "reading the pos of a nil token" );
+			if ( tree->tokdata == 0 )
+				runtime_error( prg, "reading the pos of a tree that isn't a token" );
 			value_t integer = 0;
 			if ( tree->tokdata->location )
 				integer = tree->tokdata->location->byte;

@@ -1,0 +1,11 @@
+# A str can't be cast to a def type, as a token can't.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def start
+	[id*]
+D: start = cast<start> "ab"
+print( "<", D, ">\n" )
+##### COMP_ERR #####
+8:12: cannot cast a token or str to a def type

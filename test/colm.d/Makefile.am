@@ -35,6 +35,13 @@ EXTRA_DIST = \
 	cast6.lm \
 	cast7.lm \
 	cast8.lm \
+	cast9.lm \
+	cast10.lm \
+	cast11.lm \
+	cast12.lm \
+	cast13.lm \
+	cast14.lm \
+	cast15.lm \
 	childwrite1.lm \
 	childwrite2.lm \
 	childwrite3.lm \
@@ -82,6 +89,7 @@ EXTRA_DIST = \
 	decl1.lm \
 	decl2.lm \
 	decl3.lm \
+	deffield1.lm \
 	define1.lm \
 	div.lm \
 	earlytree1.lm \
@@ -232,6 +240,10 @@ EXTRA_DIST = \
 	mailbox.lm \
 	maketoken1.lm \
 	maketree1.lm \
+	maketree2.lm \
+	maketree3.lm \
+	maketree4.lm \
+	maketree5.lm \
 	map1.lm \
 	map2.lm \
 	map3.lm \

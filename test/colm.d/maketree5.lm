@@ -1,0 +1,7 @@
+# make_tree's check of its type leaves a typeid of a type that isn't a tree,
+# which has no lang el, to the error that evaluating the typeid gives. colm
+# segfaulted on it.
+M: any = make_tree( typeid<int> )
+print( M, "\n" )
+##### COMP_ERR #####
+error: colm: typeid can only be applied to tree types

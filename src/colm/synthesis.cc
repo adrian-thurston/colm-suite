@@ -1564,6 +1564,23 @@ UniqueType *LangTerm::evaluateCast( Compiler *pd, CodeVect &code ) const
 	if ( exprUT->typeId != TYPE_TREE && exprUT->typeId != TYPE_REF )
 		error(loc) << "can only cast a tree" << endp;
 
+	/* A cast keeps to its kind. A token's text is its own, and a def's is in
+	 * its children, as an il's is. A cast across them would give a token with
+	 * no text, or a def whose text never prints. A cast of an any is checked
+	 * when it runs, and a cast to any isn't checked. A ref to a type that
+	 * isn't a tree has no lang el, and is left as it was. */
+	LangEl *from = exprUT->langEl, *to = ut->langEl;
+	if ( from != 0 && from != pd->anyLangEl && to != pd->anyLangEl ) {
+		bool fromToken = from->type == LangEl::Term && from != pd->ignoreLangEl;
+		bool toToken = to->type == LangEl::Term;
+		if ( toToken && from == pd->ignoreLangEl )
+			error(loc) << "cannot cast il to a token type" << endp;
+		if ( toToken && !fromToken )
+			error(loc) << "cannot cast a def to a token type" << endp;
+		if ( !toToken && fromToken )
+			error(loc) << "cannot cast a token or str to a def type" << endp;
+	}
+
 	code.append( IN_TREE_CAST );
 	code.appendHalf( ut->langEl->id );
 	return ut;
@@ -2675,6 +2692,20 @@ UniqueType *LangTerm::evaluateMakeTree( Compiler *pd, CodeVect &code ) const
 	int numArgs = args != 0 ? args->length() : 0;
 	if ( numArgs < 1 )
 		error(loc) << "need at least one argument" << endp;
+
+	/* make_tree makes a def, or an il, whose text is in its children. A token
+	 * or a str has text of its own, which make_tree can't give it. An id that
+	 * isn't typeid<T> written out is checked when it runs. A typeid of a type
+	 * that isn't a tree has no lang el, and evaluating it reports that. */
+	LangExpr *idExpr = args->data[0]->expr;
+	if ( idExpr->type == LangExpr::TermType &&
+			idExpr->term->type == LangTerm::TypeIdType &&
+			idExpr->term->typeRef->uniqueType->typeId == TYPE_TREE )
+	{
+		LangEl *langEl = idExpr->term->typeRef->uniqueType->langEl;
+		if ( langEl->type == LangEl::Term && langEl != pd->ignoreLangEl )
+			error(loc) << "make_tree cannot make a token or str" << endp;
+	}
 
 	for ( CallArgVect::Iter pe = *args; pe.lte(); pe++ ) {
 		/* Evaluate. */

@@ -1,0 +1,128 @@
+# A cast keeps to its kind, and a cast of an any is checked when it runs,
+# against the tree the any holds. The host sends standard error to standard
+# output, so the message is in the output, after what the program printed
+# before it. The argument picks the tree. An any that holds a def or an il,
+# cast to a token type, stops the program, as an any that holds a token or a
+# str, cast to a def type, does. With "work", each cast keeps to its kind, and
+# they all work: a token cast back from a cast to any too.
+
+lex
+	token id /[a-z]+/
+	token name /[A-Z][a-z]*/
+	ignore /[ \n]+/
+end
+
+def start
+	[(id | name)*]
+
+def other
+	[(id | name)*]
+
+K: str = argv->pop()
+print( "before\n" )
+parse S: start[ " ab Cd" ]
+
+if ( K == "def" ) {
+	A: any = S
+	T: id = cast<id> A
+	print( T.line, "\n" )
+}
+elsif ( K == "il" ) {
+	for I: il in with_ignore( S ) {
+		A: any = I
+		T: id = cast<id> A
+		print( T.line, "\n" )
+	}
+}
+elsif ( K == "token" ) {
+	for I: id in S {
+		A: any = I
+		D: other = cast<other> A
+		print( "<", D, ">\n" )
+	}
+}
+elsif ( K == "str" ) {
+	A: any = "ab"
+	D: other = cast<other> A
+	print( "<", D, ">\n" )
+}
+elsif ( K == "work" ) {
+	for I: id in S {
+		A: any = I
+		N: name = cast<name> A
+		print( "name: ", $N, " ", N.line, "\n" )
+		B: any = cast<any> I
+		M: name = cast<name> B
+		print( "name: ", $M, " ", M.col, "\n" )
+	}
+	A: any = S
+	O: other = cast<other> A
+	print( "other: ", $O, "\n" )
+	for I: il in with_ignore( S ) {
+		B: any = I
+		P: other = cast<other> B
+		print( "other: <", P, ">\n" )
+	}
+}
+
+print( "after\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+def
+##### EXP #####
+before
+fatal: cast of a def to a token type
+##### EXIT #####
+1
+##### ARGS #####
+il
+##### EXP #####
+before
+fatal: cast of an il to a token type
+##### EXIT #####
+1
+##### ARGS #####
+token
+##### EXP #####
+before
+fatal: cast of a token or str to a def type
+##### EXIT #####
+1
+##### ARGS #####
+str
+##### EXP #####
+before
+fatal: cast of a token or str to a def type
+##### EXIT #####
+1
+##### ARGS #####
+work
+##### EXP #####
+before
+name: ab 1
+name: ab 2
+other: ab Cd
+other: < >
+other: < >
+after
+host: exit status 0
+##### EXIT #####
+0

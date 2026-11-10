@@ -165,6 +165,18 @@ by label. Any other `X` or `T` is an error, and so are `str` and `il` as `T`:
 tree or str stops the program: it prints `fatal: cast of a nil tree` and exits
 with status 1.
 
+A cast keeps to its kind. A token's text is its own, and a def's is in its
+children, as an `il`'s is. So a token or a str can be cast to a token type,
+and a def or an `il` to a def type, but a cast from one kind to the other is
+an error, which colm reports as `cannot cast a def to a token type`,
+`cannot cast il to a token type` or
+`cannot cast a token or str to a def type`. A cast of an `any` is checked
+when it runs, against the tree the `any` holds. When the kinds differ, it
+stops the program, which prints `fatal: cast of a def to a token type`,
+`fatal: cast of an il to a token type` or
+`fatal: cast of a token or str to a def type`, and exits with status 1. A cast
+to `any` isn't checked.
+
 In this program, `show` takes only a `name`. A `word` is cast to a `name` to
 pass it:
 

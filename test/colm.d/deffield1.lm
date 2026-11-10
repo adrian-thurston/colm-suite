@@ -1,0 +1,118 @@
+# An any can be assigned to a variable of any tree type, unchecked, so a token
+# variable can hold a def. Reading a token field of a tree that isn't a token
+# stops the program: the tree has no text of its own, and the read segfaulted.
+# The host sends standard error to standard output, so the message is in the
+# output. The argument picks the field, or "arg", a token parameter given the
+# def. With "token", the variable holds a token, and the reads work.
+
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def start
+	[id*]
+
+void show_col( T: id )
+{
+	print( T.col, "\n" )
+}
+
+K: str = argv->pop()
+print( "before\n" )
+parse S: start[ "ab cd" ]
+A: any = S
+T: id = A
+
+if ( K == "data" )
+	print( T.data, "\n" )
+elsif ( K == "file" )
+	print( T.file, "\n" )
+elsif ( K == "line" )
+	print( T.line, "\n" )
+elsif ( K == "col" )
+	print( T.col, "\n" )
+elsif ( K == "pos" )
+	print( T.pos, "\n" )
+elsif ( K == "arg" )
+	show_col( A )
+elsif ( K == "token" ) {
+	for I: id in S {
+		B: any = I
+		U: id = B
+		print( U.data, " ", U.line, " ", U.col, " ", U.pos, "\n" )
+	}
+}
+
+print( "after\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+data
+##### EXP #####
+before
+fatal: reading the data of a tree that isn't a token
+##### EXIT #####
+1
+##### ARGS #####
+file
+##### EXP #####
+before
+fatal: reading the file of a tree that isn't a token
+##### EXIT #####
+1
+##### ARGS #####
+line
+##### EXP #####
+before
+fatal: reading the line of a tree that isn't a token
+##### EXIT #####
+1
+##### ARGS #####
+col
+##### EXP #####
+before
+fatal: reading the col of a tree that isn't a token
+##### EXIT #####
+1
+##### ARGS #####
+pos
+##### EXP #####
+before
+fatal: reading the pos of a tree that isn't a token
+##### EXIT #####
+1
+##### ARGS #####
+arg
+##### EXP #####
+before
+fatal: reading the col of a tree that isn't a token
+##### EXIT #####
+1
+##### ARGS #####
+token
+##### EXP #####
+before
+ab 1 1 0
+cd 1 4 3
+after
+host: exit status 0
+##### EXIT #####
+0

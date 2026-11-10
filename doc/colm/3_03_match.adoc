@@ -349,8 +349,14 @@ with more than one production with `cons`. Colm doesn't check that the
 children fit the production: give it one tree of each element's type, in
 order. It does check that none of them is nil: a nil child stops the
 program, which prints `fatal: make_tree with a nil child` and exits with
-status 1. A literal in backtick form has no `typeid`, so the def's production
-must use named tokens, such as `+token equals /'='/+`, not literals.
+status 1. `make_tree` can't make a token or a `str`, which have text of their
+own: `make_tree( typeid<T> )` with `T` a token type or `str` is an error,
+`make_tree cannot make a token or str`. Given the id of such a type another
+way, as in a variable, it stops the program, which prints
+`fatal: make_tree of a token type or str` and exits with status 1. Make a
+token with `make_token`. A literal in backtick form has no `typeid`, so the
+def's production must use named tokens, such as `+token equals /'='/+`, not
+literals.
 `make_tree` also makes a list of ignored text, as <<ignore-lists,the last
 section>> explains.
 

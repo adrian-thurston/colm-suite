@@ -1963,6 +1963,42 @@ again:
 			}
 			break;
 		}
+		case IN_MAP_EL_KEY_CHECK_WV: {
+			short field;
+			read_half( field );
+
+			debug( prg, REALM_BYTECODE, "IN_MAP_EL_KEY_CHECK_WV %hd\n", field );
+
+			struct_t *strct = (struct_t*)vm_top();
+			if ( strct != 0 ) {
+				map_el_t *map_el = colm_struct_get_addr( strct, map_el_t*, field );
+				if ( map_el->height != 0 )
+					runtime_error( prg, "setting the key of an element in a map" );
+			}
+
+			/* The write's reverse code checks again before the key goes back,
+			 * since code outside the parse may have put the element into a
+			 * map by then. This goes into the unit that loaded the element. */
+			rcode_code( exec, IN_MAP_EL_KEY_CHECK_BKT );
+			rcode_half( exec, field );
+			break;
+		}
+		case IN_MAP_EL_KEY_CHECK_BKT: {
+			short field;
+			read_half( field );
+
+			debug( prg, REALM_BYTECODE, "IN_MAP_EL_KEY_CHECK_BKT %hd\n", field );
+
+			/* The element is on top, where the reverse code that loaded it
+			 * left it for the next instruction of the unit. */
+			struct_t *strct = (struct_t*)vm_top();
+			map_el_t *map_el = colm_struct_get_addr( strct, map_el_t*, field );
+			if ( map_el->height != 0 ) {
+				runtime_error( prg, "backing up over a key write to an "
+						"element now in a map" );
+			}
+			break;
+		}
 		case IN_GET_RHS_VAL_R: {
 			debug( prg, REALM_BYTECODE, "IN_GET_RHS_VAL_R\n" );
 
@@ -5082,8 +5118,15 @@ again:
 
 				map_t *map = vm_pop_map();
 
-				if ( inserted ) 
+				/* Code outside the parse may have moved the element since.
+				 * Detaching one the map doesn't hold corrupts the maps. */
+				if ( inserted ) {
+					if ( !map_holds_el( map, map_el ) ) {
+						runtime_error( prg, "backing up over insert_el of an "
+								"element no longer in the map" );
+					}
 					colm_map_detach( prg, map, map_el );
+				}
 				break;
 			}
 			case FN_MAP_DETACH_WC: {
@@ -5141,6 +5184,12 @@ again:
 
 				map_t *map = vm_pop_map();
 
+				/* Code outside the parse may have moved the element since.
+				 * Inserting one a map holds corrupts the maps. */
+				if ( map_el->height != 0 ) {
+					runtime_error( prg, "backing up over detach_el of an "
+							"element now in a map" );
+				}
 				colm_map_insert( prg, map, map_el );
 				break;
 			}
@@ -5202,8 +5251,14 @@ again:
 
 				map_t *map = vm_pop_map();
 
-				if ( inserted ) 
+				/* As for FN_MAP_INSERT_BKT. */
+				if ( inserted ) {
+					if ( !map_holds_el( map, map_el ) ) {
+						runtime_error( prg, "backing up over insert of an "
+								"element no longer in the map" );
+					}
 					colm_map_detach( prg, map, map_el );
+				}
 				break;
 			}
 			case FN_VMAP_REMOVE_WC: {
@@ -5271,8 +5326,14 @@ again:
 
 				map_t *map = vm_pop_map();
 
-				if ( map_el != 0 )
+				/* As for FN_MAP_DETACH_BKT. */
+				if ( map_el != 0 ) {
+					if ( map_el->height != 0 ) {
+						runtime_error( prg, "backing up over remove of an "
+								"element now in a map" );
+					}
 					colm_map_insert( prg, map, map_el );
+				}
 				break;
 			}
 			case FN_VMAP_FIND: {
@@ -5802,6 +5863,12 @@ again:
 			consume_word(); //( ptr );
 
 			debug( prg, REALM_BYTECODE, "IN_PTR_ACCESS_BKT\n" );
+			break;
+		}
+		case IN_MAP_EL_KEY_CHECK_BKT: {
+			consume_half(); //( field );
+
+			debug( prg, REALM_BYTECODE, "IN_MAP_EL_KEY_CHECK_BKT\n" );
 			break;
 		}
 		case IN_SET_TOKEN_DATA_BKT: {

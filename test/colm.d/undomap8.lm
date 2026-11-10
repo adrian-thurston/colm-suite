@@ -1,0 +1,112 @@
+# Backing up over a map's insert_el, detach_el or a key write in a reduction
+# action doesn't stop the program when the element is where the action left
+# it, even if code outside the parse moved it in between. Each run sends
+# "* ;", which the parser takes as A1, running the action of item. The main
+# program then moves the element, and the "\n" sent next makes the parser
+# back up to A2, except in run kept, which sends " ^\n" and keeps A1.
+#
+# reinsert: the main program detaches the element the action inserted, and
+# inserts it again. The undo detaches it.
+# other_key: the main program inserts another element under the key of the
+# one the action detached. The undo can't put it back, and the map keeps the
+# other one.
+# key_back: the main program inserts the element whose key the action set,
+# and detaches it again. The undo puts back the old key.
+# kept: the parse keeps A1, so nothing is undone.
+
+global Mode: str = argv->pop()
+global M: map<str, str> = new map<str, str>()
+global O: map<str, str> = new map<str, str>()
+global H: map_el<str, str>
+global G: map_el<str, str>
+
+lex
+	ignore /[ \t]+/
+	literal `* `^ `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+def item
+	[`*]
+	{
+		if ( Mode == "reinsert" )
+			M->insert_el( G )
+		elsif ( Mode == "other_key" || Mode == "kept" )
+			M->detach_el( H )
+		elsif ( Mode == "key_back" )
+			G->key = "z"
+		print( "action\n" )
+	}
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 `* `; NL]
+
+M->insert( "a", "1" )
+M->insert( "b", "2" )
+M->insert( "c", "3" )
+O->insert( "z", "26" )
+H = M->find_el( "b" )
+G = new map_el<str, str>()
+G->key = "d"
+G->value = "4"
+
+new P: parser<start>()
+send P "* ;"
+if ( Mode == "reinsert" ) {
+	M->detach_el( G )
+	M->insert_el( G )
+}
+elsif ( Mode == "other_key" )
+	M->insert( "b", "other" )
+elsif ( Mode == "key_back" ) {
+	M->insert_el( G )
+	M->detach_el( G )
+}
+elsif ( Mode == "kept" )
+	O->insert_el( H )
+
+if ( Mode == "kept" )
+	send P " ^\n"
+else
+	send P "\n"
+T: start = P->finish()
+
+print( "M [M->length]:" )
+for E: map_el<str, str> in M
+	print( " [E->key]=[E->value]" )
+print( "\nO [O->length]:" )
+for E: map_el<str, str> in O
+	print( " [E->key]=[E->value]" )
+print( "\nG [G->key]\n" )
+##### ARGS #####
+reinsert
+##### EXP #####
+action
+M 3: a=1 b=2 c=3
+O 1: z=26
+G d
+##### ARGS #####
+other_key
+##### EXP #####
+action
+M 3: a=1 b=other c=3
+O 1: z=26
+G d
+##### ARGS #####
+key_back
+##### EXP #####
+action
+M 3: a=1 b=2 c=3
+O 1: z=26
+G d
+##### ARGS #####
+kept
+##### EXP #####
+action
+M 2: a=1 c=3
+O 2: b=2 z=26
+G d

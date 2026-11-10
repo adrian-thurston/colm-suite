@@ -100,6 +100,19 @@ same parser as `P`.
 
 After a parse error, later sends do nothing.
 
+A parser can't be sent to while its parse is waiting for an action to end.
+While a token action, a production's action or a `preeof` block of its
+grammar runs, the parse is stopped in the middle, and a send to the same
+parser would start a second parse over it. So such a send stops the
+program, as xref:8_04_error_handling.adoc#run-time-errors[the error handling
+chapter] says. So do a send of nothing, `+send P []+`, and `+finish()+`.
+That holds in a function the action calls, and in the actions of another
+parser that the action sends to, too. Backing up over an earlier send to the
+parser stops the program then as well: if an action of `Q` sent to `P`, and
+an action of `P` later sends to `Q`, `Q` can't back up over its own action
+while `P`'s runs. A `parse` or a `parse_stop` makes a parser of its own, so
+an action can run one.
+
 == Ending the input
 
 `eos` after the items of a send ends the input after them, as in

@@ -1,0 +1,47 @@
+# In a token action, match_text has the location of the match: the file,
+# line, column and byte it starts at, as a token the parser gets has. A token
+# made from it has the same location.
+
+lex
+	token go /'@'/ {
+		print( 'match ', match_text.file, ' ', match_text.line, ' ',
+				match_text.col, ' ', match_text.pos, '\n' )
+		input->pull( match_length )
+	}
+
+	token mk /'%'/ {
+		input->pull( match_length )
+		input->push( make_token( typeid<id>, match_text ) )
+	}
+
+	token back /'!'/ {
+		input->pull( match_length )
+		input->push( "x @" )
+	}
+
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def item
+	[go]
+|	[id]
+
+def items
+	[item*]
+
+parse G: items[ stdin ]
+for I: id in G
+	print( 'id ', I.file, ' ', I.line, ' ', I.col, ' ', I.pos, '\n' )
+##### IN #####
+ab
+  @ cd @
+ % !
+##### EXP #####
+match <stdin> 2 3 5
+match <stdin> 2 8 10
+match <text1> 1 3 2
+id <stdin> 1 1 0
+id <stdin> 2 5 7
+id <stdin> 3 2 13
+id <text1> 1 1 0

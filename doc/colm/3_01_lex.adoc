@@ -482,6 +482,9 @@ can't do.
 When the action starts, the matched text is still in the input. In the action:
 
 * `match_text` is the matched text, and `match_length` its length.
+  `match_text` has the location of the match, in the fields a token has, as
+  xref:8_04_error_handling.adoc#locations[the error handling chapter] says. A
+  token made from it with `make_token` has the same location.
 * `input` is the input the scanner reads, which the calls below work on. The
   action can't assign to it: `input = nil` is a compile error,
   `cannot assign to "input"`.

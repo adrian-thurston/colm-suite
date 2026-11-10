@@ -104,8 +104,10 @@ A token has four fields that say where it was read:
 Literals have them too. Columns count bytes: a tab is one column, and a
 character of several bytes, such as `é` in UTF-8, counts as several.
 
-A token that wasn't read from input, such as one made with `make_token` or
-`cons`, has `file` nil, and 0 in the others.
+A token made in the program, with `cons`, or with `make_token` from a string
+the program made, has `file` nil, and 0 in the others. One made with
+`make_token` from `match_text` has the match's location, as
+xref:3_01_lex.adoc#token-actions[the lexing chapter] says.
 
 Reading a location field of a token variable that is nil stops the program,
 as <<run-time-errors>> says. Check the token before reading its fields, as

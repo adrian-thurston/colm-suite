@@ -7,6 +7,7 @@ EXTRA_DIST = \
 	accumbt3.lm \
 	accumbt4.lm \
 	accumbt5.lm \
+	actattr1.lm \
 	actlong1.lm \
 	argv1.lm \
 	argv2.lm \
@@ -34,7 +35,20 @@ EXTRA_DIST = \
 	cast6.lm \
 	cast7.lm \
 	cast8.lm \
+	cast9.lm \
+	cast10.lm \
+	cast11.lm \
+	cast12.lm \
+	cast13.lm \
+	cast14.lm \
+	cast15.lm \
+	childwrite1.lm \
+	childwrite2.lm \
+	childwrite3.lm \
+	childwrite4.lm \
+	childwritemsg1.lm \
 	collect.lm \
+	collectloc1.lm \
 	commitbt.lm \
 	comperr1.lm \
 	concat1.lm \
@@ -76,6 +90,7 @@ EXTRA_DIST = \
 	decl1.lm \
 	decl2.lm \
 	decl3.lm \
+	deffield1.lm \
 	define1.lm \
 	div.lm \
 	earlytree1.lm \
@@ -178,6 +193,9 @@ EXTRA_DIST = \
 	inputnew1.lm \
 	inputtree1.lm \
 	inputtree2.lm \
+	ioerr1.lm \
+	ioerr2.lm \
+	ioerr3.lm \
 	island.lm \
 	itemtype1.lm \
 	itemtype2.lm \
@@ -196,6 +214,8 @@ EXTRA_DIST = \
 	list2.lm \
 	list3.lm \
 	list4.lm \
+	listel1.lm \
+	listel2.lm \
 	listhead1.lm \
 	listmsg1.lm \
 	listpop1.lm \
@@ -221,6 +241,10 @@ EXTRA_DIST = \
 	mailbox.lm \
 	maketoken1.lm \
 	maketree1.lm \
+	maketree2.lm \
+	maketree3.lm \
+	maketree4.lm \
+	maketree5.lm \
 	map1.lm \
 	map2.lm \
 	map3.lm \
@@ -238,6 +262,9 @@ EXTRA_DIST = \
 	mapkey3.lm \
 	mapmsg1.lm \
 	matchex.lm \
+	matchloc1.lm \
+	matchloc2.lm \
+	matchloc3.lm \
 	matchnil1.lm \
 	matchtext1.lm \
 	maxlen.lm \
@@ -349,6 +376,13 @@ EXTRA_DIST = \
 	reducepast3.lm \
 	reducepast4.lm \
 	reducepast5.lm \
+	reducevalue1.lm \
+	reducevalue2.lm \
+	reducevalue3.lm \
+	reducevalue4.lm \
+	reducevalue5.lm \
+	reducevalue6.lm \
+	reducevalue7.lm \
 	ref1.lm \
 	ref2.lm \
 	ref3.lm \
@@ -441,12 +475,16 @@ EXTRA_DIST = \
 	undofrag2.lm \
 	undofrag3.lm \
 	undolist1.lm \
+	undolist2.lm \
 	undomap1.lm \
 	undomap2.lm \
 	undomap3.lm \
 	undomap4.lm \
 	undomap5.lm \
 	undomap6.lm \
+	undomap7.lm \
+	undomap8.lm \
+	undomap9.lm \
 	undopush1.lm \
 	undosplit1.lm \
 	undosplit2.lm \

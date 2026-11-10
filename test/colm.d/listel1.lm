@@ -1,0 +1,125 @@
+# A list's push_el, push_head_el and push_tail_el given an element that a list
+# holds already, another list or this one, end the program with exit status 1.
+# The output before them is kept.
+
+new L: list<str>()
+new K: list<str>()
+new J: list<str>()
+L->push_tail( "a" )
+L->push_tail( "b" )
+L->push_tail( "c" )
+K->push_tail( "x" )
+J->push_tail( "j" )
+
+A: str = argv->pop()
+print( "before\n" )
+
+if ( A == "other_middle" ) {
+	E: list_el<str> = L->head_el->next
+	K->push_tail_el( E )
+}
+elsif ( A == "other_head" )
+	K->push_head_el( L->head_el )
+elsif ( A == "other_tail" )
+	K->push_el( L->tail_el )
+elsif ( A == "other_only" ) {
+	# J's only element has no element beside it, as a new element has none.
+	K->push_tail_el( J->head_el )
+}
+elsif ( A == "same_head" )
+	L->push_head_el( L->tail_el )
+elsif ( A == "same_only" )
+	J->push_tail_el( J->head_el )
+elsif ( A == "twice" ) {
+	new E: list_el<str>()
+	E->value = "e"
+	K->push_tail_el( E )
+	print( "pushed once\n" )
+	K->push_head_el( E )
+}
+elsif ( A == "popped_twice" ) {
+	E: list_el<str> = L->pop_head_el()
+	K->push_tail_el( E )
+	print( "pushed once\n" )
+	J->push_el( E )
+}
+elsif ( A == "loop" ) {
+	for E: list_el<str> in L
+		K->push_tail_el( E )
+}
+
+# A list that a push has broken may not end: each walk stops at 8.
+print( "after\n" )
+print "L length [L->length]:"
+N: int = 0
+for V: str in L {
+	if ( N == 8 )
+		break
+	print " [V]"
+	N = N + 1
+}
+print "\nK length [K->length]:"
+N = 0
+for V: str in K {
+	if ( N == 8 )
+		break
+	print " [V]"
+	N = N + 1
+}
+print "\n"
+##### ARGS #####
+other_middle
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+other_head
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+other_tail
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+other_only
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+same_head
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+same_only
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+twice
+##### EXP #####
+before
+pushed once
+##### EXIT #####
+1
+##### ARGS #####
+popped_twice
+##### EXP #####
+before
+pushed once
+##### EXIT #####
+1
+##### ARGS #####
+loop
+##### EXP #####
+before
+##### EXIT #####
+1

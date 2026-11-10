@@ -1,0 +1,77 @@
+#
+# In a production's action, a write can go through a child of a context
+# variable's tree. It stays when the parse keeps the reduction, and is undone
+# when the parser backs up over it. The first argument picks the input, as in
+# childwrite2.lm: "keep" or "back". The second picks the write.
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	literal `; `!
+	ignore /[ \n]+/
+end
+
+def pair
+	T: id
+	[L: id R: num]
+
+def wrap
+	[pair]
+
+global B: str = argv->pop()
+global K: str = argv->pop()
+
+context ctx
+	H: wrap
+
+	def item
+		[id num]
+
+	def wrapper
+		[item]
+		{
+			if K == 'data'
+				H.pair.L.data = 'z'
+			elsif K == 'attr'
+				H.pair.T = make_token( typeid<id>, 'q' )
+		}
+
+	def start
+		[wrapper id `;]
+	|	[item id `!]
+end
+
+print( B, ' ', K, '\n' )
+C: ctx = new ctx()
+C->H = parse wrap[ "x 1" ]
+In: str = "y 3 u ;"
+if B == 'back'
+	In = "y 3 u !"
+parse S: ctx::start( C )[ In ]
+print( 'S: ', S, '\n' )
+print( 'H: ', C->H, ' <', C->H.pair.T, '>\n' )
+##### ARGS #####
+keep data
+##### EXP #####
+keep data
+S: y 3 u ;
+H: z 1 <NIL>
+##### ARGS #####
+back data
+##### EXP #####
+back data
+S: y 3 u !
+H: x 1 <NIL>
+##### ARGS #####
+keep attr
+##### EXP #####
+keep attr
+S: y 3 u ;
+H: x 1 <q>
+##### ARGS #####
+back attr
+##### EXP #####
+back attr
+S: y 3 u !
+H: x 1 <NIL>

@@ -1,0 +1,13 @@
+# A token can't be cast to a def type. The def got the token's text, which it
+# never printed.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def start
+	[id*]
+parse S: start[ "ab cd" ]
+for I: id in S
+	print( "<", cast<start> I, ">\n" )
+##### COMP_ERR #####
+11:14: cannot cast a token or str to a def type

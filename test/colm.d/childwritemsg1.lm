@@ -1,0 +1,119 @@
+#
+# A write through a child of a nil tree stops the program with "fatal:
+# reading a child of a nil tree" and exit status 1, after the output printed
+# before it. A child the tree's production doesn't have is nil, so a write
+# inside one stops it too, with the message of the write that meets the nil
+# tree. Setting such a child stops it with "fatal: setting a child the tree's
+# production doesn't have". The host sends standard error to standard output,
+# so the message is in the output. The argument picks the write.
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	ignore /[ \n]+/
+end
+
+def pair
+	A: int
+	[L: id R: num]
+
+def wrap
+	[pair]
+|	[num]
+
+def item
+	[Name: id]
+|	[Val: num]
+
+K: str = argv->pop()
+print( K, '\n' )
+
+N: wrap = nil
+parse M: wrap[ "5" ]
+parse I: item[ "7" ]
+C: pair = parse pair[ "y 2" ]
+
+if K == 'nil_attr'
+	N.pair.A = 4
+elsif K == 'nil_data'
+	N.pair.L.data = 'z'
+elsif K == 'absent_attr'
+	M.pair.A = 4
+elsif K == 'absent_data'
+	M.pair.L.data = 'z'
+elsif K == 'absent_set'
+	M.pair = C
+elsif K == 'absent_label'
+	I.Name = make_token( typeid<id>, 'y' )
+
+print( 'done\n' )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+none
+##### EXP #####
+none
+done
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+nil_attr
+##### EXP #####
+nil_attr
+fatal: reading a child of a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+nil_data
+##### EXP #####
+nil_data
+fatal: reading a child of a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+absent_attr
+##### EXP #####
+absent_attr
+fatal: setting an attribute of a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+absent_data
+##### EXP #####
+absent_data
+fatal: reading a child of a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+absent_set
+##### EXP #####
+absent_set
+fatal: setting a child the tree's production doesn't have
+##### EXIT #####
+1
+##### ARGS #####
+absent_label
+##### EXP #####
+absent_label
+fatal: setting a child the tree's production doesn't have
+##### EXIT #####
+1

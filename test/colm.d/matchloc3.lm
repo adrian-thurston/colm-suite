@@ -1,0 +1,53 @@
+# match_text's location when the parser backs up over text a token action
+# took: the text goes back to the input, is scanned again in another region,
+# and the other region's action reads the same location.
+
+lex
+	token go /'@'/ {
+		print( 'match1 ', match_text.file, ' ', match_text.line, ' ',
+				match_text.col, ' ', match_text.pos, '\n' )
+		input->pull( match_length )
+		input->push( make_token( typeid<go>, match_text ) )
+	}
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+lex
+	token at /'@'/ {
+		print( 'match2 ', match_text.file, ' ', match_text.line, ' ',
+				match_text.col, ' ', match_text.pos, '\n' )
+		input->pull( match_length )
+		input->push( make_token( typeid<at>, match_text ) )
+	}
+	token id2 /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def a
+	[id go go id]
+
+def b
+	[id2 at at at]
+
+def start
+	[a]
+|	[b]
+
+parse S: start[ stdin ]
+for A: at in S
+	print( 'at ', A.file, ' ', A.line, ' ', A.col, ' ', A.pos, '\n' )
+##### IN #####
+x
+ @ @
+  @
+##### EXP #####
+match1 <stdin> 2 2 3
+match1 <stdin> 2 4 5
+match1 <stdin> 3 3 9
+match2 <stdin> 2 2 3
+match2 <stdin> 2 4 5
+match2 <stdin> 3 3 9
+at <stdin> 2 2 3
+at <stdin> 2 4 5
+at <stdin> 3 3 9

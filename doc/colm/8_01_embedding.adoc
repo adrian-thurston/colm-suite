@@ -115,7 +115,10 @@ bytes.
 
 `colm_delete_program( prg )`::
 Frees the program and everything it made, and returns its exit status: the
-value it passed to `exit`, or 0.
+value it passed to `exit`, or 0. It first closes the streams the program left
+open, which writes out what was sent to them. A write that fails stops the
+program there, as xref:8_04_error_handling.adoc#io-errors[the error handling
+chapter] says, and the host's process ends.
 
 `colm_error( prg, &length )`::
 The `error` of the program's last `parse`, or NULL when that parse succeeded,
@@ -155,8 +158,9 @@ exported function that the host called, as in <<exports>>, or in a function,
 iterator or parser action that it runs: colm can't return to the host from
 there. So does an `exit` that colm can't unwind the stack from, as
 xref:8_04_error_handling.adoc#stopping[the error handling chapter] describes.
-What the program printed comes out first, and the process exits with status
-`N`.
+What the program printed comes out first, and every stream it left open is
+closed. Then the process exits with status `N`, or with 1 if a write failed, as
+xref:8_04_error_handling.adoc#io-errors[the error handling chapter] says.
 
 A host can make several programs, from one parse object or from several, and
 have them alive at once. Each is independent of the others. Make a program,

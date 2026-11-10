@@ -1,0 +1,51 @@
+# Backing up over a detach_el in a reduction action stops the program when
+# the main program has put the element into another map since, with the map
+# and the element held only in the parse's context. Sending "* ;" runs the
+# action of item, and the "\n" sent after the move makes the parser back up.
+
+context ctx
+	M: map<str, str>
+	H: map_el<str, str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			M->detach_el( H )
+			print( "action: M [M->length]\n" )
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+Ctx: ctx = new ctx()
+Ctx->M = new map<str, str>()
+Ctx->M->insert( "a", "1" )
+Ctx->M->insert( "b", "2" )
+Ctx->M->insert( "c", "3" )
+Ctx->H = Ctx->M->find_el( "b" )
+O: map<str, str> = new map<str, str>()
+O->insert( "z", "26" )
+
+new P: parser<ctx::start>( Ctx )
+send P "* ;"
+O->insert_el( Ctx->H )
+print( "moved: M [Ctx->M->length], O [O->length]\n" )
+send P "\n"
+S: ctx::start = P->finish()
+print( "after\n" )
+##### EXP #####
+action: M 2
+moved: M 2, O 2
+##### EXIT #####
+1

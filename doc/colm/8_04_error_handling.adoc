@@ -104,15 +104,20 @@ A token has four fields that say where it was read:
 Literals have them too. Columns count bytes: a tab is one column, and a
 character of several bytes, such as `é` in UTF-8, counts as several.
 
-A token that wasn't read from input, such as one made with `make_token` or
-`cons`, has `file` nil, and 0 in the others.
+A token made in the program, with `cons`, or with `make_token` from a string
+the program made, has `file` nil, and 0 in the others. One made with
+`make_token` from `match_text` has the match's location, as
+xref:3_01_lex.adoc#token-actions[the lexing chapter] says.
 
 Reading a location field of a token variable that is nil stops the program,
 as <<run-time-errors>> says. Check the token before reading its fields, as
 the next example does with `if ( First )` before `twice` reads `First.line`.
 
 A def has no location fields: `S.line` on a def doesn't compile. Read them
-from one of its tokens, as the next example does with `S.name`.
+from one of its tokens, as the next example does with `S.name`. A token
+variable given a def or an `il` from an `any` holds a tree that isn't a
+token, and reading `data` or a location field of it stops the program, as
+<<run-time-errors>> says.
 
 This program reads the same settings, and stops when a name is set twice:
 
@@ -184,7 +189,8 @@ program at once, and so does one reached through a call given a `ref` argument
 other than a local variable or a parameter, such as `P.item` or a global. colm
 can't unwind the stack there. What the program printed comes out, and the
 process exits with the status, as `exit_hard( N )` does: a host's process ends
-too.
+too. A write that fails as the streams are closed then stops the program with
+status 1 instead, as <<io-errors>> says.
 
 To fail the parse instead, and let the parser try another way, a production's
 action uses `reject`, which xref:3_02_parse.adoc#reject[the parsing chapter]
@@ -195,19 +201,24 @@ covers.
 
 Some mistakes stop the program where they happen:
 
-* popping a value off a list that is empty or nil, as
+* popping a value or an element off a list that is empty or nil, as
   xref:2_02_list_map_struct_alias.adoc#lists[the lists section] describes;
 * reading the `head`, `tail` or `top` of such a list;
 * any other use of a nil list or map, such as a push, an `insert` or a read
   of its `length`, as the lists section and
   xref:2_02_list_map_struct_alias.adoc#maps[the maps section] describe;
 * pushing a nil element onto a list, with `push_el`, `push_head_el` or
-  `push_tail_el`;
+  `push_tail_el`, or an element that a list holds already, as the lists
+  section describes;
 * giving a map's `insert_el` or `detach_el` nil, `insert_el` an element that
   a map holds already, or `detach_el` one that the map doesn't hold, as
   xref:2_02_list_map_struct_alias.adoc#maps[the maps section] describes;
 * setting the `key` of an element that a map holds, or a child or an
   attribute of such a key, as the maps section describes;
+* backing up over an action's `insert`, `insert_el`, `detach_el` or `remove`,
+  or its write to an element's `key`, when the program has moved the element
+  into or out of a map since, as xref:3_04_undo.adoc#context[the context
+  chapter] describes;
 * reading or setting a field of a nil struct, as
   xref:2_02_list_map_struct_alias.adoc#structs[the structs section] describes,
   or the `value` or `key` of a nil list or map element, or reading such an
@@ -236,14 +247,18 @@ Some mistakes stop the program where they happen:
 * a `match`, `require` or `switch` on a nil tree, as
   xref:3_03_match.adoc#match[the patterns chapter] describes;
 * reading or setting a field of a token that is nil, such as `error.line`
-  after a parse that succeeds, as <<locations,the input locations section>>
+  after a parse that succeeds, or reading one from a token variable that
+  holds a def or an `il`, as <<locations,the input locations section>>
   describes;
 * reading or setting a child or an attribute of a nil tree, as
   xref:3_02_parse.adoc#parsing[the parsing chapter] and
   xref:3_05_reduction.adoc#attributes[the attributes section] describe;
 * setting a child to nil, by assigning nil to its label or by giving
-  `make_tree` a nil child, as
-  xref:3_03_match.adoc#changing[the patterns chapter] describes;
+  `make_tree` a nil child, or setting a child that the tree's production
+  doesn't have, as xref:3_03_match.adoc#changing[the patterns chapter]
+  describes;
+* `make_tree` given the id of a token type or of `str` another way than
+  `typeid<T>`, as xref:3_03_match.adoc#make[the patterns chapter] describes;
 * a pull of more characters than an input or a stream has, of more than
   2147483647 of them, or of a negative number of them, as
   xref:3_01_lex.adoc#token-actions[the lexing chapter] and
@@ -254,7 +269,8 @@ Some mistakes stop the program where they happen:
 * `reject` outside a production's action, in a function or an iterator
   called from the top-level code, a token action, a `preeof` block or a C or
   {cpp} host, as xref:3_02_parse.adoc#reject[the parsing chapter] describes;
-* a `cast` of a nil tree or str, as xref:1_02_expressions.adoc#cast[the
+* a `cast` of a nil tree or str, or of an `any` holding a tree of the other
+  kind from the type it is cast to, as xref:1_02_expressions.adoc#cast[the
   expressions chapter] describes;
 * reading `@N` or `@name` in a reduction action when the element has no
   location, as xref:3_05_reduction.adoc#reductions[the reductions chapter]
@@ -276,3 +292,30 @@ fatal: pop from an empty list
 
 This is not `exit`. Nothing after the mistake runs, not even in a C or {cpp}
 host: the host's process ends too, at once.
+
+[[io-errors]]
+== Read and write errors
+
+A read or a write on a stream that the system refuses stops the program, as
+the mistakes in <<run-time-errors>> do: what the program printed comes out
+first, then the message, and the program exits with status 1. The message
+names the stream, as `open` was given it, or `<stdin>`, `<stdout>` or
+`<stderr>`, and says what the system said:
+
+----
+fatal: could not write out.txt: No space left on device
+----
+
+Reading a directory that `open` opened is such a read, and so is reading a
+stream opened for writing. Sending to a stream opened for reading is such a
+write. What a program sends to a stream is written out in blocks, so the
+write can fail at a later `send`, at `+S->close()+`, or after the program
+ends, when the streams it left open are closed. In a C or {cpp} host,
+`colm_delete_program` closes them, and a write that fails there ends the
+host's process too.
+
+`stdout` and `stderr` are streams like the others: a program whose output
+can't be written stops with status 1, even after its own code has ended.
+When `stderr` is the stream that fails, the message is lost, but the status
+is still 1. A write that fails while the program is stopping already is
+ignored, and the message is the first one.

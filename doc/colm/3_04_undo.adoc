@@ -211,6 +211,8 @@ Colm undoes:
 
 * assignments to the variables of a context and to globals, and to the fields
   of the structs they hold
+* writes into the trees those variables hold, at any depth: setting a child,
+  a token's text, or an attribute that holds a tree or a `str`
 * additions to lists and maps, and removals from them
 * a token action's pulls and pushes on the input
 * sends to another parser, with the parsing they caused
@@ -239,6 +241,20 @@ between two sends to a parser, for example. If the parser later backs up over
 an action that ran before the change, the variable gets back the value it had
 before that action, and the change is lost. While a parse runs, change its
 data only from its actions.
+
+A map's elements are the exception. Putting an element back where an action
+found it would corrupt the maps if the program has moved the element since,
+into a map or out of one, so backing up over the action stops the program
+instead, as xref:8_04_error_handling.adoc#run-time-errors[the error handling
+chapter] describes. Undoing an `insert` or an `insert_el` stops if the map no
+longer holds the element. Undoing a `detach_el` or a `remove` stops if a map
+holds the element, this one or another, and undoing a write to an element's
+`key` stops if any map holds it. Other undos go ahead as before, and can lose
+a change from outside the parse or leave part of an action in place: if the
+program takes out the element an `insert_el` put in and puts it back, undoing
+the `insert_el` takes it out again; if the program puts another element into
+the map under the key of one that a `detach_el` took out, undoing the
+`detach_el` can't put that one back, and the map keeps the program's element.
 
 == Rejecting a reduction with data
 

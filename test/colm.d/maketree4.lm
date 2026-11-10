@@ -1,0 +1,80 @@
+# make_tree given an id that isn't written out as typeid<T> is checked when
+# it runs. The id of a token type or of str stops the program. The host sends
+# standard error to standard output, so the message is in the output. The
+# argument picks the id. With "work", make_tree makes an il and a def from ids
+# in variables.
+
+lex
+	token id /[a-z]+/
+	ignore ws /[ \n]+/
+end
+
+def start
+	[id*]
+
+K: str = argv->pop()
+print( "before\n" )
+
+if ( K == "token" ) {
+	I: int = typeid<id>
+	T: id = make_tree( I )
+	print( T.line, "\n" )
+}
+elsif ( K == "str" ) {
+	I: int = typeid<str>
+	M: any = make_tree( I )
+	print( M, "\n" )
+}
+elsif ( K == "work" ) {
+	I: int = typeid<il>
+	L: il = make_tree( I, make_token( typeid<ws>, " " ) )
+	print( "il: <", L, ">\n" )
+	J: int = typeid<start>
+	S: start = make_tree( J, make_token( typeid<id>, "ab" ) )
+	print( "start: <", S, ">\n" )
+}
+
+print( "after\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+token
+##### EXP #####
+before
+fatal: make_tree of a token type or str
+##### EXIT #####
+1
+##### ARGS #####
+str
+##### EXP #####
+before
+fatal: make_tree of a token type or str
+##### EXIT #####
+1
+##### ARGS #####
+work
+##### EXP #####
+before
+il: < >
+start: <ab>
+after
+host: exit status 0
+##### EXIT #####
+0

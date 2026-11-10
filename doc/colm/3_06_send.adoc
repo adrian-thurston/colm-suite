@@ -202,6 +202,13 @@ says. So do sending one to a parser or parsing from one, pushing it with
 `+input->push_stream+`, calling its functions, and reading its `+tree+`.
 `+S->close()+` closes a stream.
 
+A directory opens for reading, but reading it stops the program. So does any
+read or write on a stream that the system refuses, such as a write to a full
+disk, as xref:8_04_error_handling.adoc#io-errors[the error handling chapter]
+says. What is sent to a file is written out in blocks, so the write can fail
+at a later `send`, at `+S->close()+`, or when the program ends, which closes
+every stream it left open.
+
 `send S "text"` writes the text to the stream `S`. `print` sends to
 `stdout`: `print "text"` is `send stdout "text"`. `+prints( S, A, B )+`
 writes `A` and `B` to `S`, as `+print( A, B )+` writes them to `stdout`. A

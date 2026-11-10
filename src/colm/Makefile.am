@@ -88,11 +88,14 @@ libprog_a_CXXFLAGS = $(common_CFLAGS)
 
 colmincdir = $(includedir)/colm
 
+# The runtime's own declarations, never installed.
+noinst_HEADERS = rterror.h
+
 if INSTALL_COLM
 colminc_HEADERS = $(RUNTIME_HDR)
 nodist_colminc_HEADERS = $(GEN_RUNTIME_HDR)
 else
-noinst_HEADERS = $(RUNTIME_HDR)
+noinst_HEADERS += $(RUNTIME_HDR)
 endif
 
 if EXTERNAL_COLM

@@ -1,0 +1,15 @@
+# An il can't be cast to a token type. Its text is in its children, as a def's
+# is, so the cast gave a token with no text, and reading its line segfaulted.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def start
+	[id*]
+parse S: start[ " ab cd" ]
+for I: il in with_ignore( S ) {
+	T: id = cast<id> I
+	print( T.line, "\n" )
+}
+##### COMP_ERR #####
+11:10: cannot cast il to a token type

@@ -93,10 +93,11 @@ are.
 * `pop_head()` and `pop_tail()` take a value off the head or the tail, and
   give it back. `pop()` is `pop_head()`. Popping an empty or nil list stops
   the program, as xref:8_04_error_handling.adoc#run-time-errors[the error
-  handling chapter] says. Outside a reduction action, a pop keeps nothing of
+  handling chapter] says. Outside a parse's actions, a pop keeps nothing of
   what it took off, so a list used as a queue in a loop stays the same size.
-  In a reduction action, the parser keeps what a pop took off until the
-  parser goes, at exit, so that backing up can put it back.
+  In a reduction or token action, or a function one calls, the parser keeps
+  what a pop took off until the parser goes, at exit, so that backing up can
+  put it back.
 * `length` is the number of values.
 * `for V: T in L` gives the values from head to tail, and
   `for V: T in rev_list_iter( L )` from tail to head.
@@ -170,11 +171,11 @@ makes an empty one. Its functions and fields are reached with `+->+` too.
 * `for V: ValueType in M` gives the values, in key order, and
   `for K: KeyType in map_keys( M )` gives the keys, in the same order.
 
-Outside a reduction action, a `remove` keeps nothing of what it took out, and
+Outside a parse's actions, a `remove` keeps nothing of what it took out, and
 neither does an `insert` of a key the map has already, so a map that changes
-in a loop stays the same size. In a reduction action, the parser keeps what a
-`remove` took out until the parser goes, at exit, so that backing up can put
-it back, as it does for a pop.
+in a loop stays the same size. In a reduction or token action, or a function
+one calls, the parser keeps what a `remove` took out until the parser goes, at
+exit, so that backing up can put it back, as it does for a pop.
 
 Int keys go from low to high, negative ones first. Str keys go by length
 first, then byte by byte, as xref:1_02_expressions.adoc#operators[the

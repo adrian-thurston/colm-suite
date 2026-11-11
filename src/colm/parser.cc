@@ -30,94 +30,6 @@
 
 using std::endl;
 
-void BaseParser::listElDef( String name )
-{
-	/*
-	 * The unique type. This is a def with a single empty form.
-	 */
-	ObjectDef *objectDef = ObjectDef::cons( ObjectDef::UserType,
-			name, pd->nextObjectId++ );
-
-	LelProdList *prodList = new LelProdList;
-
-	Production *prod = BaseParser::production( InputLoc(),
-			new ProdElList, String(), false, 0, 0 );
-
-	prodAppend( prodList, prod );
-
-	NtDef *ntDef = NtDef::cons( name, curNspace(), curStruct(), false );
-	BaseParser::cflDef( ntDef, objectDef, prodList );
-
-	/*
-	 * List element with the same name as containing context.
-	 */
-	NamespaceQual *nspaceQual = NamespaceQual::cons( curNspace() );
-	String id = curStruct()->objectDef->name;
-	RepeatType repeatType = RepeatNone;
-	TypeRef *objTr = TypeRef::cons( InputLoc(), nspaceQual, id, repeatType );
-	TypeRef *elTr = TypeRef::cons( InputLoc(), TypeRef::ListPtrs, 0, objTr, 0 );
-
-	ObjectField *of = ObjectField::cons( InputLoc(),
-			ObjectField::GenericElementType, elTr, name );
-
-	structVarDef( InputLoc(), of );
-}
-
-void BaseParser::mapElDef( String name, TypeRef *keyType )
-{
-	/*
-	 * The unique type. This is a def with a single empty form.
-	 */
-	ObjectDef *objectDef = ObjectDef::cons( ObjectDef::UserType,
-			name, pd->nextObjectId++ );
-
-	LelProdList *prodList = new LelProdList;
-
-	Production *prod = BaseParser::production( InputLoc(),
-			new ProdElList, String(), false, 0, 0 );
-	prodAppend( prodList, prod );
-
-	NtDef *ntDef = NtDef::cons( name, curNspace(), curStruct(), false );
-	BaseParser::cflDef( ntDef, objectDef, prodList );
-
-	/*
-	 * Same name as containing context.
-	 */
-	NamespaceQual *nspaceQual = NamespaceQual::cons( curNspace() );
-	String id = curStruct()->objectDef->name;
-	TypeRef *objTr = TypeRef::cons( InputLoc(), nspaceQual, id, RepeatNone );
-	TypeRef *elTr = TypeRef::cons( InputLoc(), TypeRef::MapPtrs, 0, objTr, keyType );
-
-	ObjectField *of = ObjectField::cons( InputLoc(),
-			ObjectField::GenericElementType, elTr, name );
-	structVarDef( InputLoc(), of );
-}
-
-#if 0
-void BaseParser::argvDecl()
-{
-	String structName = "argv_el";
-	structHead( internal, pd->rootNamespace, structName, ObjectDef::StructType );
-
-	/* First the argv value. */
-	String name = "value";
-	String type = "str";
-	NamespaceQual *nspaceQual = NamespaceQual::cons( curNspace() );
-	TypeRef *typeRef = TypeRef::cons( internal, nspaceQual, type, RepeatNone );
-	ObjectField *objField = ObjectField::cons( internal,
-			ObjectField::StructFieldType, typeRef, name );
-	structVarDef( objField->loc, objField );
-
-	pd->argvEl = objField->context;
-
-	/* Now the list element. */
-	listElDef( "el" );
-
-	structStack.pop();
-	namespaceStack.pop();
-}
-#endif
-
 void BaseParser::init()
 {
 	/* Set up the root namespace. */
@@ -167,8 +79,6 @@ void BaseParser::init()
 	 * them directly, rather than via type lookup. */
 	pd->declareBaseLangEls();
 	pd->initUniqueTypes();
-
-	//argvDecl();
 
 	/* Internal variables. */
 	addArgvList();

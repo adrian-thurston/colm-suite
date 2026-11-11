@@ -2578,15 +2578,6 @@ struct LoadColm
 		case struct_item::Precedence:
 			walkPrecedenceDef( structItem.precedence_def() );
 			break;
-//		case struct_item::ListEl:
-//			listElDef( structItem.list_el_def().id().data() );
-//			break;
-//		case struct_item::MapEl: {
-//			map_el_def Def = structItem.map_el_def();
-//			TypeRef *keyTr = walkTypeRef( Def.type_ref() );
-//			mapElDef( Def.id().data(), keyTr );
-//			break;
-//		}
 		case struct_item::Alias:
 			walkAliasDef( structItem.alias_def() );
 			break;

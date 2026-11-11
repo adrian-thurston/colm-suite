@@ -71,10 +71,6 @@ struct BaseParser
 
 	/* Lexical feedback. */
 
-	void listElDef( String name );
-	void mapElDef( String name, TypeRef *keyType );
-
-	void argvDecl();
 	void init();
 	void addRegularDef( const InputLoc &loc, Namespace *nspace, 
 			const String &name, LexJoin *join );

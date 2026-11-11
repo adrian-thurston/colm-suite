@@ -40,7 +40,7 @@ module Rouge
 
 			def self.types
 				@types ||= Set.new %w(
-					int bool void list list_el map map_el ptr ref parser accum
+					int bool void list map ptr ref parser accum
 					str any stream
 				)
 			end
@@ -51,7 +51,7 @@ module Rouge
 					match_length exit exit_hard atoi atoo open system tolower
 					toupper prefix suffix postfix xml xmlac
 					child rev_child repeat rev_repeat triter with_ignore
-					list_iter rev_list_iter map_iter map_keys sprintf
+					rev_list_iter map_keys sprintf
 				)
 			end
 

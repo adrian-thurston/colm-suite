@@ -1,8 +1,7 @@
-# Moving an element to a new key in a reduction action, with detach_el, a key
-# write and insert_el, doesn't stop, and backtracking undoes all three. Input
-# ending in "; ^" is parsed as A1, keeping the move. Input ending in ";" is
-# parsed as A1 first, then backs up to A2, and the element is back under its
-# old key.
+# Moving a value to a new key in a reduction action, with remove and insert,
+# and backtracking undoes both. Input ending in "; ^" is parsed as A1,
+# keeping the move. Input ending in ";" is parsed as A1 first, then backs up
+# to A2, and the value is back under its old key.
 
 global M: map<str, str> = new map<str, str>()
 
@@ -18,9 +17,8 @@ def A2 []
 def item
 	[`+]
 	{
-		E: map_el<str, str> = M->detach_el( M->find_el( "a" ) )
-		E->key = "z"
-		M->insert_el( E )
+		V: str = M->remove( "a" )
+		M->insert( "z", V )
 		print( "moved a to z, length [M->length]\n" )
 	}
 
@@ -39,12 +37,12 @@ M->insert( "e", "5" )
 
 parse S: start[ stdin ]
 print( S )
-for V: map_el<str, str> in M
-	print( "[V->key] [V->value]\n" )
-if ( M->find_el( "a" ) )
-	print( "find_el a found it\n" )
-if ( M->find_el( "z" ) )
-	print( "find_el z found it\n" )
+for K: str in map_keys( M )
+	print( "[K] [M->find( K )]\n" )
+if ( M->contains( "a" ) )
+	print( "contains a\n" )
+if ( M->contains( "z" ) )
+	print( "contains z\n" )
 ##### IN #####
 + ; ^
 ##### EXP #####
@@ -55,7 +53,7 @@ c 3
 d 4
 e 5
 z 1
-find_el z found it
+contains z
 ##### IN #####
 + ;
 ##### EXP #####
@@ -66,4 +64,4 @@ b 2
 c 3
 d 4
 e 5
-find_el a found it
+contains a

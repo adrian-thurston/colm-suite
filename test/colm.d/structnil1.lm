@@ -1,7 +1,6 @@
 # Reading or setting a field of a nil struct stops the program with exit
 # status 1, after the output printed before it. That covers a list or map
-# held in the field, and an element of a list or map, which is a struct too.
-# A struct made with new works. The argument picks the use.
+# held in the field. A struct made with new works. The argument picks the use.
 
 lex
 	token id /[a-z]+/
@@ -34,9 +33,6 @@ A: str = argv->pop()
 V: S
 G: S = new S()
 G->L = new list<str>()
-G->M = new map<str, str>()
-E: list_el<str>
-ME: map_el<str, str>
 
 print( "before\n" )
 
@@ -78,26 +74,6 @@ elsif ( A == "nested_set" )
 	G->P->F = 'a'
 elsif ( A == "param" )
 	show( V )
-elsif ( A == "el_value" ) {
-	E = G->L->head_el
-	print( E->value, '\n' )
-}
-elsif ( A == "el_set_value" ) {
-	E = G->L->head_el
-	E->value = 'a'
-}
-elsif ( A == "el_next" ) {
-	E = G->L->head_el
-	E = E->next
-}
-elsif ( A == "map_el_key" ) {
-	ME = G->M->find_el( 'a' )
-	print( ME->key, '\n' )
-}
-elsif ( A == "map_el_prev" ) {
-	ME = G->M->find_el( 'a' )
-	ME = ME->prev
-}
 
 print( "after\n" )
 ##### ARGS #####
@@ -188,36 +164,6 @@ before
 1
 ##### ARGS #####
 param
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-el_value
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-el_set_value
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-el_next
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-map_el_key
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-map_el_prev
 ##### EXP #####
 before
 ##### EXIT #####

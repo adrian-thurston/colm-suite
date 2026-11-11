@@ -1,0 +1,38 @@
+# A map's remove and insert take every key out and put it back, in an order
+# that reaches leaves, inner elements and the root, and the map stays in
+# order.
+
+new M: map<int, int>()
+N: int = 101
+I: int = 0
+while ( I < N ) {
+	M->insert( I, I * 10 )
+	I = I + 1
+}
+
+new Out: list<int>()
+I = 0
+while ( I < N ) {
+	K: int = I * 37 - ( I * 37 / N ) * N
+	Out->push_tail( M->remove( K ) )
+	I = I + 1
+}
+print "removed all, length [M->length]\n"
+
+for V: int in Out
+	M->insert( V / 10, V )
+print "inserted all, length [M->length]\n"
+
+C: int = 0
+S: int = 0
+for K: int in map_keys( M ) {
+	if ( K != C )
+		print "out of order at [K]\n"
+	S = S + M->find( K )
+	C = C + 1
+}
+print "count [C], sum [S]\n"
+##### EXP #####
+removed all, length 0
+inserted all, length 101
+count 101, sum 50500

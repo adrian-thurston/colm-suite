@@ -93,42 +93,23 @@ are.
 * `pop_head()` and `pop_tail()` take a value off the head or the tail, and
   give it back. `pop()` is `pop_head()`. Popping an empty or nil list stops
   the program, as xref:8_04_error_handling.adoc#run-time-errors[the error
-  handling chapter] says.
+  handling chapter] says. A pop keeps nothing of what it took off, so a list
+  used as a queue in a loop stays the same size.
 * `length` is the number of values.
 * `for V: T in L` gives the values from head to tail, and
   `for V: T in rev_list_iter( L )` from tail to head.
 * `head` and `tail` are the values at the head and the tail, and `top` is
   `head`. Reading one on an empty or nil list stops the program too.
-* `head_el` and `tail_el` are the first and last elements, each a
-  `list_el<T>`. An element's `value` is its value, and its `next` and `prev`
-  are the elements beside it, nil at the ends. On an empty list, `head_el`
-  and `tail_el` are nil. Reading or setting a nil element's `value`, or
-  reading its `next` or `prev`, stops the program. `for E: list_el<T> in L`
-  gives the elements.
-* `pop_head_el()` and `pop_tail_el()` take the element off the head or the
-  tail and give it back, and `pop_el()` is `pop_head_el()`. On an empty or
-  nil list they stop the program, as `pop_head()` does. Out of the list, the
-  element's `next` and `prev` are nil.
-* `push_head_el( E )` and `push_tail_el( E )` put the element `E` in at the
-  head or the tail, and `push_el( E )` is `push_head_el( E )`. `E` is one a
-  pop took off, this list or another, or a new one, made with
-  `new list_el<T>()` and given a `value`. An element is in one list at most.
-  Giving a push an element that a list holds, this one or another, or nil,
-  stops the program, as
-  xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]
-  says.
 
 A list can't change inside a `for` over it: that is a compile error,
 `reference active, cannot write to object`.
 
 The variable of a `for` over a list takes each value as an assignment to it
 would. Its type is `T`, or `any` when `T` is a tree type, or a tree type
-when `T` is `any`. In a loop over the elements, it is `list_el<T>`. Any
-other type is a compile error, `loop variable V must have the list's value
-type or its element type`. `rev_list_iter` gives only the values, so there
-the error is `loop variable V must have the list's value type`. Given
-something that isn't a list, it is a compile error too, `rev_list_iter takes
-a list`.
+when `T` is `any`. Any other type is a compile error, `loop variable V must
+have the list's value type`, in a loop over `rev_list_iter( L )` too. Given
+something that isn't a list, `rev_list_iter` is a compile error,
+`rev_list_iter takes a list`.
 
 The variable can't change either. Assigning to it is a compile error,
 `cannot assign to V, the variable of a loop over a list or a map`, and so is
@@ -138,10 +119,9 @@ be given to a `ref` parameter, of a function or an iterator, or looped over,
 as `for X: id in V` does: that is `cannot take a reference to V, the
 variable of a loop over a list or a map`. Nor can it be yielded, as
 xref:1_06_iterators.adoc#iterators[the iterators chapter] says. Copy it to a
-local first, as `C: T = V` does, and use the copy. To change a value in the
-list, set an element's `value` in a loop over the elements. A list, a map or
-a struct that the variable holds can still change, as `V->push_tail( X )`
-shows.
+local first, as `C: T = V` does, and use the copy. To change the values of
+a list, build a new list of the changed copies. A list, a map or a struct
+that the variable holds can still change, as `V->push_tail( X )` shows.
 
 A list variable is nil until it is given a list, with `new`. Calling one of
 a nil list's functions or reading one of its fields stops the program, and so
@@ -181,32 +161,15 @@ makes an empty one. Its functions and fields are reached with `+->+` too.
 * `contains( K )` is true if the key is there, and false if not. It prints as
   1 or 0, as a comparison does.
 * `find( K )` gives the key's value. When the key isn't there, it gives 0 for
-  an `int` value, and nil for a `str`. `find_el( K )` gives the key's
-  element, a `map_el<K, V>`, or nil.
-* An element's `key` and `value` read them, and setting `value` changes the
-  map. Reading or setting them on a nil element, such as `find_el` gives for
-  a missing key, stops the program, and so does reading its `next` or `prev`.
-  Setting the `key` of an element that a map holds stops the program too,
-  and so does setting a child or an attribute of such a key, as
-  `E->key.Id = X` does for a tree key with a child `Id`: the map could no
-  longer find the element by its key. To give the element a new key, take it
-  out with `detach_el`, set the key, and put it back with `insert_el`.
-* `remove( K )` takes the key out, and gives its element, or nil if it wasn't
-  there.
-* `detach_el( E )` takes the element `E` out of the map, and gives it back.
-  `insert_el( E )` puts an element in: one that `remove` or `detach_el` took
-  out, or a new one, made with `new map_el<K, V>()` and given a `key` and a
-  `value`. If the key is there already, the map keeps its old element. An
-  element is in one map at most. Giving `insert_el` an element that a map
-  holds, this one or another, or `detach_el` one that this map doesn't hold,
-  or either of them nil, stops the program, as
-  xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]
-  says.
+  an `int` value, and nil for a `str`.
+* `remove( K )` takes the key out, and gives its value, or nil or 0 if it
+  wasn't there, as `find` does.
 * `length` is the number of keys.
-* `for V: ValueType in M` gives the values, and `for E: map_el<K, V> in M`
-  the elements, in key order. `head_el` and `tail_el` are the first and last
-  elements, and an element's `next` and `prev` walk the same order.
-* `for K: KeyType in map_keys( M )` gives the keys, in the same order.
+* `for V: ValueType in M` gives the values, in key order, and
+  `for K: KeyType in map_keys( M )` gives the keys, in the same order.
+
+A `remove`, and an `insert` of a key the map has already, keep nothing, so a
+map that changes in a loop stays the same size.
 
 Int keys go from low to high, negative ones first. Str keys go by length
 first, then byte by byte, as xref:1_02_expressions.adoc#operators[the
@@ -215,12 +178,12 @@ expressions chapter] says.
 A map can't change inside a `for` over it.
 
 The variable of a `for` over a map takes the values as in a loop over a
-list, or is `map_el<K, V>`, for the elements. Any other type is a compile
-error, `loop variable V must have the map's value type or its element type`.
-In a loop over `map_keys( M )`, the variable takes the keys the same way: its
-type is `K`, or `any` when `K` is a tree type. Any other type is a compile
-error, `loop variable K must have the map's key type`. Given something that
-isn't a map, it is a compile error too, `map_keys takes a map`.
+list. Any other type is a compile error, `loop variable V must have the
+map's value type`. In a loop over `map_keys( M )`, the variable takes the
+keys the same way: its type is `K`, or `any` when `K` is a tree type. Any
+other type is a compile error, `loop variable K must have the map's key
+type`. Given something that isn't a map, it is a compile error too,
+`map_keys takes a map`.
 
 The variable of a loop over a map can't change, be passed as a `ref`, be
 looped over or be yielded either, as in a loop over a list.

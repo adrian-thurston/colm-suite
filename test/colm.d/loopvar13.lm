@@ -1,7 +1,7 @@
 # What the variable of a loop over a list or a map can still do. It can be
 # read, passed to a parameter that isn't a ref, and copied to a local that is
 # changed, looped over or yielded. One that holds a list can change that list.
-# A loop over the elements sets a value.
+# A loop that copies each value can build a list of changed values.
 lex
 	token id /[a-z]+/
 	literal `( `)
@@ -44,12 +44,13 @@ for E: item in L {
 for I: item in vals( L )
 	print( "yielded ", I, "\n" )
 
-for El: list_el<item> in L {
-	T: item = El->value
+C: list<item> = new list<item>()
+for V: item in L {
+	T: item = V
 	T.A = 5
-	El->value = T
+	C->push_tail( T )
 }
-for E: item in L
+for E: item in C
 	print( "A=", E.A, "\n" )
 
 M: map<str, item> = new map<str, item>()

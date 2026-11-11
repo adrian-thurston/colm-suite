@@ -78,7 +78,6 @@ typedef unsigned char uchar;
 #define IN_GEN_ITER_FROM_REF     0xd3
 #define IN_GEN_ITER_DESTROY      0xd5
 #define IN_GEN_ITER_UNWIND       0x74
-#define IN_GEN_ITER_GET_CUR_R    0xdf
 #define IN_GEN_VITER_GET_CUR_R   0xe7
 #define IN_GEN_KITER_GET_CUR_R   0xa7
 #define IN_LIST_ITER_ADVANCE     0xde
@@ -199,16 +198,11 @@ typedef unsigned char uchar;
 #define IN_TRITER_REF_FROM_CUR   0x65
 #define IN_UITER_REF_FROM_CUR    0x66
 
-#define IN_GET_MAP_EL_MEM_R      0x6c
 
 #define IN_MAP_LENGTH            0x67
 
 #define IN_LIST_LENGTH           0x72
 
-#define IN_GET_LIST_MEM_R        0x79
-#define IN_GET_LIST_MEM_WC       0x7a
-#define IN_GET_LIST_MEM_WV       0x7b
-#define IN_GET_LIST_MEM_BKT      0x7c
 
 #define IN_GET_VLIST_MEM_R       0xeb
 #define IN_GET_VLIST_MEM_WC      0xec
@@ -220,12 +214,7 @@ typedef unsigned char uchar;
 
 #define IN_DONE                  0x78
 
-#define IN_GET_LIST_EL_MEM_R     0xf5
 
-#define IN_GET_MAP_MEM_R         0x6d
-#define IN_GET_MAP_MEM_WV        0x7d
-#define IN_GET_MAP_MEM_WC        0x7e
-#define IN_GET_MAP_MEM_BKT       0x7f
 
 #define IN_TREE_TO_STR_XML       0x6e
 #define IN_TREE_TO_STR_XML_AC    0x6f
@@ -345,9 +334,6 @@ typedef unsigned char uchar;
 #define IN_SET_STRUCT_VAL_WV     0x94
 #define IN_SET_STRUCT_VAL_WC     0x95
 #define IN_SET_STRUCT_VAL_BKT    0x5d
-#define IN_MAP_EL_KEY_CHECK      0x85
-#define IN_MAP_EL_KEY_CHECK_WV   0x86
-#define IN_MAP_EL_KEY_CHECK_BKT  0x88
 #define IN_NEW_STRUCT            0xfe
 
 #define IN_GET_LOCAL_VAL_R       0x91
@@ -390,26 +376,7 @@ typedef unsigned char uchar;
 #define FN_INIT_STDS             0x3e
 
 
-#define FN_LIST_PUSH_TAIL_WV     0x11
-#define FN_LIST_PUSH_TAIL_WC     0x12
-#define FN_LIST_PUSH_TAIL_BKT    0x13
-#define FN_LIST_POP_TAIL_WV      0x14
-#define FN_LIST_POP_TAIL_WC      0x15
-#define FN_LIST_POP_TAIL_BKT     0x16
-#define FN_LIST_PUSH_HEAD_WV     0x17
-#define FN_LIST_PUSH_HEAD_WC     0x18
-#define FN_LIST_PUSH_HEAD_BKT    0x19
-#define FN_LIST_POP_HEAD_WV      0x1a
-#define FN_LIST_POP_HEAD_WC      0x1b
-#define FN_LIST_POP_HEAD_BKT     0x1c
 
-#define FN_MAP_FIND              0x24
-#define FN_MAP_INSERT_WV         0x1e
-#define FN_MAP_INSERT_WC         0x1f
-#define FN_MAP_INSERT_BKT        0x20
-#define FN_MAP_DETACH_WV         0x21
-#define FN_MAP_DETACH_WC         0x22
-#define FN_MAP_DETACH_BKT        0x23
 
 #define FN_VMAP_FIND             0x29
 #define FN_VMAP_INSERT_WC        0x25

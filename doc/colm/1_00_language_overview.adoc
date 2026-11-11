@@ -68,12 +68,12 @@ Colm's keywords are reserved: using one as a name is a parse error. They are:
 `accum`, `alias`, `bool`, `break`, `case`, `cast`, `commit`, `cons`,
 `construct`, `context`, `def`, `default`, `else`, `elsif`, `end`, `eos`,
 `export`, `false`, `for`, `global`, `if`, `ignore`, `in`, `include`, `int`,
-`iter`, `left`, `lex`, `list`, `list_el`, `literal`, `make_token`,
-`make_tree`, `map`, `map_el`, `match`, `namespace`, `new`, `ni`, `nil`,
-`nonassoc`, `parse`, `parse_stop`, `parse_tree`, `parser`, `preeof`, `print`,
-`prints`, `ptr`, `read_reduce`, `redef`, `reduce`, `reducefirst`,
-`reduction`, `ref`, `reject`, `require`, `return`, `right`, `rl`, `send`,
-`send_tree`, `struct`, `switch`, `token`, `true`, `typeid`, `void`, `while`
+`iter`, `left`, `lex`, `list`, `literal`, `make_token`, `make_tree`, `map`,
+`match`, `namespace`, `new`, `ni`, `nil`, `nonassoc`, `parse`, `parse_stop`,
+`parse_tree`, `parser`, `preeof`, `print`, `prints`, `ptr`, `read_reduce`,
+`redef`, `reduce`, `reducefirst`, `reduction`, `ref`, `reject`, `require`,
+`return`, `right`, `rl`, `send`, `send_tree`, `struct`, `switch`, `token`,
+`true`, `typeid`, `void`, `while`
 and `yield`.
 
 `cons` and `construct` are one keyword, and so are `parser` and `accum`. The

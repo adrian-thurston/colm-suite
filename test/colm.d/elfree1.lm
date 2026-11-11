@@ -1,0 +1,56 @@
+# A list's value pop, a map's remove, and an insert of a key the map has
+# already, free the element they take out or don't put in, at once. The host
+# runs the program twice, with 0 rounds and with 100, and counts the structs
+# left on the program's heap after each run. Each round pops and pushes a
+# list value, and removes and inserts a map key. The two counts are the same.
+
+N: int = atoi( argv->pop() )
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+L->push_tail( "b" )
+M: map<str, str> = new map<str, str>()
+M->insert( "k", "v" )
+I: int = 0
+while ( I < N ) {
+	L->push_tail( L->pop_head() )
+	V: str = M->find( "k" )
+	M->remove( "k" )
+	M->insert( "k", V )
+	M->insert( "k", "again" )
+	I = I + 1
+}
+print( "L ", L->length, ", M ", M->length, " ", M->find( "k" ), "\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <colm/program.h>
+#include <colm/struct.h>
+#include <stdio.h>
+
+extern colm_sections colm_object;
+
+static long run( const char *rounds )
+{
+	const char *argv[] = { "elfree1", rounds, 0 };
+	colm_program *prg = colm_new_program( &colm_object );
+	colm_run_program( prg, 2, argv );
+
+	long count = 0;
+	for ( struct colm_struct *s = prg->heap.head; s != 0; s = s->next )
+		count += 1;
+
+	colm_delete_program( prg );
+	return count;
+}
+
+int main( int argc, const char **argv )
+{
+	long none = run( "0" );
+	long some = run( "100" );
+	printf( "structs left after 100 rounds: %ld\n", some - none );
+	return 0;
+}
+##### EXP #####
+L 2, M 1 v
+L 2, M 1 v
+structs left after 100 rounds: 0

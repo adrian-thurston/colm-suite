@@ -1,8 +1,7 @@
-# Using a nil list stops the program, with exit status 1: pushing a value or an
-# element at either end, its length, and the element at either end. So does
-# pushing a nil element onto a list. The output before the stop is kept. In a
-# reduction action, a push is the form that records reverse code. The run "new"
-# gives the list a value first, and nothing stops.
+# Using a nil list stops the program, with exit status 1: pushing a value at
+# either end, its length, and the value at either end. The output before the
+# stop is kept. In a reduction action, a push is the form that records reverse
+# code. The run "new" gives the list a value first, and nothing stops.
 
 lex
 	token id /[a-z]+/
@@ -14,7 +13,6 @@ struct holder
 end
 
 global N: list<int>
-global L: list<int> = new list<int>()
 global A: str = argv->pop()
 
 def start
@@ -23,33 +21,13 @@ def start
 		if ( A == "new" ) {
 			N->push_head( 1 )
 			N->push_tail( 2 )
-			new E: list_el<int>()
-			E->value = 3
-			N->push_head_el( E )
-			new F: list_el<int>()
-			F->value = 4
-			N->push_tail_el( F )
+			N->push_head( 3 )
+			N->push_tail( 4 )
 		}
 		elsif ( A == "action_push_head" )
 			N->push_head( 1 )
 		elsif ( A == "action_push_tail" )
 			N->push_tail( 1 )
-		elsif ( A == "action_push_head_el" ) {
-			new E: list_el<int>()
-			N->push_head_el( E )
-		}
-		elsif ( A == "action_push_tail_el" ) {
-			new E: list_el<int>()
-			N->push_tail_el( E )
-		}
-		elsif ( A == "action_nil_el_push_head_el" ) {
-			E: list_el<int>
-			L->push_head_el( E )
-		}
-		elsif ( A == "action_nil_el_push_tail_el" ) {
-			E: list_el<int>
-			L->push_tail_el( E )
-		}
 	}
 
 print( "before\n" )
@@ -60,40 +38,16 @@ elsif ( A == "push_head" )
 	N->push_head( 1 )
 elsif ( A == "push_tail" )
 	N->push_tail( 1 )
-elsif ( A == "push_el" ) {
-	new E: list_el<int>()
-	N->push_el( E )
-}
-elsif ( A == "push_head_el" ) {
-	new E: list_el<int>()
-	N->push_head_el( E )
-}
-elsif ( A == "push_tail_el" ) {
-	new E: list_el<int>()
-	N->push_tail_el( E )
-}
 elsif ( A == "length" )
 	print( "length [N->length]\n" )
-elsif ( A == "head_el" ) {
-	E: list_el<int> = N->head_el
+elsif ( A == "head" ) {
+	I: int = N->head
 }
-elsif ( A == "tail_el" ) {
-	E: list_el<int> = N->tail_el
+elsif ( A == "tail" ) {
+	I: int = N->tail
 }
-elsif ( A == "top_el" ) {
-	E: list_el<int> = N->top_el
-}
-elsif ( A == "nil_el_push_el" ) {
-	E: list_el<int>
-	L->push_el( E )
-}
-elsif ( A == "nil_el_push_head_el" ) {
-	E: list_el<int>
-	L->push_head_el( E )
-}
-elsif ( A == "nil_el_push_tail_el" ) {
-	E: list_el<int>
-	L->push_tail_el( E )
+elsif ( A == "top" ) {
+	I: int = N->top
 }
 elsif ( A == "field" ) {
 	new H: holder()
@@ -104,17 +58,11 @@ elsif ( A == "new" ) {
 	N->push( 5 )
 	N->push_head( 6 )
 	N->push_tail( 7 )
-	new E: list_el<int>()
-	E->value = 8
-	N->push_el( E )
-	new F: list_el<int>()
-	F->value = 9
-	N->push_head_el( F )
-	new G: list_el<int>()
-	G->value = 10
-	N->push_tail_el( G )
-	print( "length [N->length], head_el [N->head_el->value], " )
-	print( "tail_el [N->tail_el->value], top_el [N->top_el->value]\n" )
+	N->push( 8 )
+	N->push_head( 9 )
+	N->push_tail( 10 )
+	print( "length [N->length], head [N->head], " )
+	print( "tail [N->tail], top [N->top]\n" )
 }
 
 S: start = parse start[ "x" ]
@@ -139,43 +87,25 @@ before
 ##### EXIT #####
 1
 ##### ARGS #####
-push_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-push_head_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-push_tail_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
 length
 ##### EXP #####
 before
 ##### EXIT #####
 1
 ##### ARGS #####
-head_el
+head
 ##### EXP #####
 before
 ##### EXIT #####
 1
 ##### ARGS #####
-tail_el
+tail
 ##### EXP #####
 before
 ##### EXIT #####
 1
 ##### ARGS #####
-top_el
+top
 ##### EXP #####
 before
 ##### EXIT #####
@@ -199,51 +129,9 @@ before
 ##### EXIT #####
 1
 ##### ARGS #####
-action_push_head_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-action_push_tail_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-nil_el_push_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-nil_el_push_head_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-nil_el_push_tail_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-action_nil_el_push_head_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-action_nil_el_push_tail_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
 new
 ##### EXP #####
 before
-length 6, head_el 9, tail_el 10, top_el 9
+length 6, head 9, tail 10, top 9
 length 10, head 3, tail 4
 after

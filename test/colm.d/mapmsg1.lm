@@ -11,29 +11,19 @@ print( "before\n" )
 
 if ( A == "insert" )
 	M->insert( "a", 1 )
-elsif ( A == "insert_el" ) {
-	new E: map_el<str, int>()
-	E->key = "a"
-	M->insert_el( E )
-}
 elsif ( A == "find" )
 	I = M->find( "a" )
-elsif ( A == "find_el" ) {
-	E: map_el<str, int> = M->find_el( "a" )
-}
+elsif ( A == "contains" )
+	B: bool = M->contains( "a" )
 elsif ( A == "remove" )
 	M->remove( "a" )
-elsif ( A == "detach_el" ) {
-	new E: map_el<str, int>()
-	M->detach_el( E )
-}
+elsif ( A == "set" )
+	M->set( "a", 1 )
 elsif ( A == "length" )
 	I = M->length
-elsif ( A == "head_el" ) {
-	E: map_el<str, int> = M->head_el
-}
-elsif ( A == "tail_el" ) {
-	E: map_el<str, int> = M->tail_el
+elsif ( A == "map_keys" ) {
+	for K: str in map_keys( M )
+		print( "[K]\n" )
 }
 
 print( "after\n" )
@@ -64,21 +54,7 @@ fatal: insert into a nil map
 ##### EXIT #####
 1
 ##### ARGS #####
-insert_el
-##### EXP #####
-before
-fatal: insert into a nil map
-##### EXIT #####
-1
-##### ARGS #####
 find
-##### EXP #####
-before
-fatal: find in a nil map
-##### EXIT #####
-1
-##### ARGS #####
-find_el
 ##### EXP #####
 before
 fatal: find in a nil map
@@ -92,13 +68,6 @@ fatal: remove from a nil map
 ##### EXIT #####
 1
 ##### ARGS #####
-detach_el
-##### EXP #####
-before
-fatal: detach from a nil map
-##### EXIT #####
-1
-##### ARGS #####
 length
 ##### EXP #####
 before
@@ -106,16 +75,23 @@ fatal: length of a nil map
 ##### EXIT #####
 1
 ##### ARGS #####
-head_el
+contains
 ##### EXP #####
 before
-fatal: reading the head of a nil map
+fatal: contains on a nil map
 ##### EXIT #####
 1
 ##### ARGS #####
-tail_el
+set
 ##### EXP #####
 before
-fatal: reading the tail of a nil map
+fatal: set in a nil map
+##### EXIT #####
+1
+##### ARGS #####
+map_keys
+##### EXP #####
+before
+fatal: for loop over a nil map
 ##### EXIT #####
 1

@@ -96,6 +96,7 @@ EXTRA_DIST = \
 	earlytree1.lm \
 	earlytree2.lm \
 	earlytreemsg1.lm \
+	elfree1.lm \
 	exit1.lm \
 	exit2.lm \
 	exit3.lm \
@@ -130,7 +131,6 @@ EXTRA_DIST = \
 	factor6.lm \
 	forarg1.lm \
 	forarg2.lm \
-	forarg3.lm \
 	forarg4.lm \
 	forloop1.lm \
 	forloop2.lm \
@@ -150,7 +150,6 @@ EXTRA_DIST = \
 	forvar9.lm \
 	forvar10.lm \
 	forvar11.lm \
-	forvar12.lm \
 	forvar13.lm \
 	forvar14.lm \
 	forvar15.lm \
@@ -214,8 +213,6 @@ EXTRA_DIST = \
 	list2.lm \
 	list3.lm \
 	list4.lm \
-	listel1.lm \
-	listel2.lm \
 	listhead1.lm \
 	listmsg1.lm \
 	listpop1.lm \
@@ -254,13 +251,8 @@ EXTRA_DIST = \
 	map7.lm \
 	map8.lm \
 	map9.lm \
+	map10.lm \
 	map11.lm \
-	mapel1.lm \
-	mapel2.lm \
-	mapelmsg1.lm \
-	mapkey1.lm \
-	mapkey2.lm \
-	mapkey3.lm \
 	mapmsg1.lm \
 	matchex.lm \
 	matchloc1.lm \
@@ -480,17 +472,14 @@ EXTRA_DIST = \
 	undomap1.lm \
 	undomap2.lm \
 	undomap3.lm \
-	undomap4.lm \
-	undomap5.lm \
 	undomap6.lm \
-	undomap7.lm \
-	undomap8.lm \
-	undomap9.lm \
+	undomap10.lm \
 	undopush1.lm \
 	undosplit1.lm \
 	undosplit2.lm \
 	utf8.lm \
 	void1.lm \
+	vpop1.lm \
 	while1.lm \
 	xmlac.lm \
 	yield1.lm \

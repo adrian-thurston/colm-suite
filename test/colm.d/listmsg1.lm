@@ -26,26 +26,12 @@ elsif ( A == "for_nil" ) {
 }
 elsif ( A == "push_nil" )
 	N->push( 1 )
-elsif ( A == "push_tail_el_nil" ) {
-	new E: list_el<int>()
-	N->push_tail_el( E )
-}
 elsif ( A == "length_nil" )
 	I = N->length
-elsif ( A == "head_el_nil" ) {
-	E: list_el<int> = N->head_el
-}
-elsif ( A == "tail_el_nil" ) {
-	E: list_el<int> = N->tail_el
-}
-elsif ( A == "nil_element" ) {
-	E: list_el<int>
-	L->push_el( E )
-}
-elsif ( A == "held_element" ) {
-	L->push( 1 )
-	L->push_tail_el( L->head_el )
-}
+elsif ( A == "head_nil" )
+	I = N->head
+elsif ( A == "tail_nil" )
+	I = N->tail
 
 print( "after\n" )
 ##### HOST #####
@@ -117,13 +103,6 @@ fatal: push to a nil list
 ##### EXIT #####
 1
 ##### ARGS #####
-push_tail_el_nil
-##### EXP #####
-before
-fatal: push to a nil list
-##### EXIT #####
-1
-##### ARGS #####
 length_nil
 ##### EXP #####
 before
@@ -131,30 +110,16 @@ fatal: length of a nil list
 ##### EXIT #####
 1
 ##### ARGS #####
-head_el_nil
+head_nil
 ##### EXP #####
 before
 fatal: reading the head of a nil list
 ##### EXIT #####
 1
 ##### ARGS #####
-tail_el_nil
+tail_nil
 ##### EXP #####
 before
 fatal: reading the tail of a nil list
-##### EXIT #####
-1
-##### ARGS #####
-nil_element
-##### EXP #####
-before
-fatal: pushing a nil element
-##### EXIT #####
-1
-##### ARGS #####
-held_element
-##### EXP #####
-before
-fatal: pushing an element already in a list
 ##### EXIT #####
 1

@@ -1,4 +1,4 @@
-# Popping a value or an element off an empty or nil list ends the program
+# Popping a value off an empty or nil list ends the program
 # with exit status 1. The output before the pop is kept.
 
 L: list<int> = new list<int>()
@@ -6,7 +6,6 @@ S: list<str> = new list<str>()
 N: list<int>
 I: int
 T: str
-E: list_el<int>
 
 A: str = argv->pop()
 print( "before\n" )
@@ -17,12 +16,6 @@ elsif ( A == "pop_tail" )
 	T = S->pop_tail()
 elsif ( A == "pop" )
 	I = L->pop()
-elsif ( A == "pop_head_el" )
-	E = L->pop_head_el()
-elsif ( A == "pop_tail_el" )
-	E = L->pop_tail_el()
-elsif ( A == "pop_el" )
-	E = L->pop_el()
 elsif ( A == "drain" ) {
 	L->push_tail( 1 )
 	I = L->pop_head()
@@ -47,24 +40,6 @@ before
 1
 ##### ARGS #####
 pop
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-pop_head_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-pop_tail_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-pop_el
 ##### EXP #####
 before
 ##### EXIT #####

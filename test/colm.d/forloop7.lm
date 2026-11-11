@@ -29,7 +29,7 @@ int loop( S: start )
 		print( 'x: ', ^X, '\n' )
 }
 
-K: str = argv->tail_el->value
+K: str = argv->pop()
 print( K, '\n' )
 
 if K == 'tree' {
@@ -100,11 +100,6 @@ elsif K == 'list' {
 	for X: str in L
 		print( 'x: ', X, '\n' )
 }
-elsif K == 'list_el' {
-	L: list<str>
-	for E: list_el<str> in L
-		print( 'e\n' )
-}
 elsif K == 'rev_list' {
 	L: list<str>
 	for X: str in rev_list_iter( L )
@@ -115,10 +110,10 @@ elsif K == 'map' {
 	for X: str in M
 		print( 'x: ', X, '\n' )
 }
-elsif K == 'map_el' {
+elsif K == 'map_keys' {
 	M: map<str, str>
-	for E: map_el<str, str> in M
-		print( 'e\n' )
+	for X: str in map_keys( M )
+		print( 'x: ', X, '\n' )
 }
 elsif K == 'empty' {
 	L: list<str> = new list<str>()
@@ -127,6 +122,8 @@ elsif K == 'empty' {
 	M: map<str, str> = new map<str, str>()
 	for Y: str in M
 		print( 'y: ', Y, '\n' )
+	for Z: str in map_keys( M )
+		print( 'z: ', Z, '\n' )
 }
 
 print( 'done\n' )
@@ -215,12 +212,6 @@ list
 ##### EXIT #####
 1
 ##### ARGS #####
-list_el
-##### EXP #####
-list_el
-##### EXIT #####
-1
-##### ARGS #####
 rev_list
 ##### EXP #####
 rev_list
@@ -233,9 +224,9 @@ map
 ##### EXIT #####
 1
 ##### ARGS #####
-map_el
+map_keys
 ##### EXP #####
-map_el
+map_keys
 ##### EXIT #####
 1
 ##### ARGS #####

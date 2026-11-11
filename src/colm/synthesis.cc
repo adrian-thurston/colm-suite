@@ -133,20 +133,6 @@ IterImpl::IterImpl( Type type ) :
 	/* A list or map iterator can't take a reference to the current value, set
 	 * it or load it for writing: the compiler refuses a loop variable used
 	 * that way. IN_HALT stops a program if it ever misses one. */
-	case ListEl:
-		inCreateWV =   IN_GEN_ITER_FROM_REF;
-		inCreateWC =   IN_GEN_ITER_FROM_REF;
-		inUnwind =     IN_GEN_ITER_UNWIND;
-		inDestroy =    IN_GEN_ITER_DESTROY;
-		inAdvance =    IN_LIST_ITER_ADVANCE;
-
-		inGetCurR =    IN_GEN_ITER_GET_CUR_R;
-		inGetCurWC =   IN_HALT;
-		inSetCurWC =   IN_HALT;
-		inRefFromCur = IN_HALT;
-		useGenericId = true;
-		break;
-
 	case ListVal:
 		inCreateWV =   IN_GEN_ITER_FROM_REF;
 		inCreateWC =   IN_GEN_ITER_FROM_REF;
@@ -199,20 +185,6 @@ IterImpl::IterImpl( Type type ) :
 		inAdvance =    IN_MAP_ITER_ADVANCE;
 
 		inGetCurR =    IN_GEN_KITER_GET_CUR_R;
-		inGetCurWC =   IN_HALT;
-		inSetCurWC =   IN_HALT;
-		inRefFromCur = IN_HALT;
-		useGenericId = true;
-		break;
-
-	case MapEl:
-		inCreateWV =   IN_GEN_ITER_FROM_REF;
-		inCreateWC =   IN_GEN_ITER_FROM_REF;
-		inUnwind =     IN_GEN_ITER_UNWIND;
-		inDestroy =    IN_GEN_ITER_DESTROY;
-		inAdvance =    IN_MAP_ITER_ADVANCE;
-
-		inGetCurR =    IN_GEN_ITER_GET_CUR_R;
 		inGetCurWC =   IN_HALT;
 		inSetCurWC =   IN_HALT;
 		inRefFromCur = IN_HALT;
@@ -373,8 +345,6 @@ long sizeOfField( UniqueType *fieldUT )
 				size = sizeof(rev_tree_iter_t) / sizeof(word_t);
 				break;
 
-			case IterDef::MapEl:
-			case IterDef::ListEl:
 			case IterDef::RevListVal:
 			case IterDef::MapKey:
 				size = sizeof(generic_iter_t) / sizeof(word_t);
@@ -407,19 +377,6 @@ long sizeOfField( UniqueType *fieldUT )
 	}
 
 	return size;
-}
-
-/* The key of a map element, the only GenericDependentType field. A write to
- * it, or to a child or an attribute inside it, is checked first: the element
- * must not be in a map, which would no longer find it by its key. A write
- * that reverts is checked again when it is undone, since code outside the
- * parse may have put the element into a map by then. */
-static void mapElKeyCheck( CodeVect &code, ObjectField *el, bool revert )
-{
-	if ( el->type == ObjectField::GenericDependentType ) {
-		code.append( revert ? IN_MAP_EL_KEY_CHECK_WV : IN_MAP_EL_KEY_CHECK );
-		code.appendHalf( el->offset );
-	}
 }
 
 void ObjectDef::referenceField( Compiler *pd, ObjectField *field )
@@ -459,8 +416,6 @@ UniqueType *LangVarRef::loadField( Compiler *pd, CodeVect &code,
 	else {
 		/* If it's a reference then we load it read always. */
 		if ( forWriting ) {
-			mapElKeyCheck( code, el, pd->revertOn && revert );
-
 			/* The instruction, depends on whether or not we are reverting. */
 			if ( elUT->typeId == TYPE_ITER )
 				code.append( el->iterImpl->inGetCurWC );
@@ -816,8 +771,6 @@ void LangVarRef::setField( Compiler *pd, CodeVect &code,
 	/* Ensure that the field is referenced. */
 	inObject->referenceField( pd, el );
 
-	mapElKeyCheck( code, el, pd->revertOn && revert );
-
 	if ( exprUT->val()  ) {
 		if ( pd->revertOn && revert )
 			code.append( el->inSetValWV );
@@ -983,19 +936,11 @@ IterImpl *LangVarRef::chooseTriterCall( Compiler *pd,
 		CallArgVect::Iter pe = *args;
 		UniqueType *exprUT = (*pe)->expr->evaluate( pd, unused );
 
-		if ( exprUT->typeId == TYPE_GENERIC && exprUT->generic->typeId == GEN_LIST ) {
-			if ( searchUT == exprUT->generic->elUt )
-				iterImpl = new IterImpl( IterImpl::ListEl );
-			else
-				iterImpl = new IterImpl( IterImpl::ListVal );
-		}
+		if ( exprUT->typeId == TYPE_GENERIC && exprUT->generic->typeId == GEN_LIST )
+			iterImpl = new IterImpl( IterImpl::ListVal );
 
-		if ( exprUT->typeId == TYPE_GENERIC && exprUT->generic->typeId == GEN_MAP ) {
-			if ( searchUT == exprUT->generic->elUt )
-				iterImpl = new IterImpl( IterImpl::MapEl );
-			else
-				iterImpl = new IterImpl( IterImpl::MapVal );
-		}
+		if ( exprUT->typeId == TYPE_GENERIC && exprUT->generic->typeId == GEN_MAP )
+			iterImpl = new IterImpl( IterImpl::MapVal );
 	}
 
 	if ( iterImpl == 0 )
@@ -2843,14 +2788,8 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 		case IterDef::User:
 			iterImpl = new IterImpl( IterImpl::User, iterUT->iterDef->func );
 			break;
-		case IterDef::ListEl:
-			iterImpl = new IterImpl( IterImpl::ListEl );
-			break;
 		case IterDef::RevListVal:
 			iterImpl = new IterImpl( IterImpl::RevListVal );
-			break;
-		case IterDef::MapEl:
-			iterImpl = new IterImpl( IterImpl::MapEl );
 			break;
 		case IterDef::MapKey:
 			iterImpl = new IterImpl( IterImpl::MapKey );
@@ -2871,16 +2810,12 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 			pd, code, lookup, iterCall->langTerm->args );
 
 	/* A loop over a list or a map. Its iterator walks one kind, and gives the
-	 * values, the keys or the elements as they are stored. So the argument
-	 * must be of that kind, and the loop variable must take what the iterator
-	 * gives. */
+	 * values or the keys as they are stored. So the argument must be of that
+	 * kind, and the loop variable must take what the iterator gives. */
 	GenericType *generic = 0;
 	if ( iterImpl->useGenericId ) {
-		bool overMap = iterImpl->type == IterImpl::MapEl ||
-				iterImpl->type == IterImpl::MapVal ||
+		bool overMap = iterImpl->type == IterImpl::MapVal ||
 				iterImpl->type == IterImpl::MapKey;
-		bool overEls = iterImpl->type == IterImpl::ListEl ||
-				iterImpl->type == IterImpl::MapEl;
 		const char *kind = overMap ? "map" : "list";
 
 		LangVarRef *iterRef = iterCall->langTerm->varRef;
@@ -2895,29 +2830,15 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 
 		generic = argUT->generic;
 
-		if ( overEls ) {
-			if ( searchUT != generic->elUt ) {
-				error(loc) << "loop variable " << objField->name <<
-						" must have the " << kind << "'s element type" << endp;
-			}
-		}
-		else if ( iterImpl->type == IterImpl::MapKey ) {
+		if ( iterImpl->type == IterImpl::MapKey ) {
 			if ( !castAssignment( pd, unused, searchUT, 0, generic->keyUt ) ) {
 				error(loc) << "loop variable " << objField->name <<
 						" must have the map's key type" << endp;
 			}
 		}
 		else if ( !castAssignment( pd, unused, searchUT, 0, generic->valueUt ) ) {
-			/* With no iterator named, the element type selects the elements. */
-			if ( iterUT->iterDef->type == IterDef::Tree ) {
-				error(loc) << "loop variable " << objField->name <<
-						" must have the " << kind <<
-						"'s value type or its element type" << endp;
-			}
-			else {
-				error(loc) << "loop variable " << objField->name <<
-						" must have the " << kind << "'s value type" << endp;
-			}
+			error(loc) << "loop variable " << objField->name <<
+					" must have the " << kind << "'s value type" << endp;
 		}
 	}
 
@@ -3261,8 +3182,6 @@ void Compiler::findLocals( ObjectDef *localFrame, CodeBlock *block )
 						type = LT_Iter;
 						break;
 
-					case IterDef::MapEl:
-					case IterDef::ListEl:
 					case IterDef::RevListVal:
 					case IterDef::MapKey:
 						/* ? */

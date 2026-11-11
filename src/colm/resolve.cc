@@ -161,7 +161,8 @@ StructEl *TypeRef::declareListEl( Compiler *pd, TypeRef *valType )
 
 	objectDef->rootScope->insertField( of->name, of );
 
-	return declareStruct( pd, pd->rootNamespace, name, structDef );
+	/* In no namespace's type map: a program can't name a list's element. */
+	return declareStruct( pd, 0, name, structDef );
 }
 
 void ConsItemList::resolve( Compiler *pd )
@@ -257,7 +258,8 @@ StructEl *TypeRef::declareMapElStruct( Compiler *pd, TypeRef *keyType, TypeRef *
 
 	objectDef->rootScope->insertField( of->name, of );
 
-	StructEl *sel = declareStruct( pd, pd->rootNamespace, name, structDef );
+	/* In no namespace's type map: a program can't name a map's element. */
+	StructEl *sel = declareStruct( pd, 0, name, structDef );
 	return sel;
 }
 

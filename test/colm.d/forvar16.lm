@@ -11,10 +11,6 @@ for X: strlist in LL
 	print( "alias ", X->length, "\n" )
 for S: str in L
 	print( "value ", S, "\n" )
-for E: list_el<str> in L
-	print( "el ", E->value, "\n" )
-for E: list_el<str> in list_iter( L )
-	print( "list_iter ", E->value, "\n" )
 for S: str in rev_list_iter( L )
 	print( "rev ", S, "\n" )
 for A: any in L
@@ -27,32 +23,31 @@ M: map<str, str> = new map<str, str>()
 M->insert( "k", "v" )
 for V: str in M
 	print( "map value ", V, "\n" )
-for E: map_el<str, str> in M
-	print( "map el ", E->key, " ", E->value, "\n" )
-for E: map_el<str, str> in map_iter( M )
-	print( "map_iter ", E->key, "\n" )
+for K: str in map_keys( M )
+	print( "map key ", K, "\n" )
+for A: any in map_keys( M )
+	print( "map key any ", A, "\n" )
 for A: any in M
 	print( "map any ", A, "\n" )
-MI: map<str, int> = new map<str, int>()
-MI->insert( "k", 4 )
+MI: map<int, int> = new map<int, int>()
+MI->insert( 3, 4 )
 for I: int in MI
 	print( "map int ", I, "\n" )
+for I: int in map_keys( MI )
+	print( "map int key ", I, "\n" )
 ##### EXP #####
 nested 2
 alias 2
 value a
 value b
-el a
-el b
-list_iter a
-list_iter b
 rev b
 rev a
 any a
 any b
 from any c
 map value v
-map el k v
-map_iter k
+map key k
+map key any k
 map any v
 map int 4
+map int key 3

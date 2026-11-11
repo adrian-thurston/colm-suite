@@ -115,9 +115,9 @@ value_t colm_vlist_detach_head( struct colm_program *prg, list_t *list )
 
 static void colm_list_add_after( list_t *list, list_el_t *prev_el, list_el_t *new_el )
 {
-	/* Set the previous pointer of new_el to prev_el. At the head, there is no
-	 * prev_el, and new_el points to itself. */
-	new_el->list_prev = prev_el != 0 ? prev_el : new_el;
+	/* Set the previous pointer of new_el to prev_el. We do
+	 * this regardless of the state of the list. */
+	new_el->list_prev = prev_el; 
 
 	/* Set forward pointers. */
 	if (prev_el == 0) {
@@ -158,17 +158,14 @@ static void colm_list_add_before( list_t *list, list_el_t *next_el, list_el_t *n
 		list->tail = new_el;
 	} 
 	else {
-		/* There is a next element and we can access next's previous. The
-		 * head points to itself, so before the head there is none. */
-		new_el->list_prev = next_el == list->head ? 0 : next_el->list_prev;
+		/* There is a next element and we can access next's previous. */
+		new_el->list_prev = next_el->list_prev;
 		next_el->list_prev = new_el;
 	} 
 
 	/* Set forward pointers. */
 	if (new_el->list_prev == 0) {
-		/* There is no previous element. Set the head pointer. The head
-		 * points to itself. */
-		new_el->list_prev = new_el;
+		/* There is no previous element. Set the head pointer.*/
 		list->head = new_el;
 	}
 	else {
@@ -181,26 +178,17 @@ static void colm_list_add_before( list_t *list, list_el_t *next_el, list_el_t *n
 
 list_el_t *colm_list_detach( list_t *list, list_el_t *el )
 {
-	/* The head's list_prev points to itself. It has no previous element. */
-	list_el_t *prev_el = el->list_prev != el ? el->list_prev : 0;
-
 	/* Set forward pointers to skip over el. */
-	if (prev_el == 0)
+	if (el->list_prev == 0) 
 		list->head = el->list_next; 
 	else
-		prev_el->list_next = el->list_next;
+		el->list_prev->list_next = el->list_next; 
 
-	/* Set reverse pointers to skip over el. A next element that becomes the
-	 * head points to itself. */
+	/* Set reverse pointers to skip over el. */
 	if (el->list_next == 0) 
-		list->tail = prev_el;
+		list->tail = el->list_prev; 
 	else
-		el->list_next->list_prev = prev_el != 0 ? prev_el : el->list_next;
-
-	/* Out of the list, el has no links, which is how a push tells that no list
-	 * holds it. */
-	el->list_next = 0;
-	el->list_prev = 0;
+		el->list_next->list_prev = el->list_prev; 
 
 	/* Update List length and return element we detached. */
 	list->list_len--;
@@ -251,8 +239,7 @@ struct colm_struct *colm_list_el_get( struct colm_program *prg,
 	list_el_t *result = 0;
 	switch ( field ) {
 		case 0: 
-			/* The head points to itself. */
-			result = list_el->list_prev != list_el ? list_el->list_prev : 0;
+			result = list_el->list_prev;
 			break;
 		case 1: 
 			result = list_el->list_next;

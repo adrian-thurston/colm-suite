@@ -15,19 +15,10 @@ def item
 	[id]
 	{
 		I: int
-		E: list_el<int>
 		if ( Which == "pop_head" )
 			I = G->pop_head()
 		elsif ( Which == "pop_tail" )
 			I = G->pop_tail()
-		elsif ( Which == "pop_head_el" ) {
-			E = G->pop_head_el()
-			I = E->value
-		}
-		elsif ( Which == "pop_tail_el" ) {
-			E = G->pop_tail_el()
-			I = E->value
-		}
 		print( "popped [I]\n" )
 	}
 
@@ -43,18 +34,6 @@ popped 1
 1
 ##### ARGS #####
 pop_tail
-##### EXP #####
-popped 1
-##### EXIT #####
-1
-##### ARGS #####
-pop_head_el
-##### EXP #####
-popped 1
-##### EXIT #####
-1
-##### ARGS #####
-pop_tail_el
 ##### EXP #####
 popped 1
 ##### EXIT #####

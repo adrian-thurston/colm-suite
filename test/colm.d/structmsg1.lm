@@ -7,10 +7,6 @@ struct S
 end
 
 V: S
-L: list<str> = new list<str>()
-M: map<str, str> = new map<str, str>()
-E: list_el<str>
-ME: map_el<str, str>
 
 A: str = argv->pop()
 print( "before\n" )
@@ -19,18 +15,6 @@ if ( A == "read" )
 	print( V->F, '\n' )
 elsif ( A == "set" )
 	V->F = 'a'
-elsif ( A == "el_next" ) {
-	E = L->head_el
-	E = E->next
-}
-elsif ( A == "el_prev" ) {
-	E = L->tail_el
-	E = E->prev
-}
-elsif ( A == "map_el_next" ) {
-	ME = M->find_el( 'a' )
-	ME = ME->next
-}
 
 print( "after\n" )
 ##### HOST #####
@@ -64,26 +48,5 @@ set
 ##### EXP #####
 before
 fatal: setting a field of a nil struct
-##### EXIT #####
-1
-##### ARGS #####
-el_next
-##### EXP #####
-before
-fatal: reading the next of a nil list element
-##### EXIT #####
-1
-##### ARGS #####
-el_prev
-##### EXP #####
-before
-fatal: reading the prev of a nil list element
-##### EXIT #####
-1
-##### ARGS #####
-map_el_next
-##### EXP #####
-before
-fatal: reading the next of a nil map element
 ##### EXIT #####
 1

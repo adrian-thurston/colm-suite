@@ -1,7 +1,7 @@
-# map_iter given a list.
+# map_keys given a list.
 L: list<str> = new list<str>()
 L->push_tail( "a" )
-for E: map_el<str, str> in map_iter( L )
-	print( E->value, "\n" )
+for K: str in map_keys( L )
+	print( K, "\n" )
 ##### COMP_ERR #####
-4:28: map_iter takes a map
+4:15: map_keys takes a map

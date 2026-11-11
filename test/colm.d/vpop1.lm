@@ -1,0 +1,71 @@
+# Backing up over a list's value pop in a reduction action puts the popped
+# value back, and the list holds a reference to it again. A1 is tried first:
+# item reduces on the second id, then the ; fails A1, and the parser backs up
+# over the action to try A2. With ^ instead, the parse keeps the action.
+
+global Mode: str = argv->pop()
+
+lex
+	ignore /[ \t]+/
+	literal `^ `;
+	token NL /'\n'/
+	token id /[a-z]+/
+end
+
+global L: list<str> = new list<str>()
+
+def item
+	[id]
+	{
+		V: str
+		if ( Mode == "pop_tail" )
+			V = L->pop_tail()
+		elsif ( Mode == "pop" )
+			V = L->pop()
+		else
+			V = L->pop_head()
+		print "action: popped [V], length [L->length]\n"
+	}
+
+def A1 []
+def A2 []
+
+def start
+	[A1 item id `^]
+|	[A2 id id `; NL]
+
+L->push_tail( "first" )
+L->push_tail( "second" )
+parse S: start[ stdin ]
+print "after: length [L->length], values:"
+for V: str in L
+	print " [V]"
+print "\n"
+##### ARGS #####
+pop_head
+##### IN #####
+x y;
+##### EXP #####
+action: popped first, length 1
+after: length 2, values: first second
+##### ARGS #####
+pop_tail
+##### IN #####
+x y;
+##### EXP #####
+action: popped second, length 1
+after: length 2, values: first second
+##### ARGS #####
+pop
+##### IN #####
+x y;
+##### EXP #####
+action: popped first, length 1
+after: length 2, values: first second
+##### ARGS #####
+pop_head
+##### IN #####
+x y^ --noeol
+##### EXP #####
+action: popped first, length 1
+after: length 1, values: second

@@ -4,4 +4,4 @@ M->insert( "k", 4 )
 for S: str in M
 	print( S, "\n" )
 ##### COMP_ERR #####
-4:5: loop variable S must have the map's value type or its element type
+4:5: loop variable S must have the map's value type

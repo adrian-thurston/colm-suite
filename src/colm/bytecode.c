@@ -286,56 +286,6 @@ tree_t *colm_host_tree( program_t *prg, tree_t *tree, const char *msg )
 	return tree;
 }
 
-/* A map holds an element while the element's height is above 0. A new element
- * starts at 0, and map_detach sets it back to 0. The parents of an element in
- * a map lead up to that map's root. */
-static int map_holds_el( map_t *map, map_el_t *map_el )
-{
-	if ( map_el->height == 0 )
-		return 0;
-	while ( map_el->parent != 0 )
-		map_el = map_el->parent;
-	return map_el == map->root;
-}
-
-/* An insert_el of a nil element, or of one that is in a map already, this one
- * or another, stops the program. */
-static map_el_t *insert_el_check( program_t *prg, struct_t *s, short gen_id )
-{
-	if ( s == 0 )
-		runtime_error( prg, "insert_el of a nil element" );
-	map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
-	if ( map_el->height != 0 )
-		runtime_error( prg, "insert_el of an element already in a map" );
-	return map_el;
-}
-
-/* A detach_el of a nil element, or of one that is not in the map, stops the
- * program. */
-static map_el_t *detach_el_check( program_t *prg, map_t *map, struct_t *s, short gen_id )
-{
-	if ( s == 0 )
-		runtime_error( prg, "detach_el of a nil element" );
-	map_el_t *map_el = colm_struct_to_map_el( prg, s, gen_id );
-	if ( !map_holds_el( map, map_el ) )
-		runtime_error( prg, "detach_el of an element not in the map" );
-	return map_el;
-}
-
-/* A push of a nil element, or of one that is in a list already, this one or
- * another, stops the program. An element in a list always has a list_prev:
- * the head's points to itself. A new element has none, and colm_list_detach
- * clears it. */
-static list_el_t *push_el_check( program_t *prg, struct_t *s, short gen_id )
-{
-	if ( s == 0 )
-		runtime_error( prg, "pushing a nil element" );
-	list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
-	if ( list_el->list_prev != 0 )
-		runtime_error( prg, "pushing an element already in a list" );
-	return list_el;
-}
-
 /* A send to a nil parser stops the program. So does a send to a parser whose
  * parse is stopped for an action of it to run, from that action, a function
  * it calls or a parse it sends to: it would start a second parse of the
@@ -1978,58 +1928,6 @@ again:
 			colm_struct_set_field( obj, tree_t*, field, val );
 			break;
 		}
-		case IN_MAP_EL_KEY_CHECK: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_MAP_EL_KEY_CHECK %hd\n", field );
-
-			/* The element is on top, and stays there for the instruction
-			 * that writes the key. That instruction stops on a nil one. */
-			struct_t *strct = (struct_t*)vm_top();
-			if ( strct != 0 ) {
-				map_el_t *map_el = colm_struct_get_addr( strct, map_el_t*, field );
-				if ( map_el->height != 0 )
-					runtime_error( prg, "setting the key of an element in a map" );
-			}
-			break;
-		}
-		case IN_MAP_EL_KEY_CHECK_WV: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_MAP_EL_KEY_CHECK_WV %hd\n", field );
-
-			struct_t *strct = (struct_t*)vm_top();
-			if ( strct != 0 ) {
-				map_el_t *map_el = colm_struct_get_addr( strct, map_el_t*, field );
-				if ( map_el->height != 0 )
-					runtime_error( prg, "setting the key of an element in a map" );
-			}
-
-			/* The write's reverse code checks again before the key goes back,
-			 * since code outside the parse may have put the element into a
-			 * map by then. This goes into the unit that loaded the element. */
-			rcode_code( exec, IN_MAP_EL_KEY_CHECK_BKT );
-			rcode_half( exec, field );
-			break;
-		}
-		case IN_MAP_EL_KEY_CHECK_BKT: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_MAP_EL_KEY_CHECK_BKT %hd\n", field );
-
-			/* The element is on top, where the reverse code that loaded it
-			 * left it for the next instruction of the unit. */
-			struct_t *strct = (struct_t*)vm_top();
-			map_el_t *map_el = colm_struct_get_addr( strct, map_el_t*, field );
-			if ( map_el->height != 0 ) {
-				runtime_error( prg, "backing up over a key write to an "
-						"element now in a map" );
-			}
-			break;
-		}
 		case IN_GET_RHS_VAL_R: {
 			debug( prg, REALM_BYTECODE, "IN_GET_RHS_VAL_R\n" );
 
@@ -2885,18 +2783,6 @@ again:
 			tree_t *res = colm_map_iter_advance( prg, &sp, iter );
 			//colm_tree_upref( prg, res );
 			vm_push_tree( res );
-			break;
-		}
-		case IN_GEN_ITER_GET_CUR_R: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GEN_ITER_GET_CUR_R\n" );
-			
-			generic_iter_t *iter = (generic_iter_t*) vm_get_plocal(exec, field);
-			tree_t *tree = colm_list_iter_deref_cur( prg, iter );
-			//colm_tree_upref( prg, tree );
-			vm_push_tree( tree );
 			break;
 		}
 		case IN_GEN_KITER_GET_CUR_R: {
@@ -4052,88 +3938,6 @@ again:
 			vm_push_value( res );
 			break;
 		}
-		case IN_GET_LIST_EL_MEM_R: {
-			short gen_id, field;
-			read_half( gen_id );
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_LIST_EL_MEM_R\n" );
-
-			struct_t *s = vm_pop_struct();
-			if ( s == 0 ) {
-				runtime_error( prg, field == 0 ?
-						"reading the prev of a nil list element" :
-						"reading the next of a nil list element" );
-			}
-
-			list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
-			struct_t *val = colm_list_el_get( prg, list_el, gen_id, field );
-			vm_push_struct( val );
-			break;
-		}
-		case IN_GET_LIST_MEM_R: {
-			short gen_id, field;
-			read_half( gen_id );
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, 
-					"IN_GET_LIST_MEM_R %hd %hd\n", gen_id, field );
-
-			list_t *list = vm_pop_list();
-			if ( list == 0 ) {
-				runtime_error( prg, field == 0 ? "reading the head of a nil list" :
-						"reading the tail of a nil list" );
-			}
-			struct_t *val = colm_list_get( prg, list, gen_id, field );
-			vm_push_struct( val );
-			break;
-		}
-		case IN_GET_LIST_MEM_WC: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_LIST_MEM_WC\n" );
-
-			tree_t *obj = vm_pop_tree();
-			colm_tree_downref( prg, sp, obj );
-
-			tree_t *val = get_list_mem_split( prg, (list_t*)obj, field );
-			colm_tree_upref( prg, val );
-			vm_push_tree( val );
-			break;
-		}
-		case IN_GET_LIST_MEM_WV: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_LIST_MEM_WV\n" );
-
-			tree_t *obj = vm_pop_tree();
-			colm_tree_downref( prg, sp, obj );
-
-			tree_t *val = get_list_mem_split( prg, (list_t*)obj, field );
-			colm_tree_upref( prg, val );
-			vm_push_tree( val );
-
-			/* Set up the reverse instruction. */
-			rcode_code( exec, IN_GET_LIST_MEM_BKT );
-			rcode_half( exec, field );
-			break;
-		}
-		case IN_GET_LIST_MEM_BKT: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_LIST_MEM_BKT\n" );
-
-			tree_t *obj = vm_pop_tree();
-			colm_tree_downref( prg, sp, obj );
-
-			tree_t *res = get_list_mem_split( prg, (list_t*)obj, field );
-			colm_tree_upref( prg, res );
-			vm_push_tree( res );
-			break;
-		}
 		case IN_GET_VLIST_MEM_R: {
 			short gen_id, field;
 			read_half( gen_id );
@@ -4186,7 +3990,7 @@ again:
 			vm_push_tree( val );
 
 			/* Set up the reverse instruction. */
-			rcode_code( exec, IN_GET_LIST_MEM_BKT );
+			rcode_code( exec, IN_GET_VLIST_MEM_BKT );
 			rcode_half( exec, field );
 			break;
 		}
@@ -4252,25 +4056,6 @@ again:
 			break;
 		}
 
-		case IN_GET_MAP_EL_MEM_R: {
-			short gen_id, field;
-			read_half( gen_id );
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_MAP_EL_MEM_R\n" );
-
-			struct_t *strct = vm_pop_struct();
-			if ( strct == 0 ) {
-				runtime_error( prg, field == 0 ?
-						"reading the prev of a nil map element" :
-						"reading the next of a nil map element" );
-			}
-
-			map_el_t *map_el = colm_struct_to_map_el( prg, strct, gen_id );
-			struct_t *val = colm_map_el_get( prg, map_el, gen_id, field );
-			vm_push_struct( val );
-			break;
-		}
 		case IN_MAP_LENGTH: {
 			debug( prg, REALM_BYTECODE, "IN_MAP_LENGTH\n" );
 
@@ -4280,69 +4065,6 @@ again:
 			long len = map_length( (map_t*)obj );
 			value_t res = len;
 			vm_push_value( res );
-			break;
-		}
-		case IN_GET_MAP_MEM_R: {
-			short gen_id, field;
-			read_half( gen_id );
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, 
-					"IN_GET_MAP_MEM_R %hd %hd\n", gen_id, field );
-
-			map_t *map = vm_pop_map();
-			if ( map == 0 ) {
-				runtime_error( prg, field == 0 ? "reading the head of a nil map" :
-						"reading the tail of a nil map" );
-			}
-			struct_t *val = colm_map_get( prg, map, gen_id, field );
-			vm_push_struct( val );
-			break;
-		}
-		case IN_GET_MAP_MEM_WC: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_MAP_MEM_WC\n" );
-
-			tree_t *obj = vm_pop_tree();
-			colm_tree_downref( prg, sp, obj );
-
-			tree_t *val = get_list_mem_split( prg, (list_t*)obj, field );
-			colm_tree_upref( prg, val );
-			vm_push_tree( val );
-			break;
-		}
-		case IN_GET_MAP_MEM_WV: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_MAP_MEM_WV\n" );
-
-			tree_t *obj = vm_pop_tree();
-			colm_tree_downref( prg, sp, obj );
-
-			tree_t *val = get_list_mem_split( prg, (list_t*)obj, field );
-			colm_tree_upref( prg, val );
-			vm_push_tree( val );
-
-			/* Set up the reverse instruction. */
-			rcode_code( exec, IN_GET_MAP_MEM_BKT );
-			rcode_half( exec, field );
-			break;
-		}
-		case IN_GET_MAP_MEM_BKT: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_MAP_MEM_BKT\n" );
-
-			tree_t *obj = vm_pop_tree();
-			colm_tree_downref( prg, sp, obj );
-
-			tree_t *res = get_list_mem_split( prg, (list_t*)obj, field );
-			colm_tree_upref( prg, res );
-			vm_push_tree( res );
 			break;
 		}
 
@@ -4914,370 +4636,7 @@ again:
 				goto out;
 			}
 
-			case FN_LIST_PUSH_HEAD_WC: {
-				short gen_id;
-				read_half( gen_id );
 
-				debug( prg, REALM_BYTECODE, "FN_LIST_PUSH_HEAD_WC\n" );
-
-				list_t *list = vm_pop_list();
-				if ( list == 0 )
-					runtime_error( prg, "push to a nil list" );
-				struct_t *s = vm_pop_struct();
-
-				list_el_t *list_el = push_el_check( prg, s, gen_id );
-				colm_list_prepend( list, list_el );
-
-				//colm_tree_upref( prg, prg->trueVal );
-				vm_push_tree( prg->true_val );
-				break;
-			}
-			case FN_LIST_PUSH_HEAD_WV: {
-				short gen_id;
-				read_half( gen_id );
-
-				debug( prg, REALM_BYTECODE, "FN_LIST_PUSH_HEAD_WV\n" );
-
-				list_t *list = vm_pop_list();
-				if ( list == 0 )
-					runtime_error( prg, "push to a nil list" );
-				struct_t *s = vm_pop_struct();
-
-				list_el_t *list_el = push_el_check( prg, s, gen_id );
-				colm_list_prepend( list, list_el );
-
-				//colm_tree_upref( prg, prg->trueVal );
-				vm_push_tree( prg->true_val );
-
-				/* Set up reverse code. Needs no args. */
-				rcode_code( exec, IN_FN );
-				rcode_code( exec, FN_LIST_PUSH_HEAD_BKT );
-				rcode_unit_term( exec );
-				break;
-			}
-			case FN_LIST_PUSH_HEAD_BKT: {
-				debug( prg, REALM_BYTECODE, "FN_LIST_PUSH_HEAD_BKT\n" );
-
-				list_t *list = vm_pop_list();
-				colm_list_detach_head( list );
-				break;
-			}
-			case FN_LIST_PUSH_TAIL_WC: {
-				short gen_id;
-				read_half( gen_id );
-
-				debug( prg, REALM_BYTECODE, "FN_LIST_PUSH_TAIL_WC\n" );
-
-				list_t *list = vm_pop_list();
-				if ( list == 0 )
-					runtime_error( prg, "push to a nil list" );
-				struct_t *s = vm_pop_struct();
-
-				list_el_t *list_el = push_el_check( prg, s, gen_id );
-				colm_list_append( list, list_el );
-
-				//colm_tree_upref( prg, prg->trueVal );
-				vm_push_tree( prg->true_val );
-				break;
-			}
-			case FN_LIST_PUSH_TAIL_WV: {
-				short gen_id;
-				read_half( gen_id );
-
-				debug( prg, REALM_BYTECODE, "FN_LIST_PUSH_TAIL_WV\n" );
-
-				list_t *list = vm_pop_list();
-				if ( list == 0 )
-					runtime_error( prg, "push to a nil list" );
-				struct_t *s = vm_pop_struct();
-
-				list_el_t *list_el = push_el_check( prg, s, gen_id );
-				colm_list_append( list, list_el );
-
-				//colm_tree_upref( prg, prg->trueVal );
-				vm_push_tree( prg->true_val );
-
-				/* Set up reverse code. Needs no args. */
-				rcode_code( exec, IN_FN );
-				rcode_code( exec, FN_LIST_PUSH_TAIL_BKT );
-				rcode_unit_term( exec );
-				break;
-			}
-			case FN_LIST_PUSH_TAIL_BKT: {
-				debug( prg, REALM_BYTECODE, "FN_LIST_PUSH_TAIL_BKT\n" );
-
-				list_t *list = vm_pop_list();
-				colm_list_detach_tail( list );
-				break;
-			}
-			case FN_LIST_POP_TAIL_WC: {
-				short gen_id;
-				read_half( gen_id );
-
-				debug( prg, REALM_BYTECODE, "FN_LIST_POP_TAIL_WC\n" );
-
-				list_t *list = vm_pop_list();
-				pop_check( prg, list );
-
-				list_el_t *tail = list->tail;
-				colm_list_detach_tail( list );
-				struct_t *s = colm_generic_el_container( prg, tail, gen_id );
-
-				vm_push_struct( s );
-				break;
-			}
-			case FN_LIST_POP_TAIL_WV: {
-				short gen_id;
-				read_half( gen_id );
-
-				debug( prg, REALM_BYTECODE, "FN_LIST_POP_TAIL_WV\n" );
-
-				list_t *list = vm_pop_list();
-				pop_check( prg, list );
-
-				list_el_t *tail = list->tail;
-				colm_list_detach_tail( list );
-				struct_t *s = colm_generic_el_container( prg, tail, gen_id );
-
-				vm_push_struct( s );
-
-				/* Set up reverse. */
-				rcode_code( exec, IN_FN );
-				rcode_code( exec, FN_LIST_POP_TAIL_BKT );
-				rcode_half( exec, gen_id );
-				rcode_word( exec, (word_t)s );
-				rcode_unit_term( exec );
-				break;
-			}
-			case FN_LIST_POP_TAIL_BKT: {
-				short gen_id;
-				tree_t *val;
-				read_half( gen_id );
-				read_tree( val );
-
-				debug( prg, REALM_BYTECODE, "FN_LIST_POP_TAIL_BKT\n" );
-
-				list_t *list = vm_pop_list();
-				struct_t *s = (struct_t*) val;
-
-				list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
-
-				colm_list_append( list, list_el );
-				break;
-			}
-			case FN_LIST_POP_HEAD_WC: {
-				short gen_id;
-				read_half( gen_id );
-
-				debug( prg, REALM_BYTECODE, "FN_LIST_POP_HEAD_WC\n" );
-
-				list_t *list = vm_pop_list();
-				pop_check( prg, list );
-
-				list_el_t *head = list->head;
-				colm_list_detach_head( list );
-				struct_t *s = colm_generic_el_container( prg, head, gen_id );
-
-				vm_push_struct( s );
-				break;
-			}
-			case FN_LIST_POP_HEAD_WV: {
-				short gen_id;
-				read_half( gen_id );
-
-				debug( prg, REALM_BYTECODE, "FN_LIST_POP_HEAD_WV\n" );
-
-				list_t *list = vm_pop_list();
-				pop_check( prg, list );
-
-				list_el_t *head = list->head;
-				colm_list_detach_head( list );
-				struct_t *s = colm_generic_el_container( prg, head, gen_id );
-
-				vm_push_struct( s );
-
-				/* Set up reverse. The result comes off the list downrefed.
-				 * Need it up referenced for the reverse code too. */
-				rcode_code( exec, IN_FN );
-				rcode_code( exec, FN_LIST_POP_HEAD_BKT );
-				rcode_half( exec, gen_id );
-				rcode_word( exec, (word_t)s );
-				rcode_unit_term( exec );
-				break;
-			}
-			case FN_LIST_POP_HEAD_BKT: {
-				short gen_id;
-				tree_t *val;
-				read_half( gen_id );
-				read_tree( val );
-
-				debug( prg, REALM_BYTECODE, "FN_LIST_POP_HEAD_BKT\n" );
-
-				list_t *list = vm_pop_list();
-				struct_t *s = (struct_t*) val;
-
-				list_el_t *list_el = colm_struct_to_list_el( prg, s, gen_id );
-
-				colm_list_prepend( list, list_el );
-				break;
-			}
-			case FN_MAP_FIND: {
-				short gen_id;
-				read_half( gen_id );
-
-				debug( prg, REALM_BYTECODE, "FN_MAP_FIND %hd\n", gen_id );
-
-				map_t *map = vm_pop_map();
-				if ( map == 0 )
-					runtime_error( prg, "find in a nil map" );
-				tree_t *key = vm_pop_tree();
-
-				map_el_t *map_el = colm_map_find( prg, map, key );
-
-				struct colm_struct *strct = map_el != 0 ?
-						colm_generic_el_container( prg, map_el, gen_id ) : 0;
-
-				vm_push_struct( strct );
-
-				if ( map->generic_info->key_type == TYPE_TREE )
-					colm_tree_downref( prg, sp, key );
-				break;
-			}
-			case FN_MAP_INSERT_WC: {
-				short gen_id;
-				read_half( gen_id );
-
-				debug( prg, REALM_BYTECODE, "FN_MAP_INSERT_WC %hd\n", gen_id );
-
-				map_t *map = vm_pop_map();
-				if ( map == 0 )
-					runtime_error( prg, "insert into a nil map" );
-				struct_t *s = vm_pop_struct();
-
-				map_el_t *map_el = insert_el_check( prg, s, gen_id );
-
-				colm_map_insert( prg, map, map_el );
-
-				vm_push_tree( prg->true_val );
-				break;
-			}
-			case FN_MAP_INSERT_WV: {
-				short gen_id;
-				read_half( gen_id );
-
-				debug( prg, REALM_BYTECODE, "FN_MAP_INSERT_WV %hd\n", gen_id );
-
-				map_t *map = vm_pop_map();
-				if ( map == 0 )
-					runtime_error( prg, "insert into a nil map" );
-				struct_t *s = vm_pop_struct();
-
-				map_el_t *map_el = insert_el_check( prg, s, gen_id );
-
-				map_el_t *inserted = colm_map_insert( prg, map, map_el );
-
-				//colm_tree_upref( prg, prg->trueVal );
-				vm_push_tree( prg->true_val );
-
-				rcode_code( exec, IN_FN );
-				rcode_code( exec, FN_MAP_INSERT_BKT );
-				rcode_half( exec, gen_id );
-				rcode_code( exec, inserted != 0 ? 1 : 0 );
-				rcode_word( exec, (word_t)map_el );
-				rcode_unit_term( exec );
-				break;
-			}
-
-			case FN_MAP_INSERT_BKT: {
-				uchar inserted;
-				word_t wmap_el;
-
-				consume_half(); //( gen_id );
-				read_byte( inserted );
-				read_word( wmap_el );
-
-				map_el_t *map_el = (map_el_t*)wmap_el;
-
-				debug( prg, REALM_BYTECODE, "FN_MAP_INSERT_BKT %d\n",
-						(int)inserted );
-
-				map_t *map = vm_pop_map();
-
-				/* Code outside the parse may have moved the element since.
-				 * Detaching one the map doesn't hold corrupts the maps. */
-				if ( inserted ) {
-					if ( !map_holds_el( map, map_el ) ) {
-						runtime_error( prg, "backing up over insert_el of an "
-								"element no longer in the map" );
-					}
-					colm_map_detach( prg, map, map_el );
-				}
-				break;
-			}
-			case FN_MAP_DETACH_WC: {
-				short gen_id;
-				read_half( gen_id );
-
-				debug( prg, REALM_BYTECODE, "FN_MAP_DETACH_WC %hd\n", gen_id );
-
-				map_t *map = vm_pop_map();
-				if ( map == 0 )
-					runtime_error( prg, "detach from a nil map" );
-				struct_t *s = vm_pop_struct();
-
-				map_el_t *map_el = detach_el_check( prg, map, s, gen_id );
-
-				colm_map_detach( prg, map, map_el );
-
-				vm_push_struct( s );
-				break;
-			}
-			case FN_MAP_DETACH_WV: {
-				short gen_id;
-				read_half( gen_id );
-
-				debug( prg, REALM_BYTECODE, "FN_MAP_DETACH_WV %hd\n", gen_id );
-
-				map_t *map = vm_pop_map();
-				if ( map == 0 )
-					runtime_error( prg, "detach from a nil map" );
-				struct_t *s = vm_pop_struct();
-
-				map_el_t *map_el = detach_el_check( prg, map, s, gen_id );
-
-				colm_map_detach( prg, map, map_el );
-
-				vm_push_struct( s );
-
-				/* Reverse instruction. Puts the element back. */
-				rcode_code( exec, IN_FN );
-				rcode_code( exec, FN_MAP_DETACH_BKT );
-				rcode_half( exec, gen_id );
-				rcode_word( exec, (word_t)map_el );
-				rcode_unit_term( exec );
-				break;
-			}
-			case FN_MAP_DETACH_BKT: {
-				word_t wmap_el;
-
-				consume_half(); //( gen_id );
-				read_word( wmap_el );
-
-				map_el_t *map_el = (map_el_t*)wmap_el;
-
-				debug( prg, REALM_BYTECODE, "FN_MAP_DETACH_BKT\n" );
-
-				map_t *map = vm_pop_map();
-
-				/* Code outside the parse may have moved the element since.
-				 * Inserting one a map holds corrupts the maps. */
-				if ( map_el->height != 0 ) {
-					runtime_error( prg, "backing up over detach_el of an "
-							"element now in a map" );
-				}
-				colm_map_insert( prg, map, map_el );
-				break;
-			}
 			case FN_VMAP_INSERT_WC: {
 				debug_decl( short, gen_id );
 				debug_read_half( gen_id );
@@ -5290,7 +4649,15 @@ again:
 				struct_t *value = vm_pop_struct();
 				struct_t *key = vm_pop_struct();
 
-				colm_vmap_insert( prg, map, key, value );
+				/* As colm_vmap_insert(), but an element the map doesn't take,
+				 * since it has the key, is freed at once. */
+				struct generic_info *gi = map->generic_info;
+				struct colm_struct *el = colm_struct_new( prg, gi->el_struct_id );
+				colm_struct_set_field( el, struct_t*, gi->el_offset, key );
+				colm_struct_set_field( el, struct_t*, 0, value );
+				if ( colm_map_insert( prg, map, colm_struct_get_addr( el,
+						map_el_t*, gi->el_offset ) ) == 0 )
+					el_free( prg, sp, el );
 
 				//colm_tree_upref( prg, prg->trueVal );
 				vm_push_tree( prg->true_val );
@@ -5308,7 +4675,15 @@ again:
 				struct_t *value = vm_pop_struct();
 				struct_t *key = vm_pop_struct();
 
-				map_el_t *inserted = colm_vmap_insert( prg, map, key, value );
+				/* As in FN_VMAP_INSERT_WC. */
+				struct generic_info *gi = map->generic_info;
+				struct colm_struct *el = colm_struct_new( prg, gi->el_struct_id );
+				colm_struct_set_field( el, struct_t*, gi->el_offset, key );
+				colm_struct_set_field( el, struct_t*, 0, value );
+				map_el_t *inserted = colm_map_insert( prg, map,
+						colm_struct_get_addr( el, map_el_t*, gi->el_offset ) );
+				if ( inserted == 0 )
+					el_free( prg, sp, el );
 
 				//colm_tree_upref( prg, prg->trueVal );
 				vm_push_tree( prg->true_val );
@@ -5336,13 +4711,12 @@ again:
 
 				map_t *map = vm_pop_map();
 
-				/* As for FN_MAP_INSERT_BKT. */
+				/* The element is in the map as the insert left it. Nothing
+				 * else holds it once it is out. */
 				if ( inserted ) {
-					if ( !map_holds_el( map, map_el ) ) {
-						runtime_error( prg, "backing up over insert of an "
-								"element no longer in the map" );
-					}
 					colm_map_detach( prg, map, map_el );
+					el_free( prg, sp, colm_generic_el_container( prg, map_el,
+							map->generic_info - prg->rtd->generic_info ) );
 				}
 				break;
 			}
@@ -5359,10 +4733,17 @@ again:
 
 				map_el_t *map_el = colm_vmap_remove( prg, map, key );
 
-				struct colm_struct *strct = map_el != 0 ?
-						colm_generic_el_container( prg, map_el, gen_id ) : 0;
-
-				vm_push_struct( strct );
+				/* The removed value, with a reference of its own, and the
+				 * element goes. */
+				value_t val = 0;
+				if ( map_el != 0 ) {
+					struct colm_struct *el = colm_generic_el_container( prg, map_el, gen_id );
+					val = colm_struct_get_field( el, value_t, 0 );
+					if ( map->generic_info->value_type == TYPE_TREE )
+						colm_tree_upref( prg, (tree_t*)val );
+					el_free( prg, sp, el );
+				}
+				vm_push_value( val );
 
 				if ( map->generic_info->key_type == TYPE_TREE )
 					colm_tree_downref( prg, sp, key );
@@ -5381,10 +4762,17 @@ again:
 
 				map_el_t *map_el = colm_vmap_remove( prg, map, key );
 
-				struct colm_struct *strct = map_el != 0 ?
-						colm_generic_el_container( prg, map_el, gen_id ) : 0;
-
-				vm_push_struct( strct );
+				/* The removed value, as in FN_VMAP_REMOVE_WC. The element
+				 * leaves the heap list: the reverse code holds it now. */
+				value_t val = 0;
+				if ( map_el != 0 ) {
+					struct colm_struct *el = colm_generic_el_container( prg, map_el, gen_id );
+					val = colm_struct_get_field( el, value_t, 0 );
+					if ( map->generic_info->value_type == TYPE_TREE )
+						colm_tree_upref( prg, (tree_t*)val );
+					heap_unlink( prg, el );
+				}
+				vm_push_value( val );
 
 				if ( map->generic_info->key_type == TYPE_TREE )
 					colm_tree_downref( prg, sp, key );
@@ -5411,13 +4799,12 @@ again:
 
 				map_t *map = vm_pop_map();
 
-				/* As for FN_MAP_DETACH_BKT. */
+				/* The map doesn't have the key: it is as the remove left it.
+				 * The element goes back on the heap list. */
 				if ( map_el != 0 ) {
-					if ( map_el->height != 0 ) {
-						runtime_error( prg, "backing up over remove of an "
-								"element now in a map" );
-					}
 					colm_map_insert( prg, map, map_el );
+					colm_struct_add( prg, colm_generic_el_container( prg, map_el,
+							map->generic_info - prg->rtd->generic_info ) );
 				}
 				break;
 			}
@@ -5509,9 +4896,11 @@ again:
 				map_t *map = vm_pop_map();
 				map_el_t *map_el = (map_el_t*)wmap_el;
 
-				/* The element is in the map as the set left it. */
+				/* The element is in the map as the set left it. One it added
+				 * goes. */
 				if ( inserted ) {
 					colm_map_detach( prg, map, map_el );
+					el_free( prg, sp, colm_generic_el_container( prg, map_el, gen_id ) );
 				}
 				else {
 					struct colm_struct *el = colm_generic_el_container( prg, map_el, gen_id );
@@ -5581,8 +4970,12 @@ again:
 			case FN_VLIST_PUSH_TAIL_BKT: {
 				debug( prg, REALM_BYTECODE, "FN_VLIST_PUSH_TAIL_BKT\n" );
 
+				/* The pushed value is at that end: the list is as the push
+				 * left it. Its element goes. */
 				list_t *list = vm_pop_list();
-				colm_list_detach_tail( list );
+				list_el_t *list_el = colm_list_detach_tail( list );
+				el_free( prg, sp, colm_generic_el_container( prg, list_el,
+						list->generic_info - prg->rtd->generic_info ) );
 				break;
 			}
 			case FN_VLIST_PUSH_HEAD_WC: {
@@ -5625,20 +5018,28 @@ again:
 			case FN_VLIST_PUSH_HEAD_BKT: {
 				debug( prg, REALM_BYTECODE, "FN_VLIST_PUSH_HEAD_BKT\n" );
 
+				/* The pushed value is at that end: the list is as the push
+				 * left it. Its element goes. */
 				list_t *list = vm_pop_list();
-				colm_list_detach_head( list );
+				list_el_t *list_el = colm_list_detach_head( list );
+				el_free( prg, sp, colm_generic_el_container( prg, list_el,
+						list->generic_info - prg->rtd->generic_info ) );
 				break;
 			}
 			case FN_VLIST_POP_HEAD_WC: {
-				debug_decl( short, gen_id );
-				debug_read_half( gen_id );
+				short gen_id;
+				read_half( gen_id );
 
 				debug( prg, REALM_BYTECODE, "FN_VLIST_POP_HEAD_WC %hd\n", gen_id );
 
 				list_t *list = vm_pop_list();
 				pop_check( prg, list );
 
+				/* The value comes off with a reference of its own, and the
+				 * element goes. */
+				list_el_t *list_el = list->head;
 				value_t result = colm_vlist_detach_head( prg, list );
+				el_free( prg, sp, colm_generic_el_container( prg, list_el, gen_id ) );
 				vm_push_value( result );
 				break;
 			}
@@ -5651,39 +5052,53 @@ again:
 				list_t *list = vm_pop_list();
 				pop_check( prg, list );
 
+				/* As in the _WC form, but the reverse code holds the element,
+				 * with its own reference to the value, and it leaves the heap
+				 * list. */
+				list_el_t *list_el = list->head;
 				value_t result = colm_vlist_detach_head( prg, list );
+				struct colm_struct *el = colm_generic_el_container( prg, list_el, gen_id );
+				heap_unlink( prg, el );
 				vm_push_value( result );
 
 				/* Set up reverse. */
 				rcode_code( exec, IN_FN );
 				rcode_code( exec, FN_VLIST_POP_HEAD_BKT );
 				rcode_half( exec, gen_id );
-				rcode_word( exec, (word_t)result );
+				rcode_word( exec, (word_t)el );
 				rcode_unit_term( exec );
 				break;
 			}
 			case FN_VLIST_POP_HEAD_BKT: {
-				tree_t *val;
+				word_t wel;
 				consume_half(); //( gen_id );
-				read_tree( val );
+				read_word( wel );
 
 				debug( prg, REALM_BYTECODE, "FN_VLIST_POP_HEAD_BKT\n" );
 
 				list_t *list = vm_pop_list();
 
-				colm_vlist_prepend( prg, list, (value_t)val );
+				/* The element the pop took off goes back, with its value. */
+				struct colm_struct *el = (struct colm_struct*)wel;
+				colm_struct_add( prg, el );
+				colm_list_prepend( list, colm_struct_get_addr( el, list_el_t*,
+						list->generic_info->el_offset ) );
 				break;
 			}
 			case FN_VLIST_POP_TAIL_WC: {
-				debug_decl( short, gen_id );
-				debug_read_half( gen_id );
+				short gen_id;
+				read_half( gen_id );
 
 				debug( prg, REALM_BYTECODE, "FN_VLIST_POP_TAIL_WC %hd\n", gen_id );
 
 				list_t *list = vm_pop_list();
 				pop_check( prg, list );
 
+				/* The value comes off with a reference of its own, and the
+				 * element goes. */
+				list_el_t *list_el = list->tail;
 				value_t result = colm_vlist_detach_tail( prg, list );
+				el_free( prg, sp, colm_generic_el_container( prg, list_el, gen_id ) );
 				vm_push_value( result );
 				break;
 			}
@@ -5696,27 +5111,37 @@ again:
 				list_t *list = vm_pop_list();
 				pop_check( prg, list );
 
+				/* As in the _WC form, but the reverse code holds the element,
+				 * with its own reference to the value, and it leaves the heap
+				 * list. */
+				list_el_t *list_el = list->tail;
 				value_t result = colm_vlist_detach_tail( prg, list );
+				struct colm_struct *el = colm_generic_el_container( prg, list_el, gen_id );
+				heap_unlink( prg, el );
 				vm_push_value( result );
 
 				/* Set up reverse. */
 				rcode_code( exec, IN_FN );
 				rcode_code( exec, FN_VLIST_POP_TAIL_BKT );
 				rcode_half( exec, gen_id );
-				rcode_word( exec, (word_t)result );
+				rcode_word( exec, (word_t)el );
 				rcode_unit_term( exec );
 				break;
 			}
 			case FN_VLIST_POP_TAIL_BKT: {
-				tree_t *val;
+				word_t wel;
 				consume_half(); //( gen_id );
-				read_tree( val );
+				read_word( wel );
 
 				debug( prg, REALM_BYTECODE, "FN_VLIST_POP_TAIL_BKT\n" );
 
 				list_t *list = vm_pop_list();
 
-				colm_vlist_append( prg, list, (value_t)val );
+				/* The element the pop took off goes back, with its value. */
+				struct colm_struct *el = (struct colm_struct*)wel;
+				colm_struct_add( prg, el );
+				colm_list_append( list, colm_struct_get_addr( el, list_el_t*,
+						list->generic_info->el_offset ) );
 				break;
 			}
 
@@ -6051,12 +5476,6 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_PTR_ACCESS_BKT\n" );
 			break;
 		}
-		case IN_MAP_EL_KEY_CHECK_BKT: {
-			consume_half(); //( field );
-
-			debug( prg, REALM_BYTECODE, "IN_MAP_EL_KEY_CHECK_BKT\n" );
-			break;
-		}
 		case IN_SET_TOKEN_DATA_BKT: {
 			word_t oldval;
 			read_word( oldval );
@@ -6067,56 +5486,15 @@ again:
 			string_free( prg, head );
 			break;
 		}
-		case IN_GET_LIST_MEM_BKT: {
+		case IN_GET_VLIST_MEM_BKT: {
 			debug_decl( short, field );
 			debug_read_half( field );
 
-			debug( prg, REALM_BYTECODE, "IN_GET_LIST_MEM_BKT %hd\n", field );
-			break;
-		}
-		case IN_GET_MAP_MEM_BKT: {
-			debug_decl( short, field );
-			debug_read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_MAP_MEM_BKT %hd\n", field );
+			debug( prg, REALM_BYTECODE, "IN_GET_VLIST_MEM_BKT %hd\n", field );
 			break;
 		}
 		case IN_FN: {
 			switch ( *instr++ ) {
-			case FN_LIST_PUSH_HEAD_BKT: {
-				debug( prg, REALM_BYTECODE, "FN_LIST_PUSH_HEAD_BKT\n" );
-				break;
-			}
-			case FN_LIST_POP_HEAD_BKT: {
-				consume_half(); //( genId );
-				consume_word(); //( val );
-
-				debug( prg, REALM_BYTECODE, "FN_LIST_POP_HEAD_BKT\n" );
-
-				break;
-			}
-			case FN_LIST_PUSH_TAIL_BKT: {
-				debug( prg, REALM_BYTECODE, "FN_LIST_PUSH_TAIL_BKT\n" );
-				break;
-			}
-			case FN_LIST_POP_TAIL_BKT: {
-				consume_half(); //( genId );
-				consume_word(); //( val );
-
-				debug( prg, REALM_BYTECODE, "FN_LIST_POP_TAIL_BKT\n" );
-
-				break;
-			}
-			case FN_MAP_INSERT_BKT: {
-				debug_decl( uchar, inserted );
-				consume_half(); //( genId );
-				debug_read_byte( inserted );
-				consume_word(); //( wmapEl );
-
-				debug( prg, REALM_BYTECODE, "FN_MAP_INSERT_BKT %d\n",
-						(int)inserted );
-				break;
-			}
 			case FN_VMAP_INSERT_BKT: {
 				debug_decl( uchar, inserted );
 				consume_half(); //( gen_id );
@@ -6130,18 +5508,19 @@ again:
 
 				break;
 			}
-			case FN_MAP_DETACH_BKT: {
-				consume_half(); //( gen_id );
-				consume_word(); //( wmap_el );
-
-				debug( prg, REALM_BYTECODE, "FN_MAP_DETACH_BKT\n" );
-				break;
-			}
 			case FN_VMAP_REMOVE_BKT: {
-				consume_half(); //( gen_id );
-				consume_word(); //( wmap_el );
+				short gen_id;
+				word_t wmap_el;
+				read_half( gen_id );
+				read_word( wmap_el );
 
 				debug( prg, REALM_BYTECODE, "FN_VMAP_REMOVE_BKT\n" );
+
+				/* Only the reverse code held the element the remove took out. */
+				if ( wmap_el != 0 ) {
+					colm_struct_delete( prg, sp, colm_generic_el_container( prg,
+							(map_el_t*)wmap_el, gen_id ) );
+				}
 				break;
 			}
 			case FN_VMAP_SET_BKT: {
@@ -6172,16 +5551,26 @@ again:
 			}
 
 			case FN_VLIST_POP_HEAD_BKT: {
-				//word_t result;
+				word_t wel;
 				consume_half(); //( gen_id );
-				consume_word(); //read_word( result );
+				read_word( wel );
+
+				debug( prg, REALM_BYTECODE, "FN_VLIST_POP_HEAD_BKT\n" );
+
+				/* Only the reverse code held the element the pop took off. */
+				colm_struct_delete( prg, sp, (struct colm_struct*)wel );
 				break;
 			}
 
 			case FN_VLIST_POP_TAIL_BKT: {
-				//word_t result;
+				word_t wel;
 				consume_half(); //( gen_id );
-				consume_word(); //read_word( result );
+				read_word( wel );
+
+				debug( prg, REALM_BYTECODE, "FN_VLIST_POP_TAIL_BKT\n" );
+
+				/* Only the reverse code held the element the pop took off. */
+				colm_struct_delete( prg, sp, (struct colm_struct*)wel );
 				break;
 			}
 

@@ -927,12 +927,6 @@ struct LoadColm
 		return TypeRef::cons( typeRef.loc(), TypeRef::List, 0, elType, valType );
 	}
 
-	TypeRef *walkListEl( type_ref typeRef )
-	{
-		TypeRef *valType = walkTypeRef( typeRef._type_ref() );
-		return TypeRef::cons( typeRef.loc(), TypeRef::ListEl, valType );
-	}
-
 	TypeRef *walkValueMap( type_ref typeRef )
 	{
 		TypeRef *keyType = walkTypeRef( typeRef.KeyType() );
@@ -942,14 +936,6 @@ struct LoadColm
 
 		return TypeRef::cons( typeRef.loc(), TypeRef::Map, 0,
 				keyType, elType, valType );
-	}
-
-	TypeRef *walkMapEl( type_ref typeRef )
-	{
-		TypeRef *keyType = walkTypeRef( typeRef.KeyType() );
-		TypeRef *valType = walkTypeRef( typeRef.ValType() );
-
-		return TypeRef::cons( typeRef.loc(), TypeRef::MapEl, 0, keyType, valType );
 	}
 
 	TypeRef *walkTypeRef( type_ref typeRef )
@@ -986,14 +972,6 @@ struct LoadColm
 		}
 		case type_ref::Map: {
 			tr = walkValueMap( typeRef );
-			break;
-		}
-		case type_ref::ListEl: {
-			tr = walkListEl( typeRef );
-			break;
-		}
-		case type_ref::MapEl: {
-			tr = walkMapEl( typeRef );
 			break;
 		}}
 		return tr;

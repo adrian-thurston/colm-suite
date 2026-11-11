@@ -1,15 +1,10 @@
-# A list's push_el, push_head_el and push_tail_el in a reduction action stop
-# on an element a list holds, as they do at the top level. Input "* * ;" is
-# parsed as A1 first, which runs the actions, and then backs up to A2. In the
-# runs that stop, the program ends in the first action. In the run "free", the
-# actions move elements no list holds, backing up puts them back, and they can
-# move again after.
+# A list's pops and pushes in a reduction action are undone when the parser
+# backs up. Input "* * ;" is parsed as A1 first, which runs the actions, and
+# then backs up to A2. The actions move values from L to K, backing up puts
+# them back, and they can move again after.
 
 global L: list<str> = new list<str>()
 global K: list<str> = new list<str>()
-global E: list_el<str>
-global A: str = argv->pop()
-global Pushes: int = 0
 
 lex
 	ignore /[ \t]+/
@@ -23,23 +18,8 @@ def A2 []
 def item
 	[`*]
 	{
-		# Only the first action pushes E, so that without the check, the
-		# second can't push it again and make a cycle in K.
-		if ( Pushes == 0 ) {
-			Pushes = 1
-			if ( A == "held_tail" )
-				K->push_tail_el( E )
-			elsif ( A == "held_head" )
-				K->push_head_el( E )
-			elsif ( A == "held_push_el" )
-				K->push_el( E )
-		}
-		if ( A == "free" ) {
-			F: list_el<str> = L->pop_head_el()
-			K->push_tail_el( F )
-			G: list_el<str> = L->pop_tail_el()
-			K->push_head_el( G )
-		}
+		K->push_tail( L->pop_head() )
+		K->push_head( L->pop_tail() )
 		print "action: L [L->length], K [K->length]\n"
 	}
 
@@ -52,7 +32,6 @@ L->push_tail( "b" )
 L->push_tail( "c" )
 L->push_tail( "d" )
 L->push_tail( "e" )
-E = L->head_el->next
 print "before\n"
 
 parse S: start[ stdin ]
@@ -65,10 +44,8 @@ for V: str in rev_list_iter( L )
 	print " [V]"
 print "\nK [K->length]\n"
 
-while ( L->length > 0 ) {
-	F: list_el<str> = L->pop_tail_el()
-	K->push_head_el( F )
-}
+while ( L->length > 0 )
+	K->push_head( L->pop_tail() )
 print "moved: L [L->length], K [K->length]:"
 for V: str in K
 	print " [V]"
@@ -76,32 +53,6 @@ print "\nK rev:"
 for V: str in rev_list_iter( K )
 	print " [V]"
 print "\n"
-##### ARGS #####
-held_tail
-##### IN #####
-* * ;
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-held_head
-##### IN #####
-* * ;
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-held_push_el
-##### IN #####
-* * ;
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-free
 ##### IN #####
 * * ;
 ##### EXP #####

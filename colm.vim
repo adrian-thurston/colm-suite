@@ -54,7 +54,7 @@ syntax match tlNumber "true"
 syntax match tlNumber "false"
 
 syntax keyword Type
-	\ int str bool any ref ptr void list_el map_el
+	\ int str bool any ref ptr void
 	\ commit literal iter
 	\ namespace lex reducefirst global include export
 	\ preeof left right nonassoc prec context struct alias

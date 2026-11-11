@@ -201,28 +201,14 @@ covers.
 
 Some mistakes stop the program where they happen:
 
-* popping a value or an element off a list that is empty or nil, as
+* popping a value off a list that is empty or nil, as
   xref:2_02_list_map_struct_alias.adoc#lists[the lists section] describes;
 * reading the `head`, `tail` or `top` of such a list;
 * any other use of a nil list or map, such as a push, an `insert` or a read
   of its `length`, as the lists section and
   xref:2_02_list_map_struct_alias.adoc#maps[the maps section] describe;
-* pushing a nil element onto a list, with `push_el`, `push_head_el` or
-  `push_tail_el`, or an element that a list holds already, as the lists
-  section describes;
-* giving a map's `insert_el` or `detach_el` nil, `insert_el` an element that
-  a map holds already, or `detach_el` one that the map doesn't hold, as
-  xref:2_02_list_map_struct_alias.adoc#maps[the maps section] describes;
-* setting the `key` of an element that a map holds, or a child or an
-  attribute of such a key, as the maps section describes;
-* backing up over an action's `insert`, `insert_el`, `detach_el` or `remove`,
-  or its write to an element's `key`, when the program has moved the element
-  into or out of a map since, as xref:3_04_undo.adoc#context[the context
-  chapter] describes;
 * reading or setting a field of a nil struct, as
-  xref:2_02_list_map_struct_alias.adoc#structs[the structs section] describes,
-  or the `value` or `key` of a nil list or map element, or reading such an
-  element's `next` or `prev`;
+  xref:2_02_list_map_struct_alias.adoc#structs[the structs section] describes;
 * a `for` loop over a nil tree, as
   xref:1_06_iterators.adoc#iterators[the iterators chapter] describes, or
   over a nil list or map;

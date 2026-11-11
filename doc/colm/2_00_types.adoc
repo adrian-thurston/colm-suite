@@ -21,9 +21,9 @@ The types are:
   xref:3_03_match.adoc#ignore-lists[the patterns chapter] explains
 * structs, in xref:2_02_list_map_struct_alias.adoc#structs[the structs
   section]
-* `list<T>` and `map<K, V>`, and their elements, `list_el<T>` and
-  `map_el<K, V>`, in xref:2_02_list_map_struct_alias.adoc#lists[the lists
-  section] and xref:2_02_list_map_struct_alias.adoc#maps[the maps section]
+* `list<T>` and `map<K, V>`, in
+  xref:2_02_list_map_struct_alias.adoc#lists[the lists section] and
+  xref:2_02_list_map_struct_alias.adoc#maps[the maps section]
 * `parser<T>`
 * `void`, for a function that returns nothing, in
   xref:2_01_basic.adoc#void[the basic types chapter]

@@ -1,6 +1,6 @@
 #
-# A map's remove and detach_el in reduction actions, and backtracking over
-# them. The undo of each must put back the element it took out. Input ending
+# A map's remove and set in reduction actions, and backtracking over them.
+# The undo of each must put back what it took out or replaced. Input ending
 # in "; ^" is parsed as A1, keeping what the actions did. Input ending in ";"
 # is parsed as A1 first, reducing every item, then backs up to A2, whose
 # items have no actions, so the map must come out as it went in.
@@ -22,21 +22,17 @@ def item
 	# Remove by key. A key not in the map removes nothing.
 	[`- id]
 	{
-		E: map_el<str, str> = M->remove( $r2 )
-		if ( E )
-			print "removed [E->key] [E->value]\n"
+		V: str = M->remove( $r2 )
+		if ( V )
+			print "removed [$r2] [V]\n"
 		else
 			print "no [$r2]\n"
 	}
 
-	# Detach by element.
+	# Set: replaces the value of a key in the map, adds one that isn't.
 |	[`* id]
 	{
-		E: map_el<str, str> = M->find_el( $r2 )
-		if ( E ) {
-			D: map_el<str, str> = M->detach_el( E )
-			print "detached [D->key] [D->value]\n"
-		}
+		print "set [$r2] [M->set( $r2, "set" )]\n"
 	}
 
 	# Replace. Undoing it takes the new element out before putting the old
@@ -64,25 +60,29 @@ M->insert( "d", "4" )
 parse S: start[ stdin ]
 print( S )
 
-for E: map_el<str, str> in M
-	print "[E->key] [E->value]\n"
+for K: str in map_keys( M )
+	print "[K] [M->find( K )]\n"
 
 ##### IN #####
--a *b -zz =c ; ^
+-a *b -zz =c *e ; ^
 ##### EXP #####
 removed a 1
-detached b 2
+set b 0
 no zz
--a *b -zz =c ; ^
+set e 1
+-a *b -zz =c *e ; ^
+b set
 c new
 d 4
+e set
 ##### IN #####
--a *b -zz =c ;
+-a *b -zz =c *e ;
 ##### EXP #####
 removed a 1
-detached b 2
+set b 0
 no zz
--a *b -zz =c ;
+set e 1
+-a *b -zz =c *e ;
 a 1
 b 2
 c 3

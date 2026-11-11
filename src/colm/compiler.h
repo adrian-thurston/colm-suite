@@ -684,16 +684,12 @@ struct Compiler
 	void verifyParseStopGrammar( LangEl *langEl, PdaGraph *pdaGraph );
 	void computeAdvanceReductions( LangEl *langEl, PdaGraph *pdaGraph );
 
-	void initListElField( GenericType *gen, const char *name, int offset );
-	void initListFieldEl( GenericType *gen, const char *name, int offset );
 	void initListFieldVal( GenericType *gen, const char *name, int offset );
 
 	void initListFields( GenericType *gen );
 	void initListFunctions( GenericType *gen );
 
 	void initMapElKey( GenericType *gen, const char *name, int offset );
-	void initMapElField( GenericType *gen, const char *name, int offset );
-	void initMapField( GenericType *gen, const char *name, int offset );
 
 	void initMapFields( GenericType *gen );
 	void initMapFunctions( GenericType *gen );

@@ -747,16 +747,6 @@ void Compiler::makeDefaultIterators()
 		objMethod->iterDef = triter;
 	}
 
-	/* List iterator. */
-	{
-		UniqueType *anyRefUT = findUniqueType( TYPE_REF, anyLangEl );
-		ObjectMethod *objMethod = initFunction( uniqueTypeAny, rootNamespace, globalObjectDef, 
-				ObjectMethod::Call, "list_iter", IN_HALT, IN_HALT, anyRefUT, true );
-
-		IterDef *triter = findIterDef( IterDef::ListEl );
-		objMethod->iterDef = triter;
-	}
-
 	/* Reverse Value List iterator. */
 	{
 		UniqueType *anyRefUT = findUniqueType( TYPE_REF, anyLangEl );
@@ -764,16 +754,6 @@ void Compiler::makeDefaultIterators()
 				ObjectMethod::Call, "rev_list_iter", IN_HALT, IN_HALT, anyRefUT, true );
 
 		IterDef *triter = findIterDef( IterDef::RevListVal );
-		objMethod->iterDef = triter;
-	}
-
-	/* Map iterator. */
-	{
-		UniqueType *anyRefUT = findUniqueType( TYPE_REF, anyLangEl );
-		ObjectMethod *objMethod = initFunction( uniqueTypeAny, rootNamespace, globalObjectDef, 
-				ObjectMethod::Call, "map_iter", IN_HALT, IN_HALT, anyRefUT, true );
-
-		IterDef *triter = findIterDef( IterDef::MapEl );
 		objMethod->iterDef = triter;
 	}
 
@@ -1319,58 +1299,18 @@ void Compiler::initMapFunctions( GenericType *gen )
 			FN_VMAP_SET_WV, FN_VMAP_SET_WC, gen->keyUt, gen->valueUt,
 			false, true, gen );
 
-	initFunction( gen->elUt, gen->objDef, ObjectMethod::Call, "remove", 
+	initFunction( gen->valueUt, gen->objDef, ObjectMethod::Call, "remove",
 			FN_VMAP_REMOVE_WV, FN_VMAP_REMOVE_WC, gen->keyUt, false, true, gen );
-
-	/*
-	 * Element Functions
-	 */
-	initFunction( gen->elUt, gen->objDef, ObjectMethod::Call, "find_el", 
-			FN_MAP_FIND,      FN_MAP_FIND, gen->keyUt, true, true, gen );
-
-	initFunction( uniqueTypeInt, gen->objDef, ObjectMethod::Call, "insert_el", 
-			FN_MAP_INSERT_WV, FN_MAP_INSERT_WC, gen->elUt, false, true, gen );
-
-	initFunction( gen->elUt, gen->objDef, ObjectMethod::Call, "detach_el", 
-			FN_MAP_DETACH_WV, FN_MAP_DETACH_WC, gen->elUt, false, true, gen );
-}
-
-void Compiler::initMapField( GenericType *gen, const char *name, int offset )
-{
-	/* Make the type ref and create the field. */
-	ObjectField *el = ObjectField::cons( internal,
-			ObjectField::InbuiltOffType, gen->elTr, name );
-
-	el->inGetR =  IN_GET_MAP_MEM_R;
-	el->inGetWC = IN_GET_MAP_MEM_WC;
-	el->inGetWV = IN_GET_MAP_MEM_WV;
-//	el->inSetWC = IN_SET_MAP_MEM_WC;
-//	el->inSetWV = IN_SET_MAP_MEM_WV;
-
-	el->inGetValR  =  IN_GET_MAP_MEM_R;
-	el->inGetValWC =  IN_GET_MAP_MEM_WC;
-	el->inGetValWV =  IN_GET_MAP_MEM_WV;
-
-	gen->objDef->rootScope->insertField( el->name, el );
-
-	el->useGenericId = true;
-	el->generic = gen;
-
-	/* Zero for head, One for tail. */
-	el->offset = offset;
 }
 
 void Compiler::initMapFields( GenericType *gen )
 {
 	addLengthField( gen->objDef, IN_MAP_LENGTH );
 
-	initMapField( gen, "head_el", 0 );
-	initMapField( gen, "tail_el", 1 );
-
+	/* No program can name a map's element struct, so none reaches its key.
+	 * The field lists a tree key among the element's trees, which freeing
+	 * the element downrefs. */
 	initMapElKey( gen, "key", 0 );
-
-	initMapElField( gen, "prev", 0 );
-	initMapElField( gen, "next", 1 );
 }
 
 void Compiler::initMapElKey( GenericType *gen, const char *name, int offset )
@@ -1383,28 +1323,6 @@ void Compiler::initMapElKey( GenericType *gen, const char *name, int offset )
 	
 	/* Offset will be computed when the offset of the owning map element field
 	 * is computed. */
-
-	gen->elUt->structEl->structDef->objectDef->rootScope->insertField( el->name, el );
-}
-
-void Compiler::initMapElField( GenericType *gen, const char *name, int offset )
-{
-	/* Make the type ref and create the field. */
-	ObjectField *el = ObjectField::cons( internal,
-			ObjectField::InbuiltOffType, gen->elTr, name );
-
-	el->inGetR    = IN_GET_MAP_EL_MEM_R;
-	el->inGetValR = IN_GET_MAP_EL_MEM_R;
-//	el->inGetWC = IN_GET_LIST2EL_MEM_WC;
-//	el->inGetWV = IN_GET_LIST2EL_MEM_WV;
-//	el->inSetWC = IN_SET_LIST2EL_MEM_WC;
-//	el->inSetWV = IN_SET_LIST2EL_MEM_WV;
-
-	el->useGenericId = true;
-	el->generic = gen;
-
-	/* Zero for head, One for tail. */
-	el->offset = offset;
 
 	gen->elUt->structEl->structDef->objectDef->rootScope->insertField( el->name, el );
 }
@@ -1428,71 +1346,6 @@ void Compiler::initListFunctions( GenericType *gen )
 
 	initFunction( gen->valueUt, gen->objDef, ObjectMethod::Call, "pop", 
 			FN_VLIST_POP_HEAD_WV, FN_VLIST_POP_HEAD_WC, false, true, gen );
-
-	initFunction( uniqueTypeInt, gen->objDef, ObjectMethod::Call, "push_head_el", 
-			FN_LIST_PUSH_HEAD_WV, FN_LIST_PUSH_HEAD_WC, gen->elUt, false, true, gen );
-
-	initFunction( uniqueTypeInt, gen->objDef, ObjectMethod::Call, "push_tail_el", 
-			FN_LIST_PUSH_TAIL_WV, FN_LIST_PUSH_TAIL_WC, gen->elUt, false, true, gen );
-
-	initFunction( uniqueTypeInt, gen->objDef, ObjectMethod::Call, "push_el", 
-			FN_LIST_PUSH_HEAD_WV, FN_LIST_PUSH_HEAD_WC, gen->elUt, false, true, gen );
-
-	initFunction( gen->elUt, gen->objDef, ObjectMethod::Call, "pop_head_el", 
-			FN_LIST_POP_HEAD_WV, FN_LIST_POP_HEAD_WC, false, true, gen );
-
-	initFunction( gen->elUt, gen->objDef, ObjectMethod::Call, "pop_tail_el", 
-			FN_LIST_POP_TAIL_WV, FN_LIST_POP_TAIL_WC, false, true, gen );
-
-	initFunction( gen->elUt, gen->objDef, ObjectMethod::Call, "pop_el", 
-			FN_LIST_POP_HEAD_WV, FN_LIST_POP_HEAD_WC, false, true, gen );
-}
-
-void Compiler::initListElField( GenericType *gen, const char *name, int offset )
-{
-	/* Make the type ref and create the field. */
-	ObjectField *el = ObjectField::cons( internal,
-			ObjectField::InbuiltOffType, gen->elTr, name );
-
-	el->inGetR    = IN_GET_LIST_EL_MEM_R;
-	el->inGetValR = IN_GET_LIST_EL_MEM_R;
-//	el->inGetWC = IN_GET_LIST2EL_MEM_WC;
-//	el->inGetWV = IN_GET_LIST2EL_MEM_WV;
-//	el->inSetWC = IN_SET_LIST2EL_MEM_WC;
-//	el->inSetWV = IN_SET_LIST2EL_MEM_WV;
-
-	el->useGenericId = true;
-	el->generic = gen;
-
-	/* Zero for head, One for tail. */
-	el->offset = offset;
-
-	gen->elUt->structEl->structDef->objectDef->rootScope->insertField( el->name, el );
-}
-
-void Compiler::initListFieldEl( GenericType *gen, const char *name, int offset )
-{
-	/* Make the type ref and create the field. */
-	ObjectField *el = ObjectField::cons( internal,
-			ObjectField::InbuiltOffType, gen->elTr, name );
-
-	el->inGetR =  IN_GET_LIST_MEM_R;
-	el->inGetWC = IN_GET_LIST_MEM_WC;
-	el->inGetWV = IN_GET_LIST_MEM_WV;
-//	el->inSetWC = IN_SET_LIST_MEM_WC;
-//	el->inSetWV = IN_SET_LIST_MEM_WV;
-
-	el->inGetValR  =  IN_GET_LIST_MEM_R;
-	el->inGetValWC =  IN_GET_LIST_MEM_WC;
-	el->inGetValWV =  IN_GET_LIST_MEM_WV;
-
-	gen->objDef->rootScope->insertField( el->name, el );
-
-	el->useGenericId = true;
-	el->generic = gen;
-
-	/* Zero for head, One for tail. */
-	el->offset = offset;
 }
 
 void Compiler::initListFieldVal( GenericType *gen, const char *name, int offset )
@@ -1527,16 +1380,7 @@ void Compiler::initListFields( GenericType *gen )
 	initListFieldVal( gen, "tail", 1 );
 	initListFieldVal( gen, "top", 0 );
 
-	/* The element fields. */
-	initListFieldEl( gen, "head_el", 0 );
-	initListFieldEl( gen, "tail_el", 1 );
-	initListFieldEl( gen, "top_el", 0 );
-
 	addLengthField( gen->objDef, IN_LIST_LENGTH );
-
-	/* The fields of the list element. */
-	initListElField( gen, "prev", 0 );
-	initListElField( gen, "next", 1 );
 }
 
 void Compiler::initParserFunctions( GenericType *gen )

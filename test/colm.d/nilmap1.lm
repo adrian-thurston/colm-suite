@@ -1,8 +1,8 @@
-# Using a nil map stops the program, with exit status 1: inserting, finding or
-# removing a key, inserting, finding or detaching an element, its length, and
-# the element at either end. The output before the stop is kept. In a
-# reduction action, an insert, remove or detach is the form that records
-# reverse code. The run "new" gives the map a value first, and nothing stops.
+# Using a nil map stops the program, with exit status 1: inserting, finding,
+# removing or setting a key, asking whether it has one, its length, and a loop
+# over its keys. The output before the stop is kept. In a reduction action,
+# an insert, a remove or a set is the form that records reverse code. The run
+# "new" gives the map a value first, and nothing stops.
 
 lex
 	token id /[a-z]+/
@@ -22,26 +22,15 @@ def start
 		if ( A == "new" ) {
 			M->insert( "c", 3 )
 			M->remove( "a" )
-			new E: map_el<str, int>()
-			E->key = "d"
-			E->value = 4
-			M->insert_el( E )
-			F: map_el<str, int> = M->find_el( "b" )
-			M->detach_el( F )
+			M->set( "d", 4 )
+			M->remove( "b" )
 		}
 		elsif ( A == "action_insert" )
 			M->insert( "a", 1 )
 		elsif ( A == "action_remove" )
 			M->remove( "a" )
-		elsif ( A == "action_insert_el" ) {
-			new E: map_el<str, int>()
-			E->key = "a"
-			M->insert_el( E )
-		}
-		elsif ( A == "action_detach_el" ) {
-			new E: map_el<str, int>()
-			M->detach_el( E )
-		}
+		elsif ( A == "action_set" )
+			M->set( "a", 1 )
 	}
 
 print( "before\n" )
@@ -52,25 +41,15 @@ elsif ( A == "find" )
 	print( "find [M->find( "a" )]\n" )
 elsif ( A == "remove" )
 	M->remove( "a" )
-elsif ( A == "insert_el" ) {
-	new E: map_el<str, int>()
-	E->key = "a"
-	M->insert_el( E )
-}
-elsif ( A == "find_el" ) {
-	E: map_el<str, int> = M->find_el( "a" )
-}
-elsif ( A == "detach_el" ) {
-	new E: map_el<str, int>()
-	M->detach_el( E )
-}
+elsif ( A == "set" )
+	M->set( "a", 1 )
+elsif ( A == "contains" )
+	print( "contains [M->contains( "a" )]\n" )
 elsif ( A == "length" )
 	print( "length [M->length]\n" )
-elsif ( A == "head_el" ) {
-	E: map_el<str, int> = M->head_el
-}
-elsif ( A == "tail_el" ) {
-	E: map_el<str, int> = M->tail_el
+elsif ( A == "map_keys" ) {
+	for K: str in map_keys( M )
+		print( "key [K]\n" )
 }
 elsif ( A == "field" ) {
 	new H: holder()
@@ -79,17 +58,18 @@ elsif ( A == "field" ) {
 elsif ( A == "new" ) {
 	M = new map<str, int>()
 	M->insert( "a", 1 )
-	new E: map_el<str, int>()
-	E->key = "b"
-	E->value = 2
-	M->insert_el( E )
-	B: map_el<str, int> = M->find_el( "b" )
-	print( "find [M->find( "a" )], find_el [B->value], " )
-	print( "length [M->length], head_el [M->head_el->key], tail_el [M->tail_el->key]\n" )
+	M->set( "b", 2 )
+	print( "find [M->find( "a" )], find b [M->find( "b" )], length [M->length], keys" )
+	for K: str in map_keys( M )
+		print( " [K]" )
+	print( "\n" )
 }
 
 S: start = parse start[ "x" ]
-print( "length [M->length], head_el [M->head_el->key], tail_el [M->tail_el->key]\n" )
+print( "length [M->length], keys" )
+for K: str in map_keys( M )
+	print( " [K]" )
+print( "\n" )
 print( "after\n" )
 ##### ARGS #####
 insert
@@ -110,37 +90,7 @@ before
 ##### EXIT #####
 1
 ##### ARGS #####
-insert_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-find_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-detach_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
 length
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-head_el
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-tail_el
 ##### EXP #####
 before
 ##### EXIT #####
@@ -164,13 +114,25 @@ before
 ##### EXIT #####
 1
 ##### ARGS #####
-action_insert_el
+set
 ##### EXP #####
 before
 ##### EXIT #####
 1
 ##### ARGS #####
-action_detach_el
+contains
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+map_keys
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+action_set
 ##### EXP #####
 before
 ##### EXIT #####
@@ -179,6 +141,6 @@ before
 new
 ##### EXP #####
 before
-find 1, find_el 2, length 2, head_el a, tail_el b
-length 2, head_el c, tail_el d
+find 1, find b 2, length 2, keys a b
+length 2, keys c d
 after

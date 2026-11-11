@@ -1,6 +1,6 @@
 #
-# A map's remove and detach_el give back the element they take out, as their
-# map_el return type says. remove gives nil for a key that isn't in the map.
+# A map's remove gives back the value it takes out. For a key that isn't in
+# the map it gives nil, or 0 for an int value, as find does.
 #
 
 new M: map<str, str>()
@@ -9,17 +9,14 @@ M->insert( "b", "2" )
 M->insert( "c", "3" )
 M->insert( "d", "4" )
 
-# The removed element still holds its key and value.
-A: map_el<str, str> = M->remove( "a" )
-if ( A )
-	print "removed [A->key] [A->value]\n"
-else
-	print "a: nil\n"
+# The removed value.
+A: str = M->remove( "a" )
+print "removed a [A]\n"
 
 # A key that is not in the map gives nil.
-Z: map_el<str, str> = M->remove( "zz" )
+Z: str = M->remove( "zz" )
 if ( Z )
-	print "removed [Z->key] [Z->value]\n"
+	print "removed zz [Z]\n"
 else
 	print "zz: nil\n"
 
@@ -29,21 +26,22 @@ if ( M->remove( "b" ) )
 if ( M->remove( "b" ) )
 	print "removed b again\n"
 
-# detach_el gives back the element it was passed.
-C: map_el<str, str> = M->find_el( "c" )
-D: map_el<str, str> = M->detach_el( C )
-print "detached [D->key] [D->value]\n"
+# An int value, and 0 for a key that isn't there.
+new I: map<int, int>()
+I->insert( 1, 10 )
+print "removed 1 [I->remove( 1 )], removed 1 again [I->remove( 1 )]\n"
 
-# A removed element can go back in.
-M->insert_el( A )
+# A removed value can go back in.
+M->insert( "a", A )
 
-for E: map_el<str, str> in M
-	print "[E->key] [E->value]\n"
+for K: str in map_keys( M )
+	print "[K] [M->find( K )]\n"
 
 ##### EXP #####
 removed a 1
 zz: nil
 removed b
-detached c 3
+removed 1 10, removed 1 again 0
 a 1
+c 3
 d 4

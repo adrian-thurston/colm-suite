@@ -9,8 +9,8 @@ says what, and leaves how to them.
 ## Terms
 
 - A *struct* is any value the runtime keeps as a `struct colm_struct`: a
-  user struct or context, a `list` or a `map`, a `list_el` or a `map_el`, a
-  `parser`, an `_input`, a `stream`, and the program's globals.
+  user struct or context, a `list` or a `map`, a `parser`, an `_input`, a
+  `stream`, and the program's globals.
 - A *strong reference* keeps its struct alive. Every struct reference a
   program holds is strong, unless it is declared weak.
 - A *weak reference* doesn't keep its struct alive. How one is declared is
@@ -60,7 +60,7 @@ says what, and leaves how to them.
    field, a local, a parameter, a return type, a global, a list's value, a
    map's value, and a def or token attribute of a tree. It can't be a map's
    key: a key that turned nil inside a map would break the map's order,
-   which is why colm stops a write to the key of an element a map holds.
+   and no program can write the key of an element a map holds.
 9. A weak reference can refer to any struct a strong reference can.
 10. A weak reference doesn't keep its target alive.
 11. Once its target is freed, a weak reference reads nil, never a dangling

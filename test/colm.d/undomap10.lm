@@ -1,0 +1,63 @@
+# Backing up over two reduction actions of one parse, where the second takes
+# out or changes what the first put in: it removes the key the first
+# inserted, sets again the key the first set, and pops the value the first
+# pushed. Backing up undoes the second action first, so the first one's undo
+# finds its element where it left it. Input "+ - ;" is parsed as A1 first,
+# running both actions. Then "^" and a newline keep A1, and a newline alone
+# makes the parser back up to A2, undoing both. A kept action's reverse code
+# frees the element the second one took out once, when the parser goes.
+
+global M: map<str, str> = new map<str, str>()
+global L: list<str> = new list<str>()
+
+lex
+	ignore /[ \t]+/
+	literal `+ `- `^ `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+def item
+	[`+]
+	{
+		M->insert( "k", "v" )
+		M->set( "j", "1" )
+		L->push_tail( "x" )
+		print( "plus\n" )
+	}
+|	[`-]
+	{
+		print( "removed [M->remove( "k" )]\n" )
+		M->set( "j", "2" )
+		print( "popped [L->pop_tail()]\n" )
+	}
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 `+ `- `; NL]
+
+P: parser<start> = new parser<start>()
+send P "+ - ;"
+if ( argv->pop() == "keep" )
+	send P "^\n"
+else
+	send P "\n"
+S: start = P->finish()
+print( "after: M ", M->length, " ", M->find( "k" ), " ", M->find( "j" ),
+		", L ", L->length, "\n" )
+##### ARGS #####
+keep
+##### EXP #####
+plus
+removed v
+popped x
+after: M 1 NIL 2, L 0
+##### ARGS #####
+back
+##### EXP #####
+plus
+removed v
+popped x
+after: M 0 NIL NIL, L 0

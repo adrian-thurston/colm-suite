@@ -253,4 +253,4 @@ include::code/map_count.exp[]
 ----
 
 `bird` comes last because it is longer than the other keys. `fish` isn't a
-key, so `find( "fish" )` gives 0.
+key, so `find( "fish" )` gives 0, and `contains( "fish" )` gives 0.

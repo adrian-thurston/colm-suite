@@ -8,7 +8,6 @@ F: stream = open( A, 'r' )
 parse P: start [ F ]
 
 alias prod_map map<prod_list, id>
-alias unique_prod map_el<prod_list, id>
 
 global PM: prod_map = new prod_map()
 global NextId: int = 1

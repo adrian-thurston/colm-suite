@@ -1,8 +1,8 @@
 
 new M: map<str, str>()
 
-for AE: list_el<str> in argv {
-	print "[AE->value]
+for A: str in argv {
+	print "[A]
 }
 
 ##### ARGS #####

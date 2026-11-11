@@ -13,8 +13,7 @@ include 'rlhc-js.lm'
 
 str argvPop()
 {
-	A: list_el<str> = argv->pop_el()
-	return A->value
+	return argv->pop()
 }
 
 OutputFile: str = argvPop()

@@ -48,7 +48,7 @@ end
 
 def nstart [nword*]
 
-global Kind: str = argv->tail_el->value
+global Kind: str = argv->pop()
 print( Kind, '\n' )
 
 if Kind == 'read' {

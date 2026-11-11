@@ -5,4 +5,5 @@ dog: 1
 the: 3
 bird: 1
 the: 3, fish: 0
+has the: 1, has fish: 0
 4 words without the

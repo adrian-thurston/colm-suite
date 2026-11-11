@@ -89,8 +89,8 @@ print( "L" )
 for E: str in C->L
 	print( " ", E )
 print( "\nM" )
-for ME: map_el<str, int> in C->M
-	print( " ", ME->key, "=", ME->value )
+for K: str in map_keys( C->M )
+	print( " ", K, "=", C->M->find( K ) )
 print( "\nP", C->P->finish(), "\n" )
 print( "Out", C->Out->tree, "\n" )
 ##### IN #####

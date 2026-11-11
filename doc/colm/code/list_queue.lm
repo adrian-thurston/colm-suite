@@ -12,14 +12,6 @@ for Item: str in Queue
 for Item: str in rev_list_iter( Queue )
 	print( "back: ", Item, "\n" )
 
-# The elements, from the head.
-El: list_el<str> = Queue->head_el
-while El {
-	if El->next
-		print( El->value, " comes before ", El->next->value, "\n" )
-	El = El->next
-}
-
 First: str = Queue->pop_head()
 Last: str = Queue->pop_tail()
 print( "first ", First, ", last ", Last, ", ", Queue->length, " left\n" )

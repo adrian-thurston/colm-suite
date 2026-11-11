@@ -7,7 +7,7 @@ lex
 	ignore /[ \n]+/
 end
 
-global F: str = argv->head_el->value
+global F: str = argv->pop()
 global T: id = nil
 
 def item

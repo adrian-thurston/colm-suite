@@ -84,17 +84,14 @@ import* import( FileName: str, Start: start )
 }
 
 # Command.
-A: list_el<str> = argv->pop_head_el()
-Cmd: str = A->value
+Cmd: str = argv->pop_head()
 
 # File name. The open is expected to succeed. The open is tested before the
 # colm program is called.
-A = argv->pop_head_el()
-FileName: str = A->value
+FileName: str = argv->pop_head()
 
 # Language.
-A = argv->pop_head_el()
-Lang = A->value
+Lang = argv->pop_head()
 
 GblSectionPass = false
 
@@ -115,8 +112,7 @@ else if ( Cmd == 'include-reduce-file' ) {
 	RagelError = error
 }
 else if ( Cmd == 'include-reduce-str' ) {
-	A = argv->pop_head_el()
-	Data: str = A->value
+	Data: str = argv->pop_head()
 	reduce IncludePass start[ Data ]
 	RagelError = error
 }
@@ -126,8 +122,7 @@ else if ( Cmd == 'toplevel-reduce-file' ) {
 	RagelError = error
 }
 else if ( Cmd == 'toplevel-reduce-str' ) {
-	A = argv->pop_head_el()
-	Data: str = A->value
+	Data: str = argv->pop_head()
 	reduce TopLevel start[ Data ]
 	RagelError = error
 }
@@ -141,8 +136,7 @@ else if ( Cmd == 'section-reduce-file' ) {
 else if ( Cmd == 'section-reduce-str' ) {
 	GblSectionPass = true
 
-	A = argv->pop_head_el()
-	Data: str = A->value
+	Data: str = argv->pop_head()
 	reduce SectionPass start[ Data ]
 	RagelError = error
 }

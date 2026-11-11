@@ -1,11 +1,8 @@
 
 new M: map<str, str>()
 
-AE: list_el<str> = argv->head_el
-while AE {
-	M->insert( AE->value, AE->value )
-	AE = AE->next
-}
+for A: str in argv
+	M->insert( A, A )
 
 for V: str in M {
 	print "[V]

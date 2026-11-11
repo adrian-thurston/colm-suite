@@ -1,10 +1,7 @@
 print( xml( arg0 ) )
 
-A: list_el<str> = argv->head_el
-while ( A ) {
-	print( xml( A->value ) )
-	A = A->next
-}
+for A: str in argv
+	print( xml( A ) )
 print( '\n' )
 ##### ARGS #####
 a b c 1 2 3

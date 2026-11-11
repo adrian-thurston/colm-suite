@@ -11,7 +11,7 @@ def start
 
 parse S: start[ "ab cd" ]
 T: id = nil
-F: str = argv->head_el->value
+F: str = argv->pop()
 
 print( 'before\n' )
 if F == 'file'

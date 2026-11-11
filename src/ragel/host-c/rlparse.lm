@@ -215,13 +215,11 @@ export RagelError: str
 
 # File name. The open is expected to succeed. It is tested before the colm
 # program is called.
-A: list_el<str> = argv->pop_head_el()
-GblFileName = A->value
+GblFileName = argv->pop_head()
 
 # Remaining items are include paths.
 while ( argv->length > 0 ) {
-	A = argv->pop_head_el()
-	GblIncludePaths->push_tail_el( A )
+	GblIncludePaths->push_tail( argv->pop_head() )
 }
 
 Stream: stream = open( GblFileName, "r" )

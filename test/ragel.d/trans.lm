@@ -460,8 +460,7 @@ include 'trans-js.lm'
 
 str argvPop()
 {
-	AE: list_el<str> = argv->pop_el()
-	return AE->value
+	return argv->pop()
 }
 
 Lang: str = argvPop()

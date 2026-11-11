@@ -51,7 +51,7 @@ module Rouge
 					match_length exit exit_hard atoi atoo open system tolower
 					toupper prefix suffix postfix xml xmlac
 					child rev_child repeat rev_repeat triter with_ignore
-					list_iter rev_list_iter map_iter sprintf
+					list_iter rev_list_iter map_iter map_keys sprintf
 				)
 			end
 

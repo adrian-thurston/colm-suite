@@ -190,6 +190,21 @@ IterImpl::IterImpl( Type type ) :
 		useGenericId = true;
 		break;
 
+	/* A map's keys, in key order. */
+	case MapKey:
+		inCreateWV =   IN_GEN_ITER_FROM_REF;
+		inCreateWC =   IN_GEN_ITER_FROM_REF;
+		inUnwind =     IN_GEN_ITER_UNWIND;
+		inDestroy =    IN_GEN_ITER_DESTROY;
+		inAdvance =    IN_MAP_ITER_ADVANCE;
+
+		inGetCurR =    IN_GEN_KITER_GET_CUR_R;
+		inGetCurWC =   IN_HALT;
+		inSetCurWC =   IN_HALT;
+		inRefFromCur = IN_HALT;
+		useGenericId = true;
+		break;
+
 	case MapEl:
 		inCreateWV =   IN_GEN_ITER_FROM_REF;
 		inCreateWC =   IN_GEN_ITER_FROM_REF;
@@ -361,6 +376,7 @@ long sizeOfField( UniqueType *fieldUT )
 			case IterDef::MapEl:
 			case IterDef::ListEl:
 			case IterDef::RevListVal:
+			case IterDef::MapKey:
 				size = sizeof(generic_iter_t) / sizeof(word_t);
 				break;
 
@@ -2836,6 +2852,9 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 		case IterDef::MapEl:
 			iterImpl = new IterImpl( IterImpl::MapEl );
 			break;
+		case IterDef::MapKey:
+			iterImpl = new IterImpl( IterImpl::MapKey );
+			break;
 	}
 
 	objField->iterImpl = iterImpl;
@@ -2852,12 +2871,14 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 			pd, code, lookup, iterCall->langTerm->args );
 
 	/* A loop over a list or a map. Its iterator walks one kind, and gives the
-	 * values or the elements as they are stored. So the argument must be of
-	 * that kind, and the loop variable must take what the iterator gives. */
+	 * values, the keys or the elements as they are stored. So the argument
+	 * must be of that kind, and the loop variable must take what the iterator
+	 * gives. */
 	GenericType *generic = 0;
 	if ( iterImpl->useGenericId ) {
 		bool overMap = iterImpl->type == IterImpl::MapEl ||
-				iterImpl->type == IterImpl::MapVal;
+				iterImpl->type == IterImpl::MapVal ||
+				iterImpl->type == IterImpl::MapKey;
 		bool overEls = iterImpl->type == IterImpl::ListEl ||
 				iterImpl->type == IterImpl::MapEl;
 		const char *kind = overMap ? "map" : "list";
@@ -2878,6 +2899,12 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 			if ( searchUT != generic->elUt ) {
 				error(loc) << "loop variable " << objField->name <<
 						" must have the " << kind << "'s element type" << endp;
+			}
+		}
+		else if ( iterImpl->type == IterImpl::MapKey ) {
+			if ( !castAssignment( pd, unused, searchUT, 0, generic->keyUt ) ) {
+				error(loc) << "loop variable " << objField->name <<
+						" must have the map's key type" << endp;
 			}
 		}
 		else if ( !castAssignment( pd, unused, searchUT, 0, generic->valueUt ) ) {
@@ -3237,6 +3264,7 @@ void Compiler::findLocals( ObjectDef *localFrame, CodeBlock *block )
 					case IterDef::MapEl:
 					case IterDef::ListEl:
 					case IterDef::RevListVal:
+					case IterDef::MapKey:
 						/* ? */
 						type = LT_Iter;
 						break;

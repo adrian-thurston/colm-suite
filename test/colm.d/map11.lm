@@ -1,0 +1,49 @@
+# A map's contains( K ) says whether the map has the key, and set( K, V ) adds
+# the key, or gives it the new value if the map has it already, giving 1 if
+# it added the key and 0 if not. A loop over map_keys( M ) gives the keys, in
+# key order: str, int and tree keys, and none for an empty map.
+
+lex
+	token id /[a-z]+/
+	ignore /[ ]+/
+end
+
+def pair [A: id B: id]
+
+S: map<str, int> = new map<str, int>()
+print( S->set( "bb", 2 ), S->set( "a", 1 ), S->set( "bb", 20 ), "\n" )
+print( S->contains( "a" ), S->contains( "z" ), " ", S->length, "\n" )
+for K: str in map_keys( S )
+	print( K, "=", S->find( K ), "\n" )
+
+I: map<int, str> = new map<int, str>()
+I->set( 3, "c" )
+I->set( 0 - 1, "a" )
+I->insert( 2, "b" )
+for K: int in map_keys( I )
+	print( K, "=", I->find( K ), "\n" )
+
+T: map<id, pair> = new map<id, pair>()
+T->set( parse id[ "y" ], parse pair[ "y one" ] )
+T->set( parse id[ "x" ], parse pair[ "x two" ] )
+T->set( parse id[ "y" ], parse pair[ "y three" ] )
+for K: id in map_keys( T )
+	print( K, ": ", T->find( K ), "\n" )
+print( T->contains( parse id[ "x" ] ), "\n" )
+
+E: map<str, str> = new map<str, str>()
+for K: str in map_keys( E )
+	print( "never\n" )
+print( "contains ", E->contains( "a" ), ", length ", E->length, "\n" )
+##### EXP #####
+110
+10 2
+a=1
+bb=20
+-1=a
+2=b
+3=c
+x: x two
+y: y three
+1
+contains 0, length 0

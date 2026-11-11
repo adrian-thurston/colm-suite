@@ -254,6 +254,7 @@ EXTRA_DIST = \
 	map7.lm \
 	map8.lm \
 	map9.lm \
+	map11.lm \
 	mapel1.lm \
 	mapel2.lm \
 	mapelmsg1.lm \

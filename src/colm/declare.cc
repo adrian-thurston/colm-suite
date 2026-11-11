@@ -776,6 +776,16 @@ void Compiler::makeDefaultIterators()
 		IterDef *triter = findIterDef( IterDef::MapEl );
 		objMethod->iterDef = triter;
 	}
+
+	/* Map key iterator. */
+	{
+		UniqueType *anyRefUT = findUniqueType( TYPE_REF, anyLangEl );
+		ObjectMethod *objMethod = initFunction( uniqueTypeAny, rootNamespace, globalObjectDef,
+				ObjectMethod::Call, "map_keys", IN_HALT, IN_HALT, anyRefUT, true );
+
+		IterDef *triter = findIterDef( IterDef::MapKey );
+		objMethod->iterDef = triter;
+	}
 }
 
 void Compiler::addMatchLength( ObjectDef *frame, LangEl *lel )
@@ -1300,6 +1310,13 @@ void Compiler::initMapFunctions( GenericType *gen )
 
 	initFunction( uniqueTypeInt, gen->objDef, ObjectMethod::Call, "insert", 
 			FN_VMAP_INSERT_WV, FN_VMAP_INSERT_WC, gen->keyUt, gen->valueUt,
+			false, true, gen );
+
+	initFunction( uniqueTypeBool, gen->objDef, ObjectMethod::Call, "contains",
+			FN_VMAP_CONTAINS, FN_VMAP_CONTAINS, gen->keyUt, true, true, gen );
+
+	initFunction( uniqueTypeInt, gen->objDef, ObjectMethod::Call, "set",
+			FN_VMAP_SET_WV, FN_VMAP_SET_WC, gen->keyUt, gen->valueUt,
 			false, true, gen );
 
 	initFunction( gen->elUt, gen->objDef, ObjectMethod::Call, "remove", 

@@ -80,6 +80,7 @@ typedef unsigned char uchar;
 #define IN_GEN_ITER_UNWIND       0x74
 #define IN_GEN_ITER_GET_CUR_R    0xdf
 #define IN_GEN_VITER_GET_CUR_R   0xe7
+#define IN_GEN_KITER_GET_CUR_R   0xa7
 #define IN_LIST_ITER_ADVANCE     0xde
 #define IN_REV_LIST_ITER_ADVANCE 0x77
 #define IN_MAP_ITER_ADVANCE      0xe6
@@ -417,6 +418,10 @@ typedef unsigned char uchar;
 #define FN_VMAP_REMOVE_WC        0x27
 #define FN_VMAP_REMOVE_WV        0x28
 #define FN_VMAP_REMOVE_BKT       0x3f
+#define FN_VMAP_CONTAINS         0x40
+#define FN_VMAP_SET_WC           0x41
+#define FN_VMAP_SET_WV           0x42
+#define FN_VMAP_SET_BKT          0x43
 
 #define FN_VLIST_PUSH_TAIL_WV    0x2a
 #define FN_VLIST_PUSH_TAIL_WC    0x2b

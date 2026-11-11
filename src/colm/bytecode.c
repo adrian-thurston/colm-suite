@@ -238,6 +238,32 @@ static void pop_check( program_t *prg, list_t *list )
 		runtime_error( prg, "pop from an empty list" );
 }
 
+/* Takes a struct off the program's heap list, the inverse of
+ * colm_struct_add(). Only colm_clear_heap(), at exit, frees what is on it. */
+static void heap_unlink( program_t *prg, struct colm_struct *s )
+{
+	if ( s->prev == 0 )
+		prg->heap.head = s->next;
+	else
+		s->prev->next = s->next;
+
+	if ( s->next == 0 )
+		prg->heap.tail = s->prev;
+	else
+		s->next->prev = s->prev;
+
+	s->prev = s->next = 0;
+}
+
+/* Frees the struct of a list's or a map's element that nothing holds any
+ * more. colm_struct_delete() downrefs its trees: its value, and a map
+ * element's key. */
+static void el_free( program_t *prg, tree_t **sp, struct colm_struct *s )
+{
+	heap_unlink( prg, s );
+	colm_struct_delete( prg, sp, s );
+}
+
 /* The location a reduction action reads with @N or @name, for the commit
  * code. A def's tokens are gone once its own reduction has run, unless the
  * host keeps them with colm_set_reduce_clean( prg, 0 ), and a def that matched
@@ -2873,6 +2899,23 @@ again:
 			vm_push_tree( tree );
 			break;
 		}
+		case IN_GEN_KITER_GET_CUR_R: {
+			short field;
+			read_half( field );
+
+			debug( prg, REALM_BYTECODE, "IN_GEN_KITER_GET_CUR_R\n" );
+
+			/* The current element's key. The loop variable takes a reference
+			 * to a tree key, as it does to a tree value. */
+			generic_iter_t *iter = (generic_iter_t*) vm_get_plocal(exec, field);
+			struct generic_info *gi = &prg->rtd->generic_info[iter->generic_id];
+			map_el_t *map_el = (map_el_t*)iter->ref.kid;
+			tree_t *key = map_el->key;
+			if ( gi->key_type == TYPE_TREE )
+				colm_tree_upref( prg, key );
+			vm_push_value( (value_t)key );
+			break;
+		}
 		case IN_GEN_VITER_GET_CUR_R: {
 			short field;
 			read_half( field );
@@ -5378,6 +5421,107 @@ again:
 				}
 				break;
 			}
+			case FN_VMAP_CONTAINS: {
+				debug_decl( short, gen_id );
+				debug_read_half( gen_id );
+
+				debug( prg, REALM_BYTECODE, "FN_VMAP_CONTAINS %hd\n", gen_id );
+
+				map_t *map = vm_pop_map();
+				if ( map == 0 )
+					runtime_error( prg, "contains on a nil map" );
+				tree_t *key = vm_pop_tree();
+
+				map_el_t *map_el = colm_map_find( prg, map, key );
+				vm_push_tree( map_el != 0 ? prg->true_val : prg->false_val );
+
+				if ( map->generic_info->key_type == TYPE_TREE )
+					colm_tree_downref( prg, sp, key );
+				break;
+			}
+			case FN_VMAP_SET_WC:
+			case FN_VMAP_SET_WV: {
+				/* Inserts the key with the value, or gives the key the value
+				 * if the map has it already, in one lookup. */
+				int revert = c == FN_VMAP_SET_WV;
+				short gen_id;
+				read_half( gen_id );
+
+				debug( prg, REALM_BYTECODE, "FN_VMAP_SET %d %hd\n", revert, gen_id );
+
+				map_t *map = vm_pop_map();
+				if ( map == 0 )
+					runtime_error( prg, "set in a nil map" );
+				struct_t *value = vm_pop_struct();
+				struct_t *key = vm_pop_struct();
+
+				struct generic_info *gi = map->generic_info;
+				struct colm_struct *el = colm_struct_new( prg, gi->el_struct_id );
+				colm_struct_set_field( el, struct_t*, gi->el_offset, key );
+				colm_struct_set_field( el, struct_t*, 0, value );
+
+				map_el_t *found = 0;
+				map_el_t *inserted = map_insert_el( prg, map,
+						colm_struct_get_addr( el, map_el_t*, gi->el_offset ), &found );
+
+				value_t old = 0;
+				if ( inserted == 0 ) {
+					/* The map has the key. Its element takes the value, and the
+					 * new one, which nothing else saw, goes with its key. */
+					struct colm_struct *fel = colm_generic_el_container( prg, found, gen_id );
+					old = colm_struct_get_field( fel, value_t, 0 );
+					colm_struct_set_field( fel, value_t, 0, (value_t)value );
+					colm_struct_set_field( el, value_t, 0, 0 );
+					el_free( prg, sp, el );
+
+					/* Reverting, the old value's reference goes into the
+					 * reverse code. */
+					if ( !revert && gi->value_type == TYPE_TREE )
+						colm_tree_downref( prg, sp, (tree_t*)old );
+				}
+
+				vm_push_tree( inserted != 0 ? prg->true_val : prg->false_val );
+
+				if ( revert ) {
+					/* Reverse code. The element it added, or the one whose value
+					 * it replaced, with the old value. */
+					rcode_code( exec, IN_FN );
+					rcode_code( exec, FN_VMAP_SET_BKT );
+					rcode_half( exec, gen_id );
+					rcode_code( exec, inserted != 0 ? 1 : 0 );
+					rcode_word( exec, (word_t)( inserted != 0 ? inserted : found ) );
+					rcode_word( exec, (word_t)old );
+					rcode_unit_term( exec );
+				}
+				break;
+			}
+			case FN_VMAP_SET_BKT: {
+				short gen_id;
+				uchar inserted;
+				word_t wmap_el, wold;
+				read_half( gen_id );
+				read_byte( inserted );
+				read_word( wmap_el );
+				read_word( wold );
+
+				debug( prg, REALM_BYTECODE, "FN_VMAP_SET_BKT %d\n", (int)inserted );
+
+				map_t *map = vm_pop_map();
+				map_el_t *map_el = (map_el_t*)wmap_el;
+
+				/* The element is in the map as the set left it. */
+				if ( inserted ) {
+					colm_map_detach( prg, map, map_el );
+				}
+				else {
+					struct colm_struct *el = colm_generic_el_container( prg, map_el, gen_id );
+					value_t cur = colm_struct_get_field( el, value_t, 0 );
+					colm_struct_set_field( el, value_t, 0, (value_t)wold );
+					if ( map->generic_info->value_type == TYPE_TREE )
+						colm_tree_downref( prg, sp, (tree_t*)cur );
+				}
+				break;
+			}
 			case FN_VMAP_FIND: {
 				debug_decl( short, gen_id );
 				debug_read_half( gen_id );
@@ -5998,6 +6142,24 @@ again:
 				consume_word(); //( wmap_el );
 
 				debug( prg, REALM_BYTECODE, "FN_VMAP_REMOVE_BKT\n" );
+				break;
+			}
+			case FN_VMAP_SET_BKT: {
+				short gen_id;
+				uchar inserted;
+				word_t wold;
+				read_half( gen_id );
+				read_byte( inserted );
+				consume_word(); //( wmap_el );
+				read_word( wold );
+
+				debug( prg, REALM_BYTECODE, "FN_VMAP_SET_BKT\n" );
+
+				/* A set that replaced a value kept the old value's reference
+				 * here. */
+				if ( !inserted &&
+						prg->rtd->generic_info[gen_id].value_type == TYPE_TREE )
+					colm_tree_downref( prg, sp, (tree_t*)wold );
 				break;
 			}
 

@@ -242,15 +242,17 @@ an action that ran before the change, the variable gets back the value it had
 before that action, and the change is lost. While a parse runs, change its
 data only from its actions.
 
-For lists and maps this matters more. Backing up over an action that changed
-a list or a map assumes the list or map is as the parse's actions left it:
+For lists and maps this matters more. Backing up over an action that changed a
+list or a map assumes the list or map is as the parse's actions left it:
 undoing a push takes the value at that end off, undoing a pop or a `remove`
 puts back what it took out, and undoing an `insert` or a `set` takes out the
-key it added, or puts back the value it replaced, without looking at what
-the list or map holds by then. A change to such a list or map from
-outside the parse while the parser can still back up over the action, as the
-main program can make between two sends, isn't only lost: when the parser
-backs up, it can corrupt the list or map, or crash the program.
+key it added, or puts back the value it replaced, without looking at what the
+list or map holds by then. So that it can, the parser keeps what an action's
+pop or `remove` took out until the parser goes, at exit: a list or a map that
+an action changes in a loop grows. A change to such a list or map from outside
+the parse while the parser can still back up over the action, as the main
+program can make between two sends, isn't only lost: when the parser backs up,
+it can corrupt the list or map, or crash the program.
 
 == Rejecting a reduction with data
 

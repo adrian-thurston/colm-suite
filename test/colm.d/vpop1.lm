@@ -1,7 +1,8 @@
 # Backing up over a list's value pop in a reduction action puts the popped
-# value back, and the list holds a reference to it again. A1 is tried first:
-# item reduces on the second id, then the ; fails A1, and the parser backs up
-# over the action to try A2. With ^ instead, the parse keeps the action.
+# value back, a str or a token, and the list holds a reference to it again.
+# A1 is tried first: item reduces on the second id, then the ; fails A1, and
+# the parser backs up over the action to try A2. With ^ instead, the parse
+# keeps the action.
 
 global Mode: str = argv->pop()
 
@@ -13,18 +14,26 @@ lex
 end
 
 global L: list<str> = new list<str>()
+global T: list<id> = new list<id>()
 
 def item
 	[id]
 	{
 		V: str
-		if ( Mode == "pop_tail" )
+		W: id
+		if ( Mode == "pop_tail" ) {
 			V = L->pop_tail()
-		elsif ( Mode == "pop" )
+			W = T->pop_tail()
+		}
+		elsif ( Mode == "pop" ) {
 			V = L->pop()
-		else
+			W = T->pop()
+		}
+		else {
 			V = L->pop_head()
-		print "action: popped [V], length [L->length]\n"
+			W = T->pop_head()
+		}
+		print "action: popped [V], length [L->length]; token [W], length [T->length]\n"
 	}
 
 def A1 []
@@ -36,36 +45,45 @@ def start
 
 L->push_tail( "first" )
 L->push_tail( "second" )
+T->push_tail( parse id[ "first" ] )
+T->push_tail( parse id[ "second" ] )
 parse S: start[ stdin ]
 print "after: length [L->length], values:"
 for V: str in L
 	print " [V]"
+print "\ntokens: length [T->length], values:"
+for W: id in T
+	print " [W]"
 print "\n"
 ##### ARGS #####
 pop_head
 ##### IN #####
 x y;
 ##### EXP #####
-action: popped first, length 1
+action: popped first, length 1; token first, length 1
 after: length 2, values: first second
+tokens: length 2, values: first second
 ##### ARGS #####
 pop_tail
 ##### IN #####
 x y;
 ##### EXP #####
-action: popped second, length 1
+action: popped second, length 1; token second, length 1
 after: length 2, values: first second
+tokens: length 2, values: first second
 ##### ARGS #####
 pop
 ##### IN #####
 x y;
 ##### EXP #####
-action: popped first, length 1
+action: popped first, length 1; token first, length 1
 after: length 2, values: first second
+tokens: length 2, values: first second
 ##### ARGS #####
 pop_head
 ##### IN #####
 x y^ --noeol
 ##### EXP #####
-action: popped first, length 1
+action: popped first, length 1; token first, length 1
 after: length 1, values: second
+tokens: length 1, values: second

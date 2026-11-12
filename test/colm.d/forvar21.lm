@@ -1,0 +1,6 @@
+# triter, named, given an int.
+I: int = 4
+for S: str in triter( I )
+	print( "body ", S, "\n" )
+##### COMP_ERR #####
+3:15: triter takes a tree

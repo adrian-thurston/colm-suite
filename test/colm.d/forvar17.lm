@@ -1,0 +1,7 @@
+# A loop over an int. It took the int for a tree, and the program
+# segfaulted.
+I: int = 4
+for S: str in I
+	print( S, "\n" )
+##### COMP_ERR #####
+4:5: can only loop over a tree, a list or a map

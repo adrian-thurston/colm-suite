@@ -1,0 +1,8 @@
+# child given a list. It took the list for a tree, and the program
+# segfaulted.
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+for S: str in child( L )
+	print( "body ", S, "\n" )
+##### COMP_ERR #####
+5:15: child takes a tree

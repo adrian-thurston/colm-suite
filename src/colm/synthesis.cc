@@ -2819,6 +2819,27 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	ObjectField **paramRefs = iterCall->langTerm->varRef->evaluateArgs(
 			pd, code, lookup, iterCall->langTerm->args );
 
+	/* A tree iterator walks a tree. Its parameter is a ref<any>, which takes
+	 * any argument, so the argument is checked here. A loop that names no
+	 * iterator over something other than a list or a map gets the tree
+	 * iterator too. */
+	if ( iterImpl->type == IterImpl::Tree || iterImpl->type == IterImpl::WithIgnore ||
+			iterImpl->type == IterImpl::Child || iterImpl->type == IterImpl::RevChild ||
+			iterImpl->type == IterImpl::Repeat || iterImpl->type == IterImpl::RevRepeat )
+	{
+		LangVarRef *iterRef = iterCall->langTerm->varRef;
+		CodeVect unused;
+		UniqueType *argUT =
+				iterCall->langTerm->args->data[0]->expr->evaluate( pd, unused );
+		if ( !argUT->treeValue() ) {
+			if ( iterCall->wasExpr ) {
+				error(iterRef->loc) << "can only loop over a tree, "
+						"a list or a map" << endp;
+			}
+			error(iterRef->loc) << iterRef->name << " takes a tree" << endp;
+		}
+	}
+
 	/* A loop over a list or a map. Its iterator walks one kind, and gives the
 	 * values or the keys as they are stored. So the argument must be of that
 	 * kind, and the loop variable must take what the iterator gives. */

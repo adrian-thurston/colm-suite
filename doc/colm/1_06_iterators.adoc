@@ -124,6 +124,11 @@ so `for N: T in S` is `for N: T in triter( S )`. Colm has these others:
   visits the lists of ignored text themselves, as
   xref:3_03_match.adoc#ignore-lists[the patterns chapter] explains.
 
+Each of these takes a tree: given an `int`, a struct, a list or a map, it is a
+compile error, such as `child takes a tree`. A loop that names no iterator
+takes a tree, a list or a map. Over anything else, it is
+`can only loop over a tree, a list or a map`.
+
 As in a loop with no iterator named, the loop variable's type selects the
 trees, and `any` takes every one. Loops over a `list` use other iterators,
 such as `rev_list_iter`, which xref:2_02_list_map_struct_alias.adoc#lists[the

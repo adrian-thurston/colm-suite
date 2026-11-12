@@ -1,0 +1,7 @@
+# repeat given a map.
+M: map<str, str> = new map<str, str>()
+M->insert( "k", "v" )
+for S: str in repeat( M )
+	print( "body ", S, "\n" )
+##### COMP_ERR #####
+4:15: repeat takes a tree

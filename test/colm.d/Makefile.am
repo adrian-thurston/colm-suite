@@ -154,6 +154,11 @@ EXTRA_DIST = \
 	forvar14.lm \
 	forvar15.lm \
 	forvar16.lm \
+	forvar17.lm \
+	forvar18.lm \
+	forvar19.lm \
+	forvar20.lm \
+	forvar21.lm \
 	func1.lm \
 	func2.lm \
 	func3.lm \

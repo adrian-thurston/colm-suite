@@ -1,0 +1,10 @@
+# A loop over a struct. Its body never ran, and nothing said why.
+struct s
+	X: int
+end
+
+O: s = new s()
+for S: str in O
+	print( "body ", S, "\n" )
+##### COMP_ERR #####
+7:5: can only loop over a tree, a list or a map

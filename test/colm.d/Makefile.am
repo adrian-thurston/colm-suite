@@ -417,6 +417,7 @@ EXTRA_DIST = \
 	sprintf.lm \
 	stdorder1.lm \
 	stds1.lm \
+	stdtty1.lm \
 	streampush1.lm \
 	streampush2.lm \
 	streampush3.lm \

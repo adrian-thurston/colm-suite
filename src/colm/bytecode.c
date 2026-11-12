@@ -151,17 +151,18 @@ static void make_stderr( program_t *prg )
 		prg->stderr_val = colm_stream_open_fd( prg, "<stderr>", 2 );
 }
 
+static void flush_stream( program_t *prg, stream_t *stream )
+{
+	if ( stream != 0 ) {
+		struct stream_impl *si = stream->impl;
+		si->funcs->flush_stream( prg, si );
+	}
+}
+
 static void flush_streams( program_t *prg )
 {
-	if ( prg->stdout_val != 0 ) {
-		struct stream_impl *si = prg->stdout_val->impl;
-		si->funcs->flush_stream( prg, si );
-	}
-
-	if ( prg->stderr_val != 0 ) {
-		struct stream_impl *si = prg->stderr_val->impl;
-		si->funcs->flush_stream( prg, si );
-	}
+	flush_stream( prg, prg->stdout_val );
+	flush_stream( prg, prg->stderr_val );
 }
 
 /* Set once the program is stopping on an error, as runtime_error writes out
@@ -2899,7 +2900,18 @@ again:
 			else 
 				auto_trim = si->funcs->get_option( prg, si, 0 );
 
+			/* What is sent to stderr is written out at once, after what
+			 * stdout holds, so the two come out in the order the program
+			 * wrote them, even on one pipe, as C++'s cerr does with cout.
+			 * See doc/colm/design/std-stream-buffering.md. */
+			if ( stream == prg->stderr_val )
+				flush_stream( prg, prg->stdout_val );
+
 			si->funcs->print_tree( prg, sp, si, to_send, auto_trim );
+
+			if ( stream == prg->stderr_val )
+				flush_stream( prg, stream );
+
 			vm_push_stream( stream );
 			colm_tree_downref( prg, sp, to_send );
 			break;

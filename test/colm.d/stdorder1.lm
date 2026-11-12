@@ -1,0 +1,69 @@
+#
+# stdout and stderr come out in the order the program writes them, even when
+# both go to one pipe: what is sent to stderr is written out at once, after
+# what stdout holds. The host sends standard error to standard output, so both
+# are in the output. Its argument picks the run. With top, the program's own
+# code writes to both in turn, a partial line and a tree among them. With
+# export, the host calls report, which writes to both, then ends its process
+# with _exit, as a crash would, before colm writes anything else out. What
+# report sent to stderr is out, and so is what it printed before that.
+#
+
+lex
+	token word /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def start
+	[word*]
+
+export str report( S: str )
+{
+	print( "report: stdout\n" )
+	prints( stderr, "report: stderr\n" )
+	return S
+}
+
+if argv->pop() == "top" {
+	parse S: start[ "a b c" ]
+	print( "one (stdout)\n" )
+	prints( stderr, "two (stderr)\n" )
+	print( "three (stdout), " )
+	send stderr "four (stderr): [S]\n"
+	print "five (stdout)
+}
+##### HOST #####
+
+#include <iostream>
+#include <string.h>
+#include <unistd.h>
+#include "working/stdorder1.if.h"
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *prg = colm_new_program( &colm_object );
+	colm_run_program( prg, argc, argv );
+
+	if ( strcmp( argv[1], "export" ) == 0 ) {
+		report( prg, "x" );
+		std::cout << "host after report" << std::endl;
+		_exit( 0 );
+	}
+
+	return colm_delete_program( prg );
+}
+##### ARGS #####
+top
+##### EXP #####
+one (stdout)
+two (stderr)
+three (stdout), four (stderr): a b c
+five (stdout)
+##### ARGS #####
+export
+##### EXP #####
+report: stdout
+report: stderr
+host after report

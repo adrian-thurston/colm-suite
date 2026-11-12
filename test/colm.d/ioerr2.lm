@@ -22,8 +22,13 @@ if ( A == "stdin_dir" ) {
 }
 elsif ( A == "stdout_full" ) {
 	# Written out when the program ends.
-	print( "lost\n" )
 	send stderr "on stderr\n"
+	print( "lost\n" )
+}
+elsif ( A == "stdout_full_send" ) {
+	# Written out before the send to stderr, which stops the program first.
+	print( "lost\n" )
+	send stderr "not written\n"
 }
 elsif ( A == "pop" ) {
 	# Stopping for another mistake, the program prints that one.
@@ -68,6 +73,12 @@ fatal: could not read <stdin>: Is a directory
 stdout_full
 ##### EXP #####
 on stderr
+fatal: could not write <stdout>: No space left on device
+##### EXIT #####
+1
+##### ARGS #####
+stdout_full_send
+##### EXP #####
 fatal: could not write <stdout>: No space left on device
 ##### EXIT #####
 1

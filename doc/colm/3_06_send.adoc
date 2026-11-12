@@ -211,6 +211,14 @@ says. What is sent to a file is written out in blocks, so the write can fail
 at a later `send`, at `+S->close()+`, or when the program ends, which closes
 every stream it left open.
 
+`stdout` is written out a line at a time when it is a terminal. On a pipe or
+a file, it is written out in blocks, as a file is. What is sent to `stderr` is
+written out at once, after what `stdout` holds, so the two come out in the
+order the program wrote them, even when both go to one pipe. When the process
+dies before the end, as in a crash, what `stdout` still holds is lost, but
+what was sent to `stderr` is out. So a message that says how far a program got
+goes to `stderr`.
+
 `send S "text"` writes the text to the stream `S`. `print` sends to
 `stdout`: `print "text"` is `send stdout "text"`. `+prints( S, A, B )+`
 writes `A` and `B` to `S`, as `+print( A, B )+` writes them to `stdout`. A

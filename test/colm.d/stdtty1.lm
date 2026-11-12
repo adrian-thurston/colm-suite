@@ -1,0 +1,94 @@
+#
+# stdout is written out a line at a time when it is a terminal. The host gives
+# the program a terminal of its own as its standard output, and as its
+# standard input a pipe nobody writes, so the program waits in its parse after
+# printing. The host prints what reached the terminal by then, up to the first
+# newline, and kills the program.
+#
+
+lex
+	token word /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def start
+	[word*]
+
+print( "a line\n" )
+parse S: start[ stdin ]
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <poll.h>
+#include <signal.h>
+#include <sys/wait.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	int master = posix_openpt( O_RDWR | O_NOCTTY );
+	if ( master < 0 || grantpt( master ) != 0 || unlockpt( master ) != 0 ) {
+		printf( "no terminal\n" );
+		return 1;
+	}
+
+	/* The program's stdin is a pipe nobody writes, so its parse waits. */
+	int in[2];
+	if ( pipe( in ) != 0 )
+		return 1;
+
+	/* A failed fork must not reach the kill below: a pid of -1 would send
+	 * the signal to every process the user owns. */
+	pid_t pid = fork();
+	if ( pid < 0 ) {
+		printf( "no fork\n" );
+		return 1;
+	}
+
+	if ( pid == 0 ) {
+		int slave = open( ptsname( master ), O_RDWR | O_NOCTTY );
+		dup2( slave, 1 );
+		dup2( in[0], 0 );
+		close( in[1] );
+		close( master );
+
+		colm_program *prg = colm_new_program( &colm_object );
+		colm_run_program( prg, argc, argv );
+		_exit( colm_delete_program( prg ) );
+	}
+
+	/* Read what reaches the terminal while the program waits, up to a
+	 * newline, or nothing if none comes. */
+	char buf[256];
+	size_t len = 0;
+	struct pollfd p = { master, POLLIN, 0 };
+	while ( len < sizeof(buf) && memchr( buf, '\n', len ) == 0 &&
+			poll( &p, 1, 10000 ) > 0 )
+	{
+		ssize_t n = read( master, buf + len, sizeof(buf) - len );
+		if ( n <= 0 )
+			break;
+		len += n;
+	}
+
+	kill( pid, SIGKILL );
+	waitpid( pid, 0, 0 );
+
+	printf( "on the terminal while the program waits: \"" );
+	for ( size_t i = 0; i < len; i++ ) {
+		if ( buf[i] == '\n' )
+			printf( "\\n" );
+		else if ( buf[i] != '\r' )
+			putchar( buf[i] );
+	}
+	printf( "\"\n" );
+	return 0;
+}
+##### EXP #####
+on the terminal while the program waits: "a line\n"

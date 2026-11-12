@@ -442,7 +442,9 @@ EXTRA_DIST = \
 	sendstream.lm \
 	setchildnil1.lm \
 	sprintf.lm \
+	stdorder1.lm \
 	stds1.lm \
+	stdtty1.lm \
 	streampush1.lm \
 	streampush2.lm \
 	streampush3.lm \

@@ -808,6 +808,15 @@ static struct stream_impl *colm_impl_new_fd( char *name, long fd )
 
 	const char *mode = ( fd == 0 ) ? "r" : "w";
 	si->file = colm_fd_open( fd, mode );
+
+	/* Standard output is line-buffered on a terminal, as in C, and fully
+	 * buffered on a pipe or a file. The C library can't tell a terminal
+	 * behind a cookie stream, so it is said here. Standard error is written
+	 * out at each send, in IN_PRINT_TREE. The requirements are in
+	 * doc/colm/design/std-stream-buffering.md. */
+	if ( si->file != 0 && fd == 1 && isatty( 1 ) )
+		setvbuf( si->file, 0, _IOLBF, 0 );
+
 #ifndef HAVE_FOPENCOOKIE
 	if ( fd == 0 || fd == 1 || fd == 2 )
 		si->no_file_close = 1;

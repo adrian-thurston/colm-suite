@@ -294,14 +294,16 @@ fatal: could not write out.txt: No space left on device
 
 Reading a directory that `open` opened is such a read, and so is reading a
 stream opened for writing. Sending to a stream opened for reading is such a
-write. What a program sends to a stream is written out in blocks, so the
-write can fail at a later `send`, at `+S->close()+`, or after the program
-ends, when the streams it left open are closed. In a C or {cpp} host,
-`colm_delete_program` closes them, and a write that fails there ends the
-host's process too.
+write. What a program sends to a file, or to `stdout` on a pipe or a file, is
+written out in blocks, so the write can fail at a later `send`, at
+`+S->close()+`, or after the program ends, when the streams it left open are
+closed. In a C or {cpp} host, `colm_delete_program` closes them, and a write
+that fails there ends the host's process too.
 
 `stdout` and `stderr` are streams like the others: a program whose output
 can't be written stops with status 1, even after its own code has ended.
 When `stderr` is the stream that fails, the message is lost, but the status
-is still 1. A write that fails while the program is stopping already is
-ignored, and the message is the first one.
+is still 1. What is sent to `stderr` is written out at once, after what
+`stdout` holds, as xref:3_06_send.adoc#send[the send chapter] says, so a write
+to either can fail at a send to `stderr`. A write that fails while the program
+is stopping already is ignored, and the message is the first one.

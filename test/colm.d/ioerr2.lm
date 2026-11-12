@@ -1,8 +1,10 @@
 #
-# A read or write on stdin or stdout that the system refuses stops the program
-# too. The host gives the program a directory as its standard input, or a full
-# device as its standard output, and sends standard error to where standard
-# output went, so the message is in the output. The argument picks which.
+# A read or write on stdin, stdout or stderr that the system refuses stops the
+# program too. The host gives the program a directory as its standard input,
+# or a full device as its standard output or its standard error. It sends
+# standard error to where standard output went, so the message is in the
+# output, except when standard error is the full device: then the message is
+# lost, and the output stops where the program did. The argument picks which.
 #
 
 lex
@@ -22,8 +24,19 @@ if ( A == "stdin_dir" ) {
 }
 elsif ( A == "stdout_full" ) {
 	# Written out when the program ends.
-	print( "lost\n" )
 	send stderr "on stderr\n"
+	print( "lost\n" )
+}
+elsif ( A == "stdout_full_send" ) {
+	# Written out before the send to stderr, which stops the program first.
+	print( "lost\n" )
+	send stderr "not written\n"
+}
+elsif ( A == "stderr_full" ) {
+	# Written out at the send, which stops the program there.
+	print( "before\n" )
+	send stderr "not written\n"
+	print( "not reached\n" )
 }
 elsif ( A == "pop" ) {
 	# Stopping for another mistake, the program prints that one.
@@ -47,6 +60,8 @@ int main( int argc, const char **argv )
 
 	if ( strcmp( argv[1], "stdin_dir" ) == 0 )
 		dup2( open( ".", O_RDONLY ), 0 );
+	else if ( strcmp( argv[1], "stderr_full" ) == 0 )
+		dup2( open( "/dev/full", O_WRONLY ), 2 );
 	else
 		dup2( open( "/dev/full", O_WRONLY ), 1 );
 
@@ -72,8 +87,20 @@ fatal: could not write <stdout>: No space left on device
 ##### EXIT #####
 1
 ##### ARGS #####
+stdout_full_send
+##### EXP #####
+fatal: could not write <stdout>: No space left on device
+##### EXIT #####
+1
+##### ARGS #####
 pop
 ##### EXP #####
 fatal: pop from an empty list
+##### EXIT #####
+1
+##### ARGS #####
+stderr_full
+##### EXP #####
+before
 ##### EXIT #####
 1

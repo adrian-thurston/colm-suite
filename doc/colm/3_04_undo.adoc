@@ -274,11 +274,12 @@ runs later in that statement, a call of a function, a parse, or a send to or
 `finish` of a parser, could send to it, so the setup ends there. Giving the
 variable another new object starts the setup of that one.
 
-The setup doesn't reach into a loop, unless the object is made in the loop: a
-loop's body runs again after the statements that follow it in the body. Nor
-does it reach into a function. The setup of an object in a global also ends at
-the first statement that calls a function, parses, sends to a parser or
-finishes one: that code can reach the global.
+The setup doesn't reach into a loop's body, or into a `while` loop's condition,
+unless the object is made in the body: the body runs again after the
+statements that follow it in the body, and the condition runs again after the
+body. Nor does it reach into a function. The setup of an object in a global
+also ends at the first statement that calls a function, parses, sends to a
+parser or finishes one: that code can reach the global.
 
 Anywhere else, colm doesn't compile a change to a context object through a
 reference to it: between two sends to its parser, after its parse, in a

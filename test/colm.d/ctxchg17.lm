@@ -1,0 +1,44 @@
+# A while loop's condition runs again after its body gives the object away.
+context ctx
+	L: list<str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	# A1 is tried first: the action runs, then the parser backs up to A2.
+	def item
+		[`*]
+		{
+			L->push_tail( "x" )
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+global P: parser<ctx::start>
+
+C: ctx = new ctx()
+C->L = new list<str>()
+C->L->push_tail( "s" )
+I: int = 0
+while ( C->L->pop_tail() ) {
+	if ( I == 0 ) {
+		P = new parser<ctx::start>( C )
+		send P "* ;"
+	}
+	else {
+		send P "\n"
+	}
+	I = I + 1
+}
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+32:9: cannot change C, a context object, outside its setup

@@ -28,8 +28,10 @@ A `Compiler::SetupWindow` is open while a variable's object is being set up.
   (`LangStmt::compile()`, `AssignType`).
 - **It covers** the rest of its statement list, if and else branches
   included (`compileStmtList()`), but no loop body it is outside of
-  (`compileLoopBody()` counts `loopDepth`): the body runs again after what
-  follows it. Each code block starts with none (`CodeBlock::compile()`).
+  (`compileLoopBody()` counts `loopDepth`), and no `while` loop's test
+  (`compileWhile()` evaluates it a loop deeper): the body runs again after
+  what follows it, and the test after the body. Each code block starts with
+  none (`CodeBlock::compile()`).
 - **It ends at once** where the variable is used as a value, in
   `LangVarRef::evaluate()` (`closeSetupWindow()`): given to a parse, a
   function or another variable, returned or tested.

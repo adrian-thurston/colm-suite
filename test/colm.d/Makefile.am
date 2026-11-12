@@ -83,6 +83,7 @@ EXTRA_DIST = \
 	ctxchg14.lm \
 	ctxchg15.lm \
 	ctxchg16.lm \
+	ctxchg17.lm \
 	ctxgram1.lm \
 	ctxgram2.lm \
 	ctxgram3.lm \

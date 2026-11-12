@@ -3120,10 +3120,14 @@ static LangTerm *stmtTerm( LangExpr *expr )
 
 void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 {
-	/* Generate code for the while test. Remember the top. */
+	/* Generate code for the while test. Remember the top. The test runs
+	 * again after the body, so a setup outside the loop doesn't reach into
+	 * it either. */
 	long top = code.length();
 	pd->stmtTerm = stmtTerm( expr );
+	pd->loopDepth += 1;
 	UniqueType *eut = expr->evaluate( pd, code );
+	pd->loopDepth -= 1;
 
 	/* Jump past the while block if false. Note that we don't have the
 	 * distance yet. */

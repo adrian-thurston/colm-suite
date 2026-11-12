@@ -55,7 +55,7 @@ cfl_def rewrite_cfl_def( CflDef: ref<cfl_def> )
 	return NewDef
 }
 
-void rewrite( P: ref<start> )
+bool rewrite( P: ref<start> )
 {
 	Modified = false
 	

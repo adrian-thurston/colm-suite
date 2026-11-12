@@ -3054,8 +3054,10 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 				pd->mainReturnUT = exprUT;
 			}
 			else {
+				/* A void function returns nothing: nil only, which ends it
+				 * early. */
 				UniqueType *resUT = pd->curFunction->typeRef->uniqueType;
-				if ( resUT != pd->uniqueTypeVoid && 
+				if ( resUT == pd->uniqueTypeVoid ? exprUT != pd->uniqueTypeNil :
 						!castAssignment( pd, code, resUT, 0, exprUT ) )
 					error(loc) << "return value wrong type" << endp;
 			}

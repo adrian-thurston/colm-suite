@@ -1,0 +1,15 @@
+# A void function can end early with return nil.
+
+void hello( Who: str )
+{
+	if ( Who == "x" )
+		return nil
+	print( "hello ", Who, "\n" )
+}
+
+hello( "a" )
+hello( "x" )
+hello( "b" )
+##### EXP #####
+hello a
+hello b

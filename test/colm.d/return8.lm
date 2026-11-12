@@ -1,0 +1,11 @@
+# A void function returns no value. One it returned was dropped without a
+# release, and a str was lost.
+
+void hello( Who: str )
+{
+	return "returned " + Who
+}
+
+hello( "a" )
+##### COMP_ERR #####
+6:2: return value wrong type

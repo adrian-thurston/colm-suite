@@ -112,7 +112,8 @@ crash lost both.
   `_exit`, after output of its own (2); and a message with no newline sent
   to `stderr` comes out ahead of a line printed after it (2).
 - `test/colm.d/ioerr2.lm`: `stdout` on `/dev/full` fails when the program
-  ends, and at a send to `stderr` (6, 7).
+  ends, and at a send to `stderr` (6, 7); and `stderr` on `/dev/full` stops
+  the program at the send to it (2, 6).
 - By hand, as the harness gives only pipes: the order and a killed program's
   output on a terminal (`script -qec`) and through a pipe (1 to 3), and the
   writes a large tree sent to `stderr` makes, counted with `strace` (5).

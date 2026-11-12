@@ -1,0 +1,52 @@
+# A yield runs the loop body, which reaches the global.
+context ctx
+	L: list<str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	# A1 is tried first: the action runs, then the parser backs up to A2.
+	def item
+		[`*]
+		{
+			L->push_tail( "x" )
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+global G: ctx
+global P: parser<ctx::start>
+
+iter steps()
+{
+	S: str = "s"
+	G = new ctx()
+	G->L = new list<str>()
+	yield S
+	G->L->pop_tail()
+	yield S
+}
+
+I: int = 0
+for X: str in steps() {
+	if ( I == 0 ) {
+		P = new parser<ctx::start>( G )
+		send P "* ;"
+	}
+	else {
+		send P "\n"
+	}
+	I = I + 1
+}
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+35:2: cannot change G, a context object, outside its setup

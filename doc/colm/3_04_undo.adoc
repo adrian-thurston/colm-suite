@@ -279,7 +279,8 @@ unless the object is made in the body: the body runs again after the
 statements that follow it in the body, and the condition runs again after the
 body. Nor does it reach into a function. The setup of an object in a global
 also ends at the first statement that calls a function, parses, sends to a
-parser or finishes one: that code can reach the global.
+parser or finishes one, or yields, which runs the loop's body: that code can
+reach the global.
 
 Anywhere else, colm doesn't compile a change to a context object through a
 reference to it: between two sends to its parser, after its parse, in a

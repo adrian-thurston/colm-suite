@@ -569,7 +569,8 @@ void Compiler::closeSetupWindow( ObjectField *var, bool atStmtEnd )
 
 /* Other code can reach a variable that isn't a local, give its object to a
  * parser and send to it, and it can send to a new parser the statement gave
- * an object to. So running any ends the setup of such an object. */
+ * an object to. So running any ends the setup of such an object: a call, a
+ * parse, a send to a parser, a finish, a user iterator's loop or a yield. */
 void Compiler::endReachableSetups()
 {
 	for ( int i = setupWindows.length() - 1; i >= 0; i-- ) {
@@ -3365,6 +3366,9 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 				case Compiler::CompileFunction:
 					break;
 			}
+
+			/* A yield runs the loop's body, which can reach a global. */
+			pd->endReachableSetups();
 
 			/* take a reference and yield it. Immediately reset the referece. */
 			ObjectField *objField = varRef->preEvaluateRef( pd, code );

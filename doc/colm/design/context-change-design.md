@@ -45,7 +45,8 @@ A `Compiler::SetupWindow` is open while a variable's object is being set up.
   by name), it also ends where other code runs, which could reach the
   variable, give the object to a parser and send to it
   (`endReachableSetups()`): a call of a user or host function, a parse, a send
-  to a parser, a parser's `finish`, a user iterator's loop.
+  to a parser, a parser's `finish`, a user iterator's loop, and a `yield`,
+  which runs the loop's body.
 
 ## Changes
 

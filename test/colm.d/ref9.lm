@@ -1,0 +1,10 @@
+# An int that isn't a variable, given to a ref<str> parameter. The
+# temporary was read as a tree pointer.
+void f( R: ref<str> )
+{
+	print( "R=", R, "\n" )
+}
+
+f( 5 )
+##### COMP_ERR #####
+8:1: arg 1 is of the wrong type

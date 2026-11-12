@@ -1,0 +1,10 @@
+# A ref to a list. Calling a function through it crashed colm.
+void f( R: ref<list<str>> )
+{
+	R->push_tail( "x" )
+}
+
+L: list<str> = new list<str>()
+f( L )
+##### COMP_ERR #####
+2:12: ref takes a tree type

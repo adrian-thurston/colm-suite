@@ -1,0 +1,12 @@
+# An int variable given to an iterator's ref<str> parameter. Its value was
+# read as a tree pointer.
+iter it( R: ref<str> )
+{
+	yield R
+}
+
+I: int = 5
+for S: str in it( I )
+	print( "S=", S, "\n" )
+##### COMP_ERR #####
+9:15: arg 1 is of the wrong type

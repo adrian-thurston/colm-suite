@@ -1,0 +1,14 @@
+# A ref to a struct. Setting a field through it crashed colm.
+struct point
+	X: int
+end
+
+void f( R: ref<point> )
+{
+	R->X = 5
+}
+
+P: point = new point()
+f( P )
+##### COMP_ERR #####
+6:12: ref takes a tree type

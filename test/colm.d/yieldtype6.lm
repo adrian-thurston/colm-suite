@@ -1,4 +1,4 @@
-# An iterator that yields a ref to an int.
+# An iterator that takes a ref to an int, which is an error at the ref's type.
 iter it( R: ref<int> )
 {
 	yield R
@@ -9,4 +9,4 @@ for I: str in it( X )
 	print( I, "\n" )
 print( "done\n" )
 ##### COMP_ERR #####
-4:8: can only yield a tree
+2:13: ref takes a tree type

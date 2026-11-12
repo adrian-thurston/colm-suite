@@ -980,8 +980,21 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 		LangExpr *expression = (*pe)->expr;
 		UniqueType *paramUT = lookup.objMethod->paramUTs[pe.pos()];
 
+		/* The argument to a ref parameter of a function or an iterator the
+		 * program defines must be a tree. The built-in iterators take a
+		 * ref<any>, and compileForIter() checks their arguments. */
+		bool checkRefArg = paramUT->typeId == TYPE_REF && lookup.objMethod->func != 0;
+
 		if ( paramUT->typeId == TYPE_REF ) {
 			if ( expression->canTakeRef( pd ) ) {
+				if ( checkRefArg ) {
+					CodeVect unused;
+					if ( !expression->evaluate( pd, unused )->treeValue() ) {
+						error(loc) << "arg " << pe.pos()+1 <<
+								" is of the wrong type" << endp;
+					}
+				}
+
 				/* Push object loads for reference parameters. */
 				LangVarRef *varRef = expression->term->varRef;
 				ObjectField *refOf = varRef->preEvaluateRef( pd, code );
@@ -999,6 +1012,10 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 			else {
 				/* First pass we need to allocate and evaluate temporaries. */
 				UniqueType *exprUT = expression->evaluate( pd, code );
+				if ( checkRefArg && !exprUT->treeValue() ) {
+					error(loc) << "arg " << pe.pos()+1 <<
+							" is of the wrong type" << endp;
+				}
 
 				(*pe)->exprUT = exprUT;
 
@@ -1527,8 +1544,7 @@ UniqueType *LangTerm::evaluateCast( Compiler *pd, CodeVect &code ) const
 	/* A cast keeps to its kind. A token's text is its own, and a def's is in
 	 * its children, as an il's is. A cast across them would give a token with
 	 * no text, or a def whose text never prints. A cast of an any is checked
-	 * when it runs, and a cast to any isn't checked. A ref to a type that
-	 * isn't a tree has no lang el, and is left as it was. */
+	 * when it runs, and a cast to any isn't checked. */
 	LangEl *from = exprUT->langEl, *to = ut->langEl;
 	if ( from != 0 && from != pd->anyLangEl && to != pd->anyLangEl ) {
 		bool fromToken = from->type == LangEl::Term && from != pd->ignoreLangEl;

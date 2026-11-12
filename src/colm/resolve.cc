@@ -344,7 +344,11 @@ UniqueType *TypeRef::resolveTypeParser( Compiler *pd )
 
 UniqueType *TypeRef::resolveTypeRef( Compiler *pd )
 {
+	/* A ref refers to a tree, by its lang el. A struct, list or map is a
+	 * pointer already, and an int has nothing a ref could stand for. */
 	typeRef1->resolveType( pd );
+	if ( !typeRef1->uniqueType->tree() )
+		error( loc ) << "ref takes a tree type" << endp;
 	return pd->findUniqueType( TYPE_REF, typeRef1->uniqueType->langEl );
 }
 

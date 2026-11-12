@@ -382,6 +382,12 @@ EXTRA_DIST = \
 	ref1.lm \
 	ref2.lm \
 	ref3.lm \
+	ref4.lm \
+	ref5.lm \
+	ref6.lm \
+	ref7.lm \
+	ref8.lm \
+	ref9.lm \
 	refcond1.lm \
 	regignbt1.lm \
 	regignbt2.lm \

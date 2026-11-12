@@ -1,0 +1,11 @@
+# A ref to an int. A ref to any type that isn't a tree resolved to one type,
+# and the int was read as a tree pointer.
+void f( R: ref<int> )
+{
+	print( "R=", R, "\n" )
+}
+
+I: int = 7
+f( I )
+##### COMP_ERR #####
+3:12: ref takes a tree type

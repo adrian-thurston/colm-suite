@@ -1,0 +1,10 @@
+# A list given to a ref<str> parameter. Its value was read as a tree.
+void f( R: ref<str> )
+{
+	print( "R=", R, "\n" )
+}
+
+L: list<str> = new list<str>()
+f( L )
+##### COMP_ERR #####
+8:1: arg 1 is of the wrong type

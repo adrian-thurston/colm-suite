@@ -48,9 +48,9 @@ nothing has the type `void`. `return` is in
 xref:1_03_control_flow.adoc#control-flow[the control flow chapter].
 
 A function that changes an `int` or `str` parameter doesn't change the
-caller's variable: the parameter is a copy. A `ref<T>` parameter is the
-caller's variable instead, as xref:1_04_functions.adoc#functions[the functions
-chapter] shows.
+caller's variable: the parameter is a copy. A `ref<T>` parameter, where `T` is
+a tree type such as `str`, is the caller's variable instead, as
+xref:1_04_functions.adoc#functions[the functions chapter] shows.
 
 == Layout
 

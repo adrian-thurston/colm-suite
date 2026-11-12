@@ -1,6 +1,6 @@
-# The cast check leaves a ref to a type that isn't a tree, which has no lang
-# el, as it was: the cast compiles. colm segfaulted on it. show is never
-# called, since a cast of an int's ref crashes the program.
+# A ref to a type that isn't a tree is an error at its type. The cast check
+# used to leave a ref to an int, which has no lang el, as it was, and colm
+# segfaulted on it.
 lex
 	token id /[a-z]+/
 	ignore /[ \n]+/
@@ -11,5 +11,5 @@ void show( R: ref<int> )
 	print( T, "\n" )
 }
 print( "compiled\n" )
-##### EXP #####
-compiled
+##### COMP_ERR #####
+8:15: ref takes a tree type

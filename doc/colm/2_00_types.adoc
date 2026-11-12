@@ -27,7 +27,8 @@ The types are:
 * `parser<T>`
 * `void`, for a function that returns nothing, in
   xref:2_01_basic.adoc#void[the basic types chapter]
-* `ref<T>`, a parameter that refers to the caller's variable, in
+* `ref<T>`, for a tree type `T`, a parameter that refers to the caller's
+  variable, in
   xref:1_04_functions.adoc#functions[the functions chapter]
 
 `alias` gives a type a second name, as

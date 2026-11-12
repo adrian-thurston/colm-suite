@@ -127,20 +127,28 @@ so the new tree is made of nothing that is held elsewhere.
 ## Limits
 
 - Two parsers that the program drives, given one object, change it under
-  each other. Only a parser that owns its context could rule that out.
+  each other ([#718]). Only a parser that owns its context could rule that
+  out.
 - A list, map or struct that a parse's actions take out of their context
   into a global, or put into it from one, can be changed through the global.
-  That is for the companion rule on actions and globals, which isn't filed.
+  That is for the companion rule on actions and globals, [#714].
 
 ## Tests
 
 In `test/colm.d`. `ctxset1` runs what a setup may do, and reads the object
-in place after its parse. `ctxchg1`–`ctxchg14` (changes),
-`ctxtake1`–`ctxtake8` (references out, and what goes in) and `undoctx4` are
-compile errors, one each, and say in their first lines what they show.
+in place after its parse, and `ctxset2` does the same for a tree whose
+attribute holds a list. `ctxchg1`–`ctxchg18` (changes),
+`ctxtake1`–`ctxtake11` (references out, and what goes in) and `undoctx4`
+are compile errors, one each, and say in their first lines what they show.
 `ctxchg1` and `ctxchg2` are [#706]'s programs, and `ctxchg4` is [#368]'s
-form. Most include `ctxrule.lmi`, a context to change.
+form. The review of #717 added `ctxchg15`–`ctxchg18`: a call later in a new
+parser's statement, a function the object goes through into one, a while
+loop's condition, and a yield; and `ctxtake9`–`ctxtake11`: a tree whose
+attribute holds a list, put in and kept, taken out, and made by a cons from
+one the program keeps. Most include `ctxrule.lmi`, a context to change.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#550]: https://github.com/adrian-thurston/colm-suite/issues/550
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706
+[#714]: https://github.com/adrian-thurston/colm-suite/issues/714
+[#718]: https://github.com/adrian-thurston/colm-suite/issues/718

@@ -57,13 +57,14 @@ was given can back up, and what colm checks. The
 
 ## Out of scope
 
-- Two parsers that the program drives, given the same object: compile time
-  can't tell. The manual says to give each parser its own object, except a
-  parse that a parser's actions start and a parser they send to.
-- Globals that a parse's actions change and the program changes too
-  ([#683], [#687]): the companion rule, that an incremental parser keeps its
-  data in a context, isn't filed. [#368] is also met through a global accum
-  parser.
+- Two parsers that the program drives, given the same object ([#718]):
+  compile time can't tell. The manual says to give each parser its own
+  object, except a parse that a parser's actions start and a parser they
+  send to.
+- Globals that a parse's actions change and the program changes too: the
+  companion rule, that an incremental parser keeps its data in a context,
+  is [#714], with [#683] and [#687] its cases. [#368] is also met through a
+  global accum parser.
 - Host programs: exports give a host trees, never structs.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
@@ -71,3 +72,5 @@ was given can back up, and what colm checks. The
 [#687]: https://github.com/adrian-thurston/colm-suite/issues/687
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706
 [#707]: https://github.com/adrian-thurston/colm-suite/pull/707
+[#714]: https://github.com/adrian-thurston/colm-suite/issues/714
+[#718]: https://github.com/adrian-thurston/colm-suite/issues/718

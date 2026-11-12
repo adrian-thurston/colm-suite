@@ -1660,7 +1660,8 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 		bool contextGiven = false;
 		for ( int i = 0; fieldInitArgs != 0 && i < fieldInitArgs->length(); i++ ) {
 			/* Eval what we are initializing with. A new parser runs nothing,
-			 * so its context's setup goes on to the end of the statement. */
+			 * so its context's setup goes on to the end of the statement, or
+			 * to other code that runs before then. */
 			pd->newParserContext = true;
 			UniqueType *argUT = fieldInitArgs->data[i]->expr->evaluate( pd, code );
 			pd->newParserContext = false;

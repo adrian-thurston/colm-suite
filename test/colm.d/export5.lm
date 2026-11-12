@@ -1,0 +1,7 @@
+# An exported void function. With -e, colm segfaulted.
+export void f( S: str )
+{
+	print( S, "\n" )
+}
+##### COMP_ERR #####
+2:13: an exported function must return a tree type

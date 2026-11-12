@@ -943,6 +943,35 @@ void Compiler::resolveReductionActions()
 	}
 }
 
+/* What a C++ host takes from an export: a tree global, and a function that
+ * takes strs, which the host passes as const char *, and returns a tree. */
+void Compiler::checkExports()
+{
+	for ( FieldList::Iter of = globalObjectDef->fieldList; of.lte(); of++ ) {
+		ObjectField *field = of->value;
+		if ( field->isExport && !field->typeRef->resolveType( this )->tree() )
+			error( field->loc ) << "only a tree type can be exported" << endp;
+	}
+
+	for ( FunctionList::Iter func = functionList; func.lte(); func++ ) {
+		if ( !func->exprt )
+			continue;
+
+		/* A void or int type ref has no location; the function's name has. */
+		if ( !func->typeRef->uniqueType->tree() ) {
+			error( func->loc ) << "an exported function must "
+					"return a tree type" << endp;
+		}
+
+		for ( ParameterList::Iter param = *func->paramList; param.lte(); param++ ) {
+			if ( param->typeRef->uniqueType != uniqueTypeStr ) {
+				error( param->loc ) << "a parameter of an exported "
+						"function must be a str" << endp;
+			}
+		}
+	}
+}
+
 Production *Compiler::findProductionByLabel( LangEl *langEl, String label )
 {
 	for ( LelProdList::Iter ldi = langEl->prodList; ldi.lte(); ldi++ ) {
@@ -1023,6 +1052,8 @@ void Compiler::resolvePass()
 	resolvePrecedence();
 
 	resolveParseTree();
+
+	checkExports();
 
 	UniqueType *argvUT = argvTypeRef->resolveType( this );
 	argvElSel = argvUT->generic->elUt->structEl;

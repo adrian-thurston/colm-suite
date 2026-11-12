@@ -1,0 +1,8 @@
+# An exported function with an int parameter. The host passes a str for
+# every parameter, so the function got a tree's address.
+export str twice( N: int )
+{
+	return "[N * 2]"
+}
+##### COMP_ERR #####
+3:19: a parameter of an exported function must be a str

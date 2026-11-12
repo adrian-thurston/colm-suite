@@ -582,6 +582,7 @@ struct Compiler
 	void makeIgnoreCollectors();
 	void resolvePrecedence();
 	void resolveReductionActions();
+	void checkExports();
 	void findReductionActionProds();
 	void resolveReducers();
 

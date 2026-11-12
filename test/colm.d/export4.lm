@@ -1,0 +1,8 @@
+# An exported function that returns an int. With -e, colm read its null
+# lang el and segfaulted.
+export int f( S: str )
+{
+	return 1
+}
+##### COMP_ERR #####
+3:12: an exported function must return a tree type

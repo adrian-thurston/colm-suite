@@ -1,0 +1,4 @@
+# An exported int global. The export header left it out.
+export N: int = 3
+##### COMP_ERR #####
+2:8: only a tree type can be exported

@@ -271,13 +271,14 @@ from it.
 Types in a colm `namespace` are in a {cpp} namespace of the same name, such as
 `ns::item`, one level deep.
 
-A global gets an accessor that returns its tree when the global is a tree: a
-`str`, a token or a def. `export Config: config` gives
+An exported global must be a tree: a `str`, a token or a def. Its accessor
+returns the tree: `export Config: config` gives
 `config Config( colm_program *prg )`. An exported function gets a wrapper that
 calls it: `export str lookup( Key: str )` gives
-`str lookup( colm_program *prg, const char *p0 )`. Its parameters are ``str``s,
-which the host passes as `const char *`, and it returns a `str`, a token or a
-def.
+`str lookup( colm_program *prg, const char *p0 )`. Its parameters must be
+``str``s, which the host passes as `const char *`, and it must return a `str`, a
+token or a def. Anything else, such as an exported `int`, or an exported `void`
+function, is a compile error.
 
 The structs are handles on the program's trees, not copies of them. A
 function's result lives until the host's next call of an exported function.

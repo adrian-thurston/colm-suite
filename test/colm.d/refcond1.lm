@@ -1,0 +1,25 @@
+# A ref as the test of an if or a while. The test took the tree the ref
+# refers to and dropped it without a release, so the tree was lost.
+
+void f( R: ref<str> )
+{
+	if ( R )
+		print( "if: ", R, "\n" )
+	else
+		print( "if: nil\n" )
+	while ( R ) {
+		print( "while: ", R, "\n" )
+		break
+	}
+}
+
+S: str = "abc"
+f( S )
+N: str
+f( N )
+print( "ok\n" )
+##### EXP #####
+if: abc
+while: abc
+if: nil
+ok

@@ -2883,7 +2883,7 @@ void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 	/* Jump past the while block if false. Note that we don't have the
 	 * distance yet. */
 	long jumpFalse = code.length();
-	half_t jinstr = eut->tree() ? IN_JMP_FALSE_TREE : IN_JMP_FALSE_VAL;
+	half_t jinstr = eut->treeValue() ? IN_JMP_FALSE_TREE : IN_JMP_FALSE_VAL;
 	code.append( jinstr );
 	code.appendHalf( 0 );
 
@@ -2928,7 +2928,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			/* Evaluate the exrepssion, then pop it immediately. */
 			pd->stmtTerm = stmtTerm( expr );
 			UniqueType *exprUt = expr->evaluate( pd, code );
-			if ( exprUt->tree() )
+			if ( exprUt->treeValue() )
 				code.append( IN_POP_TREE );
 			else
 				code.append( IN_POP_VAL );
@@ -2946,7 +2946,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			/* Jump past the if block if false. We don't know the distance
 			 * yet so store the location of the jump. */
 			jumpFalse = code.length();
-			half_t jinstr = eut->tree() ? IN_JMP_FALSE_TREE : IN_JMP_FALSE_VAL;
+			half_t jinstr = eut->treeValue() ? IN_JMP_FALSE_TREE : IN_JMP_FALSE_VAL;
 
 			code.append( jinstr );
 			code.appendHalf( 0 );

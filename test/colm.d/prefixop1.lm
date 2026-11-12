@@ -1,0 +1,5 @@
+# ^ of an int. It took the int for a tree, and the program segfaulted.
+I: int = 5
+J: int = ^I
+##### COMP_ERR #####
+3:10: ^ needs a tree

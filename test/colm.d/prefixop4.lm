@@ -1,0 +1,5 @@
+# $$ of a map.
+M: map<int, int> = new map<int, int>()
+print( $$M, "\n" )
+##### COMP_ERR #####
+3:8: $$ needs a tree, an int or a bool

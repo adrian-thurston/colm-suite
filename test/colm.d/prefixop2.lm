@@ -1,0 +1,9 @@
+# $ of a struct. It released the struct as a tree, and the program aborted.
+struct p
+	X: int
+end
+
+P: p = new p()
+print( $P, "\n" )
+##### COMP_ERR #####
+7:8: $ needs a tree, an int or a bool

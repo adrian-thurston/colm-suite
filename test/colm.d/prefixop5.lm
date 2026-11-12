@@ -1,0 +1,32 @@
+# The prefix operators on what they take. A str has no ignored text, so ^
+# gives it as it is, as a ^ item in a constructor does, also when an any
+# holds it. colm_copy_tree() aborted on a str.
+
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def ids
+	[id*]
+
+S: str = "abc"
+T: str = ^S
+print( "<", T, ">\n" )
+
+A: any = "def"
+B: any = ^A
+print( "<", B, ">\n" )
+
+parse D: ids[ " ab cd " ]
+E: ids = ^D
+print( "<", E, "> <", %D, ">\n" )
+
+I: int = 5
+Bo: bool = true
+print( $I, " ", %I, " ", $Bo, "\n" )
+##### EXP #####
+<abc>
+<def>
+<ab cd> < ab cd >
+5 5 1

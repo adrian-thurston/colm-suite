@@ -347,6 +347,11 @@ EXTRA_DIST = \
 	preeof1.lm \
 	preeof2.lm \
 	preeof3.lm \
+	prefixop1.lm \
+	prefixop2.lm \
+	prefixop3.lm \
+	prefixop4.lm \
+	prefixop5.lm \
 	print1.lm \
 	prints.lm \
 	pull1.lm \

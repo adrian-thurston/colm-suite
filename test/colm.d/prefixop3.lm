@@ -1,0 +1,5 @@
+# % of a list.
+L: list<int> = new list<int>()
+print( %L, "\n" )
+##### COMP_ERR #####
+3:8: % needs a tree, an int or a bool

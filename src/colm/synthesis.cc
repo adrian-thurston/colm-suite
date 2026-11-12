@@ -2514,6 +2514,8 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 				}
 				case '$': {
 					UniqueType *ut = right->evaluate( pd, code );
+					if ( !ut->treeValue() && !ut->scalar() && ut->typeId != TYPE_NIL )
+						error(loc) << "$ needs a tree, an int or a bool" << endp;
 
 					if ( ut->typeId == TYPE_INT || ut->typeId == TYPE_BOOL )
 						code.append( IN_INT_TO_STR );
@@ -2524,6 +2526,8 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 				}
 				case 'S': {
 					UniqueType *ut = right->evaluate( pd, code );
+					if ( !ut->treeValue() && !ut->scalar() && ut->typeId != TYPE_NIL )
+						error(loc) << "$$ needs a tree, an int or a bool" << endp;
 
 					if ( ut->typeId == TYPE_INT || ut->typeId == TYPE_BOOL )
 						code.append( IN_INT_TO_STR );
@@ -2533,6 +2537,8 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 				}
 				case '%': {
 					UniqueType *ut = right->evaluate( pd, code );
+					if ( !ut->treeValue() && !ut->scalar() && ut->typeId != TYPE_NIL )
+						error(loc) << "% needs a tree, an int or a bool" << endp;
 					if ( ut->typeId == TYPE_INT || ut->typeId == TYPE_BOOL )
 						code.append( IN_INT_TO_STR );
 					else 
@@ -2541,6 +2547,8 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 				}
 				case '^': {
 					UniqueType *rt = right->evaluate( pd, code );
+					if ( !rt->treeValue() )
+						error(loc) << "^ needs a tree" << endp;
 					code.append( IN_TREE_TRIM );
 					return rt;
 				}

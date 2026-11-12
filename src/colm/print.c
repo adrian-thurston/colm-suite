@@ -156,6 +156,10 @@ tree_t *tree_trim( struct colm_program *prg, tree_t **sp, tree_t *tree )
 	if ( tree == 0 )
 		return 0;
 
+	/* A str has no ignored text. */
+	if ( tree->id == LEL_ID_STR )
+		return tree;
+
 	debug( prg, REALM_PARSE, "attaching left ignore\n" );
 
 	/* Make the ignore list for the left-ignore. */

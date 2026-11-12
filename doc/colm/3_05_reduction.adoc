@@ -195,9 +195,13 @@ The block holds two kinds of item:
   `$` and `@` references of an action can't go in them. For one there, colm
   reports an error, such as
   `@number in the value of expr: only a reduction action can refer to a production`.
+  `TYPE` must be a tree type: for an `int`, a struct or a list, colm reports
+  `only a tree type can have a reduction value`.
 * `TYPE :Prod { code }` is the action for the production of `TYPE` named
   `Prod`. A production needs a name to have one. For a name that no
   production of `TYPE` has, colm reports `could not find production "Prod"`.
+  For a `TYPE` that isn't a tree, colm reports
+  `only a tree type can have a reduction action`.
 
 Colm never constructs or destroys a value. It keeps each tree's value in
 memory that it zeroes, so a value starts out zeroed: a `long` that an action

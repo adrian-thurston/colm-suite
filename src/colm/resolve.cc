@@ -913,6 +913,13 @@ void Compiler::resolveReductionActions()
 		for ( ReduceNonTermList::Iter rni = (*r)->reduceNonTerms; rni.lte(); rni++ ) {
 			rni->nonTerm->resolveType( this );
 
+			/* A value is the C++ value each tree of the type has. A type that
+			 * isn't a tree has no lang el to name the value by. */
+			if ( !rni->nonTerm->uniqueType->tree() ) {
+				error( rni->loc ) << "only a tree type can have a "
+						"reduction value" << endp;
+			}
+
 			/* The members of a value aren't in a production, so they can't
 			 * refer to one. */
 			for ( ReduceTextItemList::Iter i = rni->itemList; i.lte(); i++ ) {
@@ -924,8 +931,15 @@ void Compiler::resolveReductionActions()
 			}
 		}
 
-		for ( ReduceActionList::Iter rai = (*r)->reduceActions; rai.lte(); rai++ )
+		for ( ReduceActionList::Iter rai = (*r)->reduceActions; rai.lte(); rai++ ) {
 			rai->nonTerm->resolveType( this );
+
+			/* An action is for a production, which only a def has. */
+			if ( !rai->nonTerm->uniqueType->tree() ) {
+				error( rai->loc ) << "only a tree type can have a "
+						"reduction action" << endp;
+			}
+		}
 	}
 }
 

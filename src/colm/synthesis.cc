@@ -2274,7 +2274,7 @@ UniqueType *LangTerm::evaluate( Compiler *pd, CodeVect &code ) const
 			/* Evaluate the expression. */
 			UniqueType *ut = typeRef->uniqueType;
 			if ( ut->typeId != TYPE_TREE )
-				error() << "typeid can only be applied to tree types" << endp;
+				error(loc) << "typeid can only be applied to tree types" << endp;
 
 			code.append( IN_LOAD_INT );
 			code.appendWord( ut->langEl->id );

@@ -4,4 +4,4 @@
 M: any = make_tree( typeid<int> )
 print( M, "\n" )
 ##### COMP_ERR #####
-error: colm: typeid can only be applied to tree types
+4:21: typeid can only be applied to tree types

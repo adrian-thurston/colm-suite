@@ -34,11 +34,6 @@ bool isStr( UniqueType *ut )
 	return ut->typeId == TYPE_TREE && ut->langEl != 0 && ut->langEl->id == LEL_ID_STR;
 }
 
-bool isTree( UniqueType *ut )
-{
-	return ut->typeId == TYPE_TREE;
-}
-
 IterDef::IterDef( Type type )
 : 
 	type(type), 
@@ -400,7 +395,7 @@ UniqueType *LangVarRef::loadField( Compiler *pd, CodeVect &code,
 
 	UniqueType *elUT = el->typeRef->uniqueType;
 
-	if ( elUT->val() ) {
+	if ( elUT->ptr() || elUT->scalar() ) {
 		if ( forWriting ) {
 			/* The instruction, depends on whether or not we are reverting. */
 			if ( pd->revertOn && revert )
@@ -771,7 +766,7 @@ void LangVarRef::setField( Compiler *pd, CodeVect &code,
 	/* Ensure that the field is referenced. */
 	inObject->referenceField( pd, el );
 
-	if ( exprUT->val()  ) {
+	if ( exprUT->ptr() || exprUT->scalar() ) {
 		if ( pd->revertOn && revert )
 			code.append( el->inSetValWV );
 		else
@@ -1244,7 +1239,7 @@ UniqueType *LangTerm::evaluateMatch( Compiler *pd, CodeVect &code ) const
 	}
 
 	UniqueType *ut = varRef->evaluate( pd, code );
-	if ( ut->typeId != TYPE_TREE && ut->typeId != TYPE_REF ) {
+	if ( !ut->treeValue() ) {
 		error(varRef->loc) << "expected match against a tree/ref type" << endp;
 	}
 
@@ -1279,7 +1274,7 @@ UniqueType *LangTerm::evaluateMatch( Compiler *pd, CodeVect &code ) const
 UniqueType *LangTerm::evaluateProdCompare( Compiler *pd, CodeVect &code ) const
 {
 	UniqueType *ut = varRef->evaluate( pd, code );
-	if ( ut->typeId != TYPE_TREE && ut->typeId != TYPE_REF ) {
+	if ( !ut->treeValue() ) {
 		error(varRef->loc) << "expected match against a tree/ref type" << endp;
 	}
 	code.append( IN_PROD_NUM );
@@ -1522,7 +1517,7 @@ UniqueType *LangTerm::evaluateCast( Compiler *pd, CodeVect &code ) const
 		error(loc) << "cannot cast to il" << endp;
 
 	UniqueType *exprUT = expr->evaluate( pd, code );
-	if ( exprUT->typeId != TYPE_TREE && exprUT->typeId != TYPE_REF )
+	if ( !exprUT->treeValue() )
 		error(loc) << "can only cast a tree" << endp;
 
 	/* A cast keeps to its kind. A token's text is its own, and a def's is in
@@ -1587,7 +1582,7 @@ UniqueType *LangTerm::evaluateConstruct( Compiler *pd, CodeVect &code ) const
 
 			/* A value goes into an attribute wrapped, as an assignment
 			 * stores it. */
-			if ( fieldInit->exprUT->val() )
+			if ( fieldInit->exprUT->ptr() || fieldInit->exprUT->scalar() )
 				code.append( IN_VAL_TO_POINTER );
 		}
 	}
@@ -2163,7 +2158,7 @@ UniqueType *LangTerm::evaluateSearch( Compiler *pd, CodeVect &code ) const
 
 	/* Evaluate the expression. */
 	UniqueType *treeUT = varRef->evaluate( pd, code );
-	if ( treeUT->typeId != TYPE_TREE && treeUT->typeId != TYPE_REF )
+	if ( !treeUT->treeValue() )
 		error(loc) << "search can be applied only to tree/ref types" << endp;
 
 	/* Run the search. */
@@ -2277,11 +2272,6 @@ UniqueType *LangTerm::evaluate( Compiler *pd, CodeVect &code ) const
 			break;
 	}
 
-	// if ( retUt->val() )
-	//	pd->unwindCode.insert( 0, IN_POP_VAL );
-	// else
-	//	pd->unwindCode.insert( 0, IN_POP_TREE );
-
 	pd->noUnwind = noUnwind;
 	return retUt;
 }
@@ -2357,7 +2347,7 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					if ( lt != rt )
 						error(loc) << "comparison of different types" << endp;
 						
-					if ( lt->val() )
+					if ( lt->ptr() || lt->scalar() )
 						code.append( IN_TST_EQL_VAL );
 					else
 						code.append( IN_TST_EQL_TREE );
@@ -2370,7 +2360,7 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					if ( lt != rt )
 						error(loc) << "comparison of different types" << endp;
 
-					if ( lt->val() )
+					if ( lt->ptr() || lt->scalar() )
 						code.append( IN_TST_NOT_EQL_VAL );
 					else
 						code.append( IN_TST_NOT_EQL_TREE );
@@ -2384,7 +2374,7 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					if ( lt != rt )
 						error(loc) << "comparison of different types" << endp;
 
-					if ( lt->val() )
+					if ( lt->ptr() || lt->scalar() )
 						code.append( IN_TST_LESS_VAL );
 					else
 						code.append( IN_TST_LESS_TREE );
@@ -2397,7 +2387,7 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					if ( lt != rt )
 						error(loc) << "comparison of different types" << endp;
 
-					if ( lt->val() )
+					if ( lt->ptr() || lt->scalar() )
 						code.append( IN_TST_GRTR_VAL );
 					else
 						code.append( IN_TST_GRTR_TREE );
@@ -2411,7 +2401,7 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					if ( lt != rt )
 						error(loc) << "comparison of different types" << endp;
 
-					if ( lt->val() )
+					if ( lt->ptr() || lt->scalar() )
 						code.append( IN_TST_LESS_EQL_VAL );
 					else
 						code.append( IN_TST_LESS_EQL_TREE );
@@ -2425,7 +2415,7 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					if ( lt != rt )
 						error(loc) << "comparison of different types" << endp;
 
-					if ( lt->val() )
+					if ( lt->ptr() || lt->scalar() )
 						code.append( IN_TST_GRTR_EQL_VAL );
 					else
 						code.append( IN_TST_GRTR_EQL_TREE );
@@ -2435,7 +2425,7 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 				case OP_LogicalAnd: {
 					/* Evaluate the left and duplicate it. */
 					UniqueType *lut = left->evaluate( pd, code );
-					if ( !lut->val() )
+					if ( !( lut->ptr() || lut->scalar() ) )
 						code.append( IN_TST_NZ_TREE );
 					code.append( IN_DUP_VAL );
 
@@ -2448,7 +2438,7 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 
 					/* Evauluate the right, add the test. Store it separately. */
 					UniqueType *rut = right->evaluate( pd, code );
-					if ( !rut->val() )
+					if ( !( rut->ptr() || rut->scalar() ) )
 						code.append( IN_TST_NZ_TREE );
 
 					code.append( IN_TST_LOGICAL_AND );
@@ -2462,7 +2452,7 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 				case OP_LogicalOr: {
 					/* Evaluate the left and duplicate it. */
 					UniqueType *lut = left->evaluate( pd, code );
-					if ( !lut->val() )
+					if ( !( lut->ptr() || lut->scalar() ) )
 						code.append( IN_TST_NZ_TREE );
 					code.append( IN_DUP_VAL );
 
@@ -2475,7 +2465,7 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 
 					/* Evauluate the right, add the test. */
 					UniqueType *rut = right->evaluate( pd, code );
-					if ( !rut->val() )
+					if ( !( rut->ptr() || rut->scalar() ) )
 						code.append( IN_TST_NZ_TREE );
 
 					code.append( IN_TST_LOGICAL_OR );
@@ -2496,7 +2486,7 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 				case '!': {
 					/* Evaluate the left and duplicate it. */
 					UniqueType *ut = right->evaluate( pd, code );
-					if ( ut->val() )
+					if ( ut->ptr() || ut->scalar() )
 						code.append( IN_NOT_VAL );
 					else
 						code.append( IN_NOT_TREE );
@@ -2633,7 +2623,7 @@ UniqueType *LangTerm::evaluateMakeToken( Compiler *pd, CodeVect &code ) const
 
 		/* The rest are attributes. A value goes into one wrapped, as an
 		 * assignment stores it. */
-		if ( pe.pos() >= 2 && exprUT->val() )
+		if ( pe.pos() >= 2 && ( exprUT->ptr() || exprUT->scalar() ) )
 			code.append( IN_VAL_TO_POINTER );
 	}
 

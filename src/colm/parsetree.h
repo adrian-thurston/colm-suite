@@ -1958,24 +1958,30 @@ struct UniqueType : public AvlTreeEl<UniqueType>
 
 	ObjectDef *objectDef();
 
+	/* A slot, or a type the program names, that holds a tree. A ref<T> slot
+	 * isn't one: it holds no reference of its own. */
 	bool tree()
 		{ return typeId == TYPE_TREE; }
-	
-	bool parser()
-		{ return typeId == TYPE_GENERIC && generic->typeId == GEN_PARSER; }
-	
+
+	/* A struct, a context, or a generic: a list, a map or a parser. Its value
+	 * is a pointer to a struct, which nothing reference counts. */
 	bool ptr()
 		{ return typeId == TYPE_STRUCT || typeId == TYPE_GENERIC; }
 
+	/* An int or a bool, held in the word itself. */
+	bool scalar()
+		{ return typeId == TYPE_INT || typeId == TYPE_BOOL; }
+
+	/* A value an expression gives as a tree: a tree, or a ref, which gives
+	 * the tree it refers to. */
+	bool treeValue()
+		{ return typeId == TYPE_TREE || typeId == TYPE_REF; }
+
+	bool parser()
+		{ return typeId == TYPE_GENERIC && generic->typeId == GEN_PARSER; }
+
 	bool listOf( UniqueType *ut )
 		{ return typeId == TYPE_GENERIC && generic->typeId == GEN_LIST && generic->valueUt == ut; }
-
-	bool val() {
-		return typeId == TYPE_STRUCT ||
-			typeId == TYPE_GENERIC ||
-			typeId == TYPE_INT ||
-			typeId == TYPE_BOOL;
-	}
 };
 
 struct CmpUniqueType

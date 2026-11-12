@@ -3613,19 +3613,24 @@ again:
 			if ( tree == 0 )
 				runtime_error( prg, "cast of a nil tree" );
 
+			/* An any holds a tree of any type, so a cast to any gives the
+			 * tree as it is. */
+			if ( lang_el_id == prg->rtd->any_id ) {
+				vm_push_tree( tree );
+				break;
+			}
+
 			/* A cast keeps to its kind, which only shows here for a cast of an
 			 * any. A token type takes a tree with text of its own, a token or a
 			 * str. A def type takes one without. */
-			if ( lang_el_id != prg->rtd->any_id ) {
-				int to_token = lang_el_id < prg->rtd->first_non_term_id;
-				if ( to_token && tree->tokdata == 0 ) {
-					runtime_error( prg, tree->id == LEL_ID_IGNORE ?
-							"cast of an il to a token type" :
-							"cast of a def to a token type" );
-				}
-				if ( !to_token && tree->tokdata != 0 )
-					runtime_error( prg, "cast of a token or str to a def type" );
+			int to_token = lang_el_id < prg->rtd->first_non_term_id;
+			if ( to_token && tree->tokdata == 0 ) {
+				runtime_error( prg, tree->id == LEL_ID_IGNORE ?
+						"cast of an il to a token type" :
+						"cast of a def to a token type" );
 			}
+			if ( !to_token && tree->tokdata != 0 )
+				runtime_error( prg, "cast of a token or str to a def type" );
 
 			tree_t *res = cast_tree( prg, lang_el_id, tree );
 			colm_tree_upref( prg, res );

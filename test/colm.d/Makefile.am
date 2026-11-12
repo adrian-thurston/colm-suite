@@ -42,6 +42,7 @@ EXTRA_DIST = \
 	cast13.lm \
 	cast14.lm \
 	cast15.lm \
+	cast16.lm \
 	childwrite1.lm \
 	childwrite2.lm \
 	childwrite3.lm \

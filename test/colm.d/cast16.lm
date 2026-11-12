@@ -1,0 +1,26 @@
+# A cast to any gives the tree as it is, with its own type and text. A
+# token cast to any printed only its ignored text.
+
+lex
+	token word /[a-z]+/
+	token name /[A-Z][a-z]*/
+	ignore ws /[ ]+/
+end
+
+def text
+	[word*]
+
+parse T: word[ "abc " ]
+A: any = cast<any> T
+print( "a: <", A, "> <", $A, "> <", %A, ">\n" )
+
+N: name = cast<name> A
+print( "n: <", N, ">\n" )
+
+parse D: text[ "ab cd" ]
+B: any = cast<any> D
+print( "b: <", B, ">\n" )
+##### EXP #####
+a: <abc > <abc> <abc >
+n: <abc >
+b: <ab cd>

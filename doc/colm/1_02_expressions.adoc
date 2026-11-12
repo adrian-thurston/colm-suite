@@ -180,7 +180,8 @@ when it runs, against the tree the `any` holds. When the kinds differ, it
 stops the program, which prints `fatal: cast of a def to a token type`,
 `fatal: cast of an il to a token type` or
 `fatal: cast of a token or str to a def type`, and exits with status 1. A cast
-to `any` isn't checked.
+to `any` gives `X` as it is, with its own type, as assigning it to an `any`
+variable does. Only a nil `X` stops the program.
 
 In this program, `show` takes only a `name`. A `word` is cast to a `name` to
 pass it:

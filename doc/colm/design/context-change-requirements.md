@@ -47,7 +47,10 @@ was given can back up, and what colm checks. The
    it can't take one out, where it could be changed through another
    reference. What goes into the object as it is set up is new, `nil`, or
    something the object holds already, so nothing outside holds it. Trees
-   are values, copied on write, and are free to come and go.
+   are values, copied on write, and are free to come and go, except that a
+   copy of a tree shares the list, map, parser, stream or struct that an
+   attribute of it, or of a tree below it, holds. A change made through such
+   a copy isn't checked yet (out of scope, below).
 7. Each refusal is a compile error at the reference it is about, saying what
    can't be done.
 
@@ -61,6 +64,10 @@ was given can back up, and what colm checks. The
   companion rule, that an incremental parser keeps its data in a context,
   is [#714], with [#683] and [#687] its cases. [#368] is also met through a
   global accum parser.
+- Trees whose attributes, or those of trees below them, hold a list, map,
+  parser, stream or struct ([#720]): a copy taken out of a context object,
+  or a tree the program put in and kept, shares what the attribute holds,
+  so the program can change the context's data through it.
 - Host programs: exports give a host trees, never structs.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
@@ -70,3 +77,4 @@ was given can back up, and what colm checks. The
 [#707]: https://github.com/adrian-thurston/colm-suite/pull/707
 [#714]: https://github.com/adrian-thurston/colm-suite/issues/714
 [#718]: https://github.com/adrian-thurston/colm-suite/issues/718
+[#720]: https://github.com/adrian-thurston/colm-suite/issues/720

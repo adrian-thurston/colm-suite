@@ -121,6 +121,11 @@ read through the same variable:
 - A list, map or struct that a parse's actions take out of their context
   into a global, or put into it from one, can be changed through the global.
   That is for the companion rule on actions and globals, [#714].
+- Trees go into and out of a context object freely, as values, but a copy
+  of a tree shares the list, map, parser, stream or struct that an attribute
+  of it, or of a tree below it, holds. So the program can change the
+  context's data through a tree it took out or put in and kept, and no
+  check sees it ([#720]).
 
 ## Tests
 
@@ -139,3 +144,4 @@ change.
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706
 [#714]: https://github.com/adrian-thurston/colm-suite/issues/714
 [#718]: https://github.com/adrian-thurston/colm-suite/issues/718
+[#720]: https://github.com/adrian-thurston/colm-suite/issues/720

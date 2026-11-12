@@ -303,8 +303,11 @@ What goes into a context object as it is set up is new: an object made with
 could be changed through another reference while a parser can back up. Colm
 stops with the error
 `only a new object, nil or what C holds can go into C as it is set up`.
-An `int`, a `str` or a tree can come from anywhere: a tree is copied when it
-is written.
+An `int` or a `str` can come from anywhere, and so can a tree, which is copied
+when it is written. But a copy of a tree shares the list, map, struct or
+parser that an attribute of it, or of a tree below it, holds, and colm doesn't
+yet check a change made through such a copy. So don't put a tree with such an
+attribute into a context object, or take one out, while a parser can back up.
 
 Outside its parse's actions, the program reads a context object's variables,
 and the lists, maps, structs and parsers they hold in place, through `+->+`,

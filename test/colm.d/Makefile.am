@@ -214,6 +214,10 @@ EXTRA_DIST = \
 	list3.lm \
 	list4.lm \
 	listhead1.lm \
+	listhead2.lm \
+	listhead3.lm \
+	listhead4.lm \
+	listhead5.lm \
 	listmsg1.lm \
 	listpop1.lm \
 	listpop2.lm \

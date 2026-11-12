@@ -1,0 +1,6 @@
+# Assigning to a list's top. It compiled to IN_HALT.
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+L->top = "c"
+##### COMP_ERR #####
+4:4: field "top" is const

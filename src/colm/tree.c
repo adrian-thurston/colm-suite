@@ -1420,25 +1420,6 @@ tree_t *get_parser_mem( parser_t *parser, word_t field )
 	return result;
 }
 
-tree_t *get_list_mem_split( program_t *prg, list_t *list, word_t field )
-{
-	tree_t *sv = 0;
-	switch ( field ) {
-		case 0: 
-//			sv = splitTree( prg, list->head->value );
-//			list->head->value = sv; 
-			break;
-		case 1: 
-//			sv = splitTree( prg, list->tail->value );
-//			list->tail->value = sv; 
-			break;
-		default:
-			assert( false );
-			break;
-	}
-	return sv;
-}
-
 static tree_t *tree_search_kid( program_t *prg, kid_t *kid, long id )
 {
 	/* This node the one? */

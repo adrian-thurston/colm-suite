@@ -1354,15 +1354,12 @@ void Compiler::initListFieldVal( GenericType *gen, const char *name, int offset 
 	ObjectField *el = ObjectField::cons( internal,
 			ObjectField::InbuiltOffType, gen->valueTr, name );
 
-	el->inGetR =  IN_GET_VLIST_MEM_R;
-	el->inGetWC = IN_GET_VLIST_MEM_WC;
-	el->inGetWV = IN_GET_VLIST_MEM_WV;
-//	el->inSetWC = IN_SET_VLIST_MEM_WC;
-//	el->inSetWV = IN_SET_VLIST_MEM_WV;
+	/* A list's ends are its values. Nothing sets them, or writes through
+	 * them: a program pops and pushes. */
+	el->isConst = true;
 
+	el->inGetR =  IN_GET_VLIST_MEM_R;
 	el->inGetValR  =  IN_GET_VLIST_MEM_R;
-	el->inGetValWC =  IN_GET_VLIST_MEM_WC;
-	el->inGetValWV =  IN_GET_VLIST_MEM_WV;
 
 	gen->objDef->rootScope->insertField( el->name, el );
 

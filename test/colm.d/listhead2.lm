@@ -1,0 +1,18 @@
+# The values at a list's ends are read-only. A write through one took the
+# list for a tree and released it, aborting.
+
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def item
+	Val: int
+	[id]
+
+L: list<item> = new list<item>()
+parse P: item[ "abc" ]
+L->push( P )
+L->head.Val = 5
+##### COMP_ERR #####
+16:9: left hand side qualification "head" is const

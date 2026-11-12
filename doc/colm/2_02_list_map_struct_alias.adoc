@@ -103,7 +103,11 @@ are.
 * `for V: T in L` gives the values from head to tail, and
   `for V: T in rev_list_iter( L )` from tail to head.
 * `head` and `tail` are the values at the head and the tail, and `top` is
-  `head`. Reading one on an empty or nil list stops the program too.
+  `head`. Reading one on an empty or nil list stops the program too. They
+  can't be set or written through: `L->head = V` is `field "head" is const`,
+  and `L->head.A = 1` is `left hand side qualification "head" is const`. To
+  change an end, pop it and push the new value. A struct held at an end is a
+  pointer, so `L->head->F = 1` sets its field.
 
 A list can't change inside a `for` over it: that is a compile error,
 `reference active, cannot write to object`.

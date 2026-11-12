@@ -1,0 +1,18 @@
+# A list's ends are read-only, but a struct held at one is a pointer, and
+# its fields can still be set through the end.
+
+struct point
+	X: int
+end
+
+L: list<point> = new list<point>()
+L->push_tail( new point() )
+L->push_tail( new point() )
+L->head->X = 1
+L->tail->X = 2
+L->top->X = L->top->X + 10
+for P: point in L
+	print( P->X, "\n" )
+##### EXP #####
+11
+2

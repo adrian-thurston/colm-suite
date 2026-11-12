@@ -3962,52 +3962,6 @@ again:
 			vm_push_value( val );
 			break;
 		}
-		case IN_GET_VLIST_MEM_WC: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_VLIST_MEM_WC\n" );
-
-			tree_t *obj = vm_pop_tree();
-			colm_tree_downref( prg, sp, obj );
-
-			tree_t *val = get_list_mem_split( prg, (list_t*)obj, field );
-			colm_tree_upref( prg, val );
-			vm_push_tree( val );
-			break;
-		}
-		case IN_GET_VLIST_MEM_WV: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_VLIST_MEM_WV\n" );
-
-			tree_t *obj = vm_pop_tree();
-			colm_tree_downref( prg, sp, obj );
-
-			tree_t *val = get_list_mem_split( prg, (list_t*)obj, field );
-			colm_tree_upref( prg, val );
-			vm_push_tree( val );
-
-			/* Set up the reverse instruction. */
-			rcode_code( exec, IN_GET_VLIST_MEM_BKT );
-			rcode_half( exec, field );
-			break;
-		}
-		case IN_GET_VLIST_MEM_BKT: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_VLIST_MEM_BKT\n" );
-
-			tree_t *obj = vm_pop_tree();
-			colm_tree_downref( prg, sp, obj );
-
-			tree_t *res = get_list_mem_split( prg, (list_t*)obj, field );
-			colm_tree_upref( prg, res );
-			vm_push_tree( res );
-			break;
-		}
 		case IN_GET_PARSER_STREAM: {
 			debug( prg, REALM_BYTECODE, "IN_GET_PARSER_STREAM\n" );
 			parser_t *parser = vm_pop_parser();
@@ -5484,13 +5438,6 @@ again:
 
 			head_t *head = (head_t*)oldval;
 			string_free( prg, head );
-			break;
-		}
-		case IN_GET_VLIST_MEM_BKT: {
-			debug_decl( short, field );
-			debug_read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_GET_VLIST_MEM_BKT %hd\n", field );
 			break;
 		}
 		case IN_FN: {

@@ -281,7 +281,6 @@ void list_push_tail( struct colm_program *prg, list_t *list, tree_t *val );
 void list_push_head( struct colm_program *prg, list_t *list, tree_t *val );
 tree_t *list_remove_end( struct colm_program *prg, list_t *list );
 tree_t *list_remove_head( struct colm_program *prg, list_t *list );
-tree_t *get_list_mem_split( struct colm_program *prg, list_t *list, word_t field );
 tree_t *get_parser_mem( parser_t *parser, word_t field );
 
 tree_t *tree_iter_advance( struct colm_program *prg, tree_t ***psp, tree_iter_t *iter, int with_ignore );

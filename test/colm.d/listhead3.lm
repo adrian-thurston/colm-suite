@@ -1,0 +1,24 @@
+# A write through a list's tail in a reduction action.
+
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def item
+	Val: int
+	[id]
+
+global L: list<item> = new list<item>()
+
+def start
+	[id]
+	{
+		L->tail.Val = 6
+	}
+
+parse P: item[ "abc" ]
+L->push( P )
+parse S: start[ "x" ]
+##### COMP_ERR #####
+17:11: left hand side qualification "tail" is const

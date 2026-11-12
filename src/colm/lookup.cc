@@ -117,9 +117,12 @@ VarRefLookup LangVarRef::lookupQualification( Compiler *pd, NameScope *rootScope
 			firstConstPart = qi.pos();
 
 		/* Check for references. When loop is done we will have the last one
-		 * present, if any. */
-		if ( qualUT->ptr() )
+		 * present, if any. A field at or before the last pointer is only
+		 * read, so a const one there doesn't make the write const. */
+		if ( qualUT->ptr() ) {
 			lastPtrInQual = qi.pos();
+			firstConstPart = -1;
+		}
 
 		if ( qi->form == QualItem::Dot ) {
 			/* Cannot dot a reference. Iterator yes (access of the iterator

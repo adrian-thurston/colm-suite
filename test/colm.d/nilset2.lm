@@ -1,0 +1,38 @@
+# Assigning nil to a struct or a list global in a production action that the
+# parser keeps. The reverse code held the old struct as a tree, and the
+# commit released it as one, aborting.
+
+struct point
+	X: int
+end
+
+global G: point = new point()
+global L: list<int> = new list<int>()
+
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+end
+
+def item
+	[id `;]
+	{
+		G = nil
+		L = nil
+	}
+
+def start
+	[item item] commit
+
+G->X = 7
+parse S: start[ "abc ; def ;" ]
+if ( !G )
+	print( "G: nil\n" )
+if ( !L )
+	print( "L: nil\n" )
+print( "after: ", S, "\n" )
+##### EXP #####
+G: nil
+L: nil
+after: abc ; def ;

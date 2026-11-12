@@ -1,0 +1,39 @@
+# Assigning nil to a struct or a list global in a production action that the
+# parser then backs up over. The undo puts back the struct and the list.
+
+struct point
+	X: int
+end
+
+global G: point = new point()
+global L: list<int> = new list<int>()
+
+lex
+	token id /[a-z]+/
+	literal `; `! `?
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+	{
+		print( "action\n" )
+		G = nil
+		L = nil
+	}
+
+def start
+	[item `; `!]
+|	[id `; `?]
+
+G->X = 7
+L->push_tail( 4 )
+parse S: start[ "abc ; ?" ]
+print( "G: ", G->X, "\n" )
+print( "L: ", L->head, "\n" )
+print( "after: ", S, "\n" )
+##### EXP #####
+action
+G: 7
+L: 4
+after: abc ; ?

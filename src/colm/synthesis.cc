@@ -766,7 +766,11 @@ void LangVarRef::setField( Compiler *pd, CodeVect &code,
 	/* Ensure that the field is referenced. */
 	inObject->referenceField( pd, el );
 
-	if ( exprUT->ptr() || exprUT->scalar() ) {
+	/* The field's type picks the store, not the value's: nil stored in a
+	 * struct, list or map field replaces a pointer, which isn't released as
+	 * a tree. */
+	UniqueType *destUT = el->typeRef->uniqueType;
+	if ( destUT->ptr() || destUT->scalar() ) {
 		if ( pd->revertOn && revert )
 			code.append( el->inSetValWV );
 		else

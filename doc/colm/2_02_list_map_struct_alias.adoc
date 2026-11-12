@@ -46,7 +46,8 @@ A field can't have a first value: that is a parse error.
 A struct variable is nil until it is given a struct, so make one with `new`
 before using its fields. Reading or setting a field of a nil struct stops the
 program, as xref:8_04_error_handling.adoc#run-time-errors[the error handling
-chapter] says. A field can hold a struct of the same type.
+chapter] says. Assigning `nil` to a struct, list or map variable makes it nil
+again. A field can hold a struct of the same type.
 
 Structs are shared, as xref:2_00_types.adoc#sharing[the types chapter] says,
 so a function can change a struct passed to it.

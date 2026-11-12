@@ -1,0 +1,61 @@
+# Assigning nil to a struct, list or map variable drops what it held: a
+# local, a global and a struct's field, in the main code and in a function.
+# The store released the old value as a tree, and colm_tree_downref()
+# aborted.
+
+struct point
+	X: int
+end
+
+struct holder
+	P: point
+end
+
+global G: point = new point()
+
+void f()
+{
+	P: point = new point()
+	P = nil
+	if ( !P )
+		print( "local in a function: nil\n" )
+}
+
+P: point = new point()
+P = nil
+if ( !P )
+	print( "local: nil\n" )
+
+G = nil
+if ( !G )
+	print( "global: nil\n" )
+
+H: holder = new holder()
+H->P = new point()
+H->P = nil
+if ( !H->P )
+	print( "field: nil\n" )
+
+L: list<int> = new list<int>()
+L = nil
+if ( !L )
+	print( "list: nil\n" )
+
+M: map<int, int> = new map<int, int>()
+M = nil
+if ( !M )
+	print( "map: nil\n" )
+
+f()
+
+P = new point()
+P->X = 3
+print( "again: ", P->X, "\n" )
+##### EXP #####
+local: nil
+global: nil
+field: nil
+list: nil
+map: nil
+local in a function: nil
+again: 3

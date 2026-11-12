@@ -294,6 +294,9 @@ EXTRA_DIST = \
 	nilmap1.lm \
 	nilmsg1.lm \
 	nilparser1.lm \
+	nilset1.lm \
+	nilset2.lm \
+	nilset3.lm \
 	nilstr1.lm \
 	nilstream1.lm \
 	nilstrmsg1.lm \

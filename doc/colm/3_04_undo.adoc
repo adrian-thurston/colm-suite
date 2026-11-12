@@ -269,7 +269,9 @@ object to a parse, a parser or a function, or puts it into another variable.
 Up to there, the program changes the object through the variable, as in
 `+Decls->Types = new map<str, str>()+`. A statement that gives the object to a
 new parser, as `+C->Inner = new parser<ctx::inner>( C )+` does, is the last of
-the setup: a new parser runs nothing until something is sent to it. Giving the
+the setup: a new parser runs nothing until something is sent to it. Code that
+runs later in that statement, a call of a function, a parse, or a send to or
+`finish` of a parser, could send to it, so the setup ends there. Giving the
 variable another new object starts the setup of that one.
 
 The setup doesn't reach into a loop, unless the object is made in the loop: a

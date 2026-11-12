@@ -34,13 +34,15 @@ A `Compiler::SetupWindow` is open while a variable's object is being set up.
   `LangVarRef::evaluate()` (`closeSetupWindow()`): given to a parse, a
   function or another variable, returned or tested.
 - **It ends with its statement** where the variable is a `new parser`'s
-  context (`newParserContext`): a new parser runs nothing yet.
+  context (`newParserContext`): a new parser runs nothing yet. Other code
+  that runs later in the statement could send to it, and ends the setup
+  there (`endReachableSetups()`).
 - **It ends** where the variable is assigned again, opening a new one if the
   value is `new`, and where its statement list ends.
 - **For a variable that isn't a local** (a global, or a context's variable
   by name), it also ends where other code runs, which could reach the
   variable, give the object to a parser and send to it
-  (`endGlobalSetups()`): a call of a user or host function, a parse, a send
+  (`endReachableSetups()`): a call of a user or host function, a parse, a send
   to a parser, a parser's `finish`, a user iterator's loop.
 
 ## Changes

@@ -1,0 +1,42 @@
+# A call later in the statement sends to the new parser the object went to.
+context ctx
+	M: map<str, str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	# A1 is tried first: the action runs, then the parser backs up to A2.
+	def item
+		[`*]
+		{
+			M->insert( "d", "4" )
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+global G: parser<ctx::start>
+
+# Sends to the new parser, and keeps it.
+str run( P: parser<ctx::start> )
+{
+	G = P
+	send G "* ;"
+	return "d"
+}
+
+C: ctx = new ctx()
+C->M = new map<str, str>()
+C->M->remove( run( new parser<ctx::start>( C ) ) )
+send G "\n"
+print( G->finish(), "\n" )
+##### COMP_ERR #####
+38:1: cannot change C, a context object, outside its setup

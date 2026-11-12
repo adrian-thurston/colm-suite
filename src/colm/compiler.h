@@ -950,7 +950,7 @@ struct Compiler
 
 	SetupWindow *findSetupWindow( ObjectField *var );
 	void closeSetupWindow( ObjectField *var, bool atStmtEnd );
-	void endGlobalSetups();
+	void endReachableSetups();
 
 	ObjectField *makeDataEl();
 	ObjectField *makeFileEl();

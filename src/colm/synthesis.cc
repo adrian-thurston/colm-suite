@@ -553,7 +553,8 @@ Compiler::SetupWindow *Compiler::findSetupWindow( ObjectField *var )
 
 /* Using the variable other than through -> ends the setup of its object, as
  * does giving the variable another value. A new parser runs nothing, so given
- * to one as its context, the object's setup ends with the statement. */
+ * to one as its context, the object's setup ends with the statement, or
+ * before, where other code runs. */
 void Compiler::closeSetupWindow( ObjectField *var, bool atStmtEnd )
 {
 	for ( int i = setupWindows.length() - 1; i >= 0; i-- ) {
@@ -567,11 +568,12 @@ void Compiler::closeSetupWindow( ObjectField *var, bool atStmtEnd )
 }
 
 /* Other code can reach a variable that isn't a local, give its object to a
- * parser and send to it, so running any ends the setup of such an object. */
-void Compiler::endGlobalSetups()
+ * parser and send to it, and it can send to a new parser the statement gave
+ * an object to. So running any ends the setup of such an object. */
+void Compiler::endReachableSetups()
 {
 	for ( int i = setupWindows.length() - 1; i >= 0; i-- ) {
-		if ( setupWindows[i].global )
+		if ( setupWindows[i].global || setupWindows[i].closing )
 			setupWindows.remove( i );
 	}
 }
@@ -1371,7 +1373,7 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	checkContextValue( pd, lookup, lookup.uniqueType, false );
 
 	if ( func != 0 || lookup.objMethod->type == ObjectMethod::ParseFinish )
-		pd->endGlobalSetups();
+		pd->endReachableSetups();
 
 	/* A ref argument's qualifiers, or the value a ref argument takes, stay
 	 * on the stack under the call, where an exit can't unwind them. */
@@ -1876,7 +1878,7 @@ static void checkSendItem( Compiler *pd, const ConsItem *item, UniqueType *ut,
 UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 		bool tree, bool stop ) const
 {
-	pd->endGlobalSetups();
+	pd->endReachableSetups();
 
 	if ( parserText->reduce && parserText->read ) {
 		return evaluateReadReduce( pd, code );
@@ -2230,7 +2232,7 @@ void LangTerm::checkSendChange( Compiler *pd, UniqueType *varUt ) const
 	varRef->checkContextChange( pd, lookup );
 
 	if ( varUt->parser() )
-		pd->endGlobalSetups();
+		pd->endReachableSetups();
 }
 
 UniqueType *LangTerm::evaluateSend( Compiler *pd, CodeVect &code ) const
@@ -3032,7 +3034,7 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 
 	/* A user iterator is other code. */
 	if ( func != 0 )
-		pd->endGlobalSetups();
+		pd->endReachableSetups();
 
 	/* Evaluate and push the arguments. */
 	pd->ctxValueInPlace = inPlace;

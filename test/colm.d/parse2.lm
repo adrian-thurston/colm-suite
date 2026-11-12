@@ -1,0 +1,5 @@
+# A parser of an int. GenericType::declare() read its null lang el, and colm
+# segfaulted.
+P: parser<int>
+##### COMP_ERR #####
+3:4: can only parse a tree type

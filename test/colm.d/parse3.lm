@@ -1,0 +1,4 @@
+# A parse of a list.
+parse P: list<int>[ "1" ]
+##### COMP_ERR #####
+2:1: can only parse a tree type

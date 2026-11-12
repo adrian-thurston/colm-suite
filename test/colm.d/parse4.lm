@@ -1,0 +1,8 @@
+# A parser of a struct.
+struct s
+	X: int
+end
+
+Q: parser<s>
+##### COMP_ERR #####
+6:4: can only parse a tree type

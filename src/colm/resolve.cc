@@ -321,6 +321,10 @@ UniqueType *TypeRef::resolveTypeParser( Compiler *pd )
 
 	UniqueType *utParse = typeRef1->resolveType( pd );	
 
+	/* A parser builds a tree, of a def or a token. */
+	if ( !utParse->tree() )
+		error( loc ) << "can only parse a tree type" << endp;
+
 	UniqueGeneric *inMap = 0, searchKey( UniqueGeneric::Parser, utParse );
 	if ( uniqueGeneric( inMap, pd, searchKey ) ) {
 		GenericType *generic = new GenericType( GEN_PARSER,

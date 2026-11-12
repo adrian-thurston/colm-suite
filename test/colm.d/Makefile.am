@@ -325,6 +325,9 @@ EXTRA_DIST = \
 	outfile2.lm \
 	outfile3.lm \
 	parse1.lm \
+	parse2.lm \
+	parse3.lm \
+	parse4.lm \
 	parsermem1.lm \
 	parsermem2.lm \
 	parsermem3.lm \

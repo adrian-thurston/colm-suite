@@ -2150,8 +2150,15 @@ context lookup
 		[type_id_list `, type_id]
 	|	[type_id]
 
+	# The parse ends here. What the context holds is printed from inside
+	# the parse: outside it, a context object's structs can't be taken out
+	# of it.
 	def start
 		[declaration*]
+		{
+			print( '***** NAMSPACES *****\n' )
+			printObject( '', rootNamespace )
+		}
 
 	#
 	# Grammar done.
@@ -2211,8 +2218,13 @@ Lookup->declaratorData = new lookup::list_declarator_data()
 # Template declarations
 Lookup->templDecl = new lookup::list_int()
 
-# Root namespace object
-Lookup->rootNamespace = lookup::createLangObject( Lookup->NamespaceType, '<root_namespace>', nil )
+# Root namespace object. What goes into the context as it is set up is new,
+# so the object is made here, as createLangObject makes one.
+Lookup->rootNamespace = new lookup::lang_object()
+Lookup->rootNamespace->typeId = Lookup->NamespaceType
+Lookup->rootNamespace->name = '<root_namespace>'
+Lookup->rootNamespace->objectMap = new lookup::map_list_lang_object()
+Lookup->rootNamespace->inherited = new lookup::list_lang_object()
 
 # Initialize the namespace and declaration stacks with the root namespace
 Lookup->curNamespace->push_tail( Lookup->rootNamespace )
@@ -2224,11 +2236,8 @@ Lookup->qualNs->push_tail( nil )
 
 Lookup->templDecl->push_tail( 0 )
 
-DD: lookup::declaration_data = new lookup::declaration_data()
-DD->isTypedef = 0
-DD->isFriend = 0
-DD->isTemplate = 0
-Lookup->declarationData->push_tail( DD )
+# Its isTypedef, isFriend and isTemplate start at 0.
+Lookup->declarationData->push_tail( new lookup::declaration_data() )
 
 parse S: lookup::start( Lookup )[ stdin ]
 if ! S {
@@ -2236,8 +2245,6 @@ if ! S {
 	exit( 1 )
 }
 
-print( '***** NAMSPACES *****\n' )
-lookup::printObject( '', Lookup->rootNamespace )
 print( '***** UNKNOWN DECLARATORS *****\n' )
 for DI: lookup::declarator_id in S {
 	if match DI 

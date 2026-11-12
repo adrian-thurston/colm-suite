@@ -200,9 +200,12 @@ end # generate
 
 Generate: generate = new generate()
 
+# What goes into the context as it is set up is new, so the sentinal is made
+# here, as new_open_item makes one.
 Generate->OpenStack = new list<generate::open_item>()
-Sentinal: generate::open_item = generate::new_open_item( '** SENTINAL **', 1 )
-Generate->OpenStack->push( Sentinal )
+Generate->OpenStack->push( new generate::open_item() )
+Generate->OpenStack->head->type = '** SENTINAL **'
+Generate->OpenStack->head->num = 1
 
 parse S: generate::start(Generate)[stdin]
 

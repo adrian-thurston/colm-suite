@@ -58,16 +58,18 @@ context ctx
 			send Inner [$r1]
 		}
 
+	# The parse ends here: finish the inner parser.
 	def two
 		[a1 item* `! NL]
+		{ send Inner ['\n'] eos }
 	|	[a2 item* `; NL]
+		{ send Inner ['\n'] eos }
 end
 
 C: ctx = new ctx()
 C->Inner = new parser<ctx::one>( C )
 
 parse Two: ctx::two( C )[ stdin ]
-send C->Inner ['\n'] eos
 
 print( Two )
 One: ctx::one = C->Inner->tree

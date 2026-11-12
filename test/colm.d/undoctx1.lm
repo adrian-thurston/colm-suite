@@ -1,11 +1,11 @@
 #
 # What backtracking undoes. The token action of id counts the tokens it
 # scans. The action of item writes a context int (through a function), a str,
-# a list, a map, a struct field, a global and a tree, sends to a parser and to
-# a stream, and prints. Input ending in ";" is parsed as A1 first, reducing
-# every item, then backs up to A2, which reduces them again: each write that
-# is undone shows once, and the stream and the output twice. Input with no
-# ending fails, and every write that is undone is gone.
+# a list, a map, a struct field, a global and a tree, sends to a global parser
+# and to a stream, and prints. Input ending in ";" is parsed as A1 first,
+# reducing every item, then backs up to A2, which reduces them again: each
+# write that is undone shows once, and the stream and the output twice. Input
+# with no ending fails, and every write that is undone is gone.
 #
 
 global G: int = 0
@@ -21,6 +21,10 @@ end
 
 def words
 	[wid*]
+
+# The program finishes it after the parse: it can't finish a parser that the
+# context holds.
+global P: parser<words> = new parser<words>()
 
 context ctx
 	lex
@@ -39,7 +43,6 @@ context ctx
 	L: list<str>
 	M: map<str, int>
 	R: rec
-	P: parser<words>
 	T: id
 	Out: stream
 
@@ -76,7 +79,6 @@ C->S = ""
 C->L = new list<str>()
 C->M = new map<str, int>()
 C->R = new rec()
-C->P = new parser<words>()
 C->Out = new stream()
 
 parse Start: ctx::start( C )[ stdin ]
@@ -91,7 +93,7 @@ for E: str in C->L
 print( "\nM" )
 for K: str in map_keys( C->M )
 	print( " ", K, "=", C->M->find( K ) )
-print( "\nP", C->P->finish(), "\n" )
+print( "\nP", P->finish(), "\n" )
 print( "Out", C->Out->tree, "\n" )
 ##### IN #####
 a b c ;

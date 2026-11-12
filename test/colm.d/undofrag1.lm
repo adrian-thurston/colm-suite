@@ -39,9 +39,12 @@ context ctx
 		send SP "{ B{d} }"
 	}
 
+	# The parse ends here: send the rest and finish the parser.
 	def start1 
 		[A item* `!]
+		{ send SP "{e}f g" eos }
 	|	[B item* semi_nl]
+		{ send SP "{e}f g" eos }
 
 end # ctx
 
@@ -52,10 +55,8 @@ send CTX->SP "a b{c}"
 
 parse Input: ctx::start1( CTX )[stdin]
 
-send CTX->SP "{e}f g"
-
 print( Input )
-print( CTX->SP->finish(), '\n' )
+print( CTX->SP->tree, '\n' )
 
 ##### IN #####
 a b c ( d ) e f g ;

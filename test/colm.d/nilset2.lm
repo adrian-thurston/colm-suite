@@ -1,13 +1,14 @@
 # Assigning nil to a struct or a list global in a production action that the
 # parser keeps. The reverse code held the old struct as a tree, and the
-# commit released it as one, aborting.
+# commit released it as one, aborting. The parser is made before the struct,
+# so the struct is still allocated when the reverse code is released.
 
 struct point
 	X: int
 end
 
-global G: point = new point()
-global L: list<int> = new list<int>()
+global G: point
+global L: list<int>
 
 lex
 	token id /[a-z]+/
@@ -25,8 +26,12 @@ def item
 def start
 	[item item] commit
 
+P: parser<start> = new parser<start>()
+G = new point()
+L = new list<int>()
 G->X = 7
-parse S: start[ "abc ; def ;" ]
+send P [ "abc ; def ;" ]
+S: start = P->finish()
 if ( !G )
 	print( "G: nil\n" )
 if ( !L )

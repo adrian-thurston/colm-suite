@@ -948,16 +948,6 @@ struct Compiler
 	bool newParserContext;
 	bool ctxValueInPlace;
 
-	/* While compiling a tree that a cons or a parse makes to go into the
-	 * object being set up through it, that variable. */
-	ObjectField *setupTreeVar;
-
-	/* The tree types that an attribute of theirs, or of a tree below them,
-	 * can hold a list, map, parser, stream or struct in. */
-	LangElSet refTrees;
-	bool refTreesFound;
-	bool treeHoldsRef( LangEl *lel );
-
 	SetupWindow *findSetupWindow( ObjectField *var );
 	void closeSetupWindow( ObjectField *var, bool atStmtEnd );
 	void endReachableSetups();

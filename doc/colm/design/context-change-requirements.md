@@ -47,11 +47,7 @@ was given can back up, and what colm checks. The
    it can't take one out, where it could be changed through another
    reference. What goes into the object as it is set up is new, `nil`, or
    something the object holds already, so nothing outside holds it. Trees
-   are values, copied on write, and are free to come and go, unless an
-   attribute of the tree, or of a tree below it, can hold a list, map,
-   parser, stream or struct: a copy of the tree shares what the attribute
-   holds. Such a tree is read in place, and goes in only as a `cons` or a
-   `parse` makes it.
+   are values, copied on write, and are free to come and go.
 7. Each refusal is a compile error at the reference it is about, saying what
    can't be done.
 

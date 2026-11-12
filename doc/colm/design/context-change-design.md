@@ -72,12 +72,7 @@ The error is at the context step:
 `LangVarRef::checkContextValue()` refuses a value reached through a context
 reference whose type is a list, a map, a parser, a stream, an input or a
 struct that isn't a context (`ctxHeldRef()`), whether it is a name's value
-(`evaluate()`) or a builtin call's result (`evaluateCall()`). A tree type
-counts too when an attribute of it, or of a tree that can be below it, can
-hold one, since a copy of the tree shares what the attribute holds.
-`Compiler::treeHoldsRef()` finds those types once, in `refTrees`, adding
-each def or token whose attributes or production children reach one until
-no more do; `any` counts once any type does. The error is
+(`evaluate()`) or a builtin call's result (`evaluateCall()`):
 `cannot take L out of C, a context object`, or
 `cannot take what find gives out of C, a context object`.
 
@@ -103,12 +98,6 @@ in `evaluateCall()`, checked in `evaluateArgs()`). A list, map, parser,
 stream, input or non-context struct must be a `new` term, `nil`, or a name
 read through the same variable:
 `only a new object, nil or what C holds can go into C as it is set up`.
-
-A tree that `treeHoldsRef()` counts can also be a tree that a `cons`, a
-`parse`, `make_token` or `make_tree` makes. While that term is compiled,
-`setupTreeVar` names the variable, and `checkContextValue()` refuses, with
-the same error, any such tree in it that isn't read through the variable,
-so the new tree is made of nothing that is held elsewhere.
 
 ## Choices
 
@@ -136,16 +125,14 @@ so the new tree is made of nothing that is held elsewhere.
 ## Tests
 
 In `test/colm.d`. `ctxset1` runs what a setup may do, and reads the object
-in place after its parse, and `ctxset2` does the same for a tree whose
-attribute holds a list. `ctxchg1`–`ctxchg18` (changes),
-`ctxtake1`–`ctxtake11` (references out, and what goes in) and `undoctx4`
-are compile errors, one each, and say in their first lines what they show.
+in place after its parse. `ctxchg1`–`ctxchg18` (changes),
+`ctxtake1`–`ctxtake8` (references out, and what goes in) and `undoctx4` are
+compile errors, one each, and say in their first lines what they show.
 `ctxchg1` and `ctxchg2` are [#706]'s programs, and `ctxchg4` is [#368]'s
 form. The review of #717 added `ctxchg15`–`ctxchg18`: a call later in a new
 parser's statement, a function the object goes through into one, a while
-loop's condition, and a yield; and `ctxtake9`–`ctxtake11`: a tree whose
-attribute holds a list, put in and kept, taken out, and made by a cons from
-one the program keeps. Most include `ctxrule.lmi`, a context to change.
+loop's condition, and a yield. Most include `ctxrule.lmi`, a context to
+change.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#550]: https://github.com/adrian-thurston/colm-suite/issues/550

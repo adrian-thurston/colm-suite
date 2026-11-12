@@ -579,22 +579,87 @@ void Compiler::endReachableSetups()
 	}
 }
 
+/* A tree type that refTrees has, as far as it is found. Any can be any tree. */
+static bool refTreeSoFar( Compiler *pd, LangEl *lel )
+{
+	if ( lel == pd->anyLangEl )
+		return pd->refTrees.length() > 0;
+	return pd->refTrees.find( lel ) != 0;
+}
+
+/* A tree type with an attribute, or a child, that can hold a list, map,
+ * parser, stream or struct, given the tree types found so far to. */
+static bool treeReachesRef( Compiler *pd, LangEl *lel )
+{
+	if ( lel == pd->anyLangEl )
+		return pd->refTrees.length() > 0;
+
+	if ( lel->objectDef != 0 ) {
+		for ( FieldList::Iter f = lel->objectDef->fieldList; f.lte(); f++ ) {
+			UniqueType *ut = f->value->typeRef != 0 ?
+					f->value->typeRef->uniqueType : 0;
+			if ( ut == 0 )
+				continue;
+			if ( ut->typeId == TYPE_GENERIC || ( ut->typeId == TYPE_STRUCT &&
+					!ut->structEl->structDef->isContext ) )
+				return true;
+			if ( ( ut->typeId == TYPE_TREE || ut->typeId == TYPE_REF ) &&
+					ut->langEl != 0 && refTreeSoFar( pd, ut->langEl ) )
+				return true;
+		}
+	}
+
+	for ( LelProdList::Iter prod = lel->prodList; prod.lte(); prod++ ) {
+		for ( ProdElList::Iter pe = *prod->prodElList; pe.lte(); pe++ ) {
+			if ( pe->langEl != 0 && refTreeSoFar( pd, pe->langEl ) )
+				return true;
+		}
+	}
+	return false;
+}
+
+/* A copy of a tree shares what its attributes hold. The tree types that can
+ * hold, below them, what code holding it could change, are found once, by
+ * adding the types that reach one until no more do. */
+bool Compiler::treeHoldsRef( LangEl *lel )
+{
+	if ( !refTreesFound ) {
+		refTreesFound = true;
+		bool grew = true;
+		while ( grew ) {
+			grew = false;
+			for ( LelList::Iter el = langEls; el.lte(); el++ ) {
+				if ( refTrees.find( el ) == 0 && treeReachesRef( this, el ) ) {
+					refTrees.insert( el );
+					grew = true;
+				}
+			}
+		}
+	}
+	return refTreeSoFar( this, lel );
+}
+
 /* A list, map, parser, stream or struct other than a context: a value that
- * code holding it could change, and that a context object can hold. */
-static bool ctxHeldRef( UniqueType *ut )
+ * code holding it could change, and that a context object can hold. A tree
+ * whose attributes, or a tree's below it, can hold one counts too: a copy of
+ * the tree shares it. */
+static bool ctxHeldRef( Compiler *pd, UniqueType *ut )
 {
 	if ( ut->typeId == TYPE_GENERIC )
 		return true;
 	if ( ut->typeId == TYPE_STRUCT && !ut->structEl->structDef->isContext )
+		return true;
+	if ( ( ut->typeId == TYPE_TREE || ut->typeId == TYPE_REF ) &&
+			ut->langEl != 0 && pd->treeHoldsRef( ut->langEl ) )
 		return true;
 	return false;
 }
 
 /* A for loop reads what it goes over in place if it is named, and the loop's
  * values aren't what could be changed. */
-static bool forInPlace( UniqueType *searchUT, CallArgVect *args )
+static bool forInPlace( Compiler *pd, UniqueType *searchUT, CallArgVect *args )
 {
-	return !ctxHeldRef( searchUT ) && args != 0 && args->length() == 1 &&
+	return !ctxHeldRef( pd, searchUT ) && args != 0 && args->length() == 1 &&
 			args->data[0]->expr->type == LangExpr::TermType &&
 			args->data[0]->expr->term->type == LangTerm::VarRefType;
 }
@@ -627,7 +692,17 @@ void LangVarRef::checkContextChange( Compiler *pd, const VarRefLookup &lookup ) 
 void LangVarRef::checkContextValue( Compiler *pd, const VarRefLookup &lookup,
 		UniqueType *ut, bool inPlace ) const
 {
-	if ( lookup.firstCtxPart < 0 || !ctxHeldRef( ut ) || inPlace )
+	/* A tree made to go into an object being set up holds nothing else
+	 * that could be changed, other than what the object holds. */
+	if ( pd->setupTreeVar != 0 && !inPlace && ctxHeldRef( pd, ut ) ) {
+		if ( setupVar( pd, lookup ) == pd->setupTreeVar )
+			return;
+		error(loc) << "only a new object, nil or what " << pd->setupTreeVar->name <<
+				" holds can go into " << pd->setupTreeVar->name <<
+				" as it is set up" << endp;
+	}
+
+	if ( lookup.firstCtxPart < 0 || !ctxHeldRef( pd, ut ) || inPlace )
 		return;
 
 	std::ostream &out = error(loc) << "cannot take ";
@@ -662,6 +737,15 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 	LangTerm *term = expr->type == LangExpr::TermType ? expr->term : 0;
 	bool fresh = term != 0 && ( term->type == LangTerm::NewType ||
 			term->type == LangTerm::NilType );
+
+	/* A tree that a cons or a parse makes is new too, if what it is made of
+	 * is. */
+	bool made = term != 0 && ( term->type == LangTerm::ConstructType ||
+			term->type == LangTerm::ParseType ||
+			term->type == LangTerm::ParseTreeType ||
+			term->type == LangTerm::ParseStopType ||
+			term->type == LangTerm::MakeTreeType ||
+			term->type == LangTerm::MakeTokenType );
 	bool through = false;
 	if ( term != 0 && term->type == LangTerm::VarRefType &&
 			term->varRef->qual->length() > 0 )
@@ -670,11 +754,14 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 		through = term->varRef->setupVar( pd, lookup ) == var;
 	}
 
+	ObjectField *treeVar = pd->setupTreeVar;
+	pd->setupTreeVar = made ? var : treeVar;
 	pd->ctxValueInPlace = through;
 	UniqueType *ut = expr->evaluate( pd, code );
 	pd->ctxValueInPlace = false;
+	pd->setupTreeVar = treeVar;
 
-	if ( ctxHeldRef( ut ) && !fresh && !through ) {
+	if ( ctxHeldRef( pd, ut ) && !fresh && !made && !through ) {
 		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
 		error(loc) << "only a new object, nil or what " << var->name <<
 				" holds can go into " << var->name << " as it is set up" << endp;
@@ -1091,7 +1178,7 @@ IterImpl *LangVarRef::chooseTriterCall( Compiler *pd,
 		 * that a context object holds reads it in place. */
 		CodeVect unused;
 		CallArgVect::Iter pe = *args;
-		pd->ctxValueInPlace = forInPlace( searchUT, args );
+		pd->ctxValueInPlace = forInPlace( pd, searchUT, args );
 		UniqueType *exprUT = (*pe)->expr->evaluate( pd, unused );
 		pd->ctxValueInPlace = false;
 
@@ -3031,7 +3118,7 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	/* A loop over the values of a list or a map that a context object holds
 	 * reads it in place. */
 	bool inPlace = iterImpl->useGenericId &&
-			forInPlace( searchUT, iterCall->langTerm->args );
+			forInPlace( pd, searchUT, iterCall->langTerm->args );
 
 	/* A user iterator is other code. */
 	if ( func != 0 )

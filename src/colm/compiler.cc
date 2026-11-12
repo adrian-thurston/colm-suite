@@ -326,6 +326,8 @@ Compiler::Compiler( )
 	setupStoreVar(0),
 	newParserContext(false),
 	ctxValueInPlace(false),
+	setupTreeVar(0),
+	refTreesFound(false),
 	nextObjectId(1),     /* 0 is  reserved for no object. */
 	nextFrameId(0),
 	nextParserId(0),

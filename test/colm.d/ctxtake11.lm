@@ -1,0 +1,9 @@
+# At setup, a cons makes a tree from one with a list that the program keeps.
+include 'ctxrule.lmi'
+
+parse X: holder[ "h" ]
+X.L = new list<str>()
+C: ctx = new ctx()
+C->B = cons box [ X ]
+##### COMP_ERR #####
+7:19: only a new object, nil or what C holds can go into C as it is set up

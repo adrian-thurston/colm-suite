@@ -4,6 +4,18 @@ struct rec
 	N: int
 end
 
+# A tree whose attribute holds a list: a copy of it shares the list.
+lex
+	literal `h
+end
+
+def holder
+	L: list<str>
+	[`h]
+
+def box
+	[holder]
+
 context ctx
 	N: int
 	L: list<str>
@@ -12,6 +24,8 @@ context ctx
 	M: map<str, rec>
 	Recs: list<rec>
 	Inner: accum<inner>
+	H: holder
+	B: box
 
 	lex
 		token w /[a-z]+/

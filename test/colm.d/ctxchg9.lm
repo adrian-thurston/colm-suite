@@ -1,0 +1,8 @@
+# Giving the object to a new parser ends the setup with the statement.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+C->N = 1
+##### COMP_ERR #####
+6:1: cannot change C, a context object, outside its setup

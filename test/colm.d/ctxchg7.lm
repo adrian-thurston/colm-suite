@@ -1,0 +1,12 @@
+# The setup doesn't reach into a loop's body.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+I: int = 0
+while ( I < 2 ) {
+	C->N = I
+	parse S: ctx::start( C )[ "a" ]
+	I = I + 1
+}
+##### COMP_ERR #####
+7:2: cannot change C, a context object, outside its setup

@@ -32,7 +32,8 @@ and the program reaches its variables through the object, as in
 
 The variables start at 0, false or nil, as a struct's fields do. They can't
 have a first value: that is a parse error. Make the lists and maps that a
-parse uses before the parse.
+parse uses before the parse, as the object is set up:
+xref:3_04_undo.adoc#context-setup[setting up a context object] says how.
 
 Inside the block, code uses the context's variables, defs and tokens by
 name. Outside it, the context's names are qualified as a namespace's are, as
@@ -235,14 +236,11 @@ parsing chapter] covers `commit`.
 
 Undoing a write puts back the value that the variable had before the write.
 It doesn't reverse the change: undoing `I = I + 1`, run when `I` was 1, sets
-`I` to 1, whatever `I` holds by then. So a change that the program makes from
-outside the parse can be lost. A program can change a context's variable
-between two sends to a parser, for example. If the parser later backs up over
-an action that ran before the change, the variable gets back the value it had
-before that action, and the change is lost. While a parse runs, change its
-data only from its actions.
+`I` to 1, whatever `I` holds by then. So a change made from outside the parse,
+after an action and before the parser backs up over it, would be lost: the
+variable would get back the value it had before the action.
 
-For lists and maps this matters more. Backing up over an action that changed a
+For lists and maps it would be worse. Backing up over an action that changed a
 list or a map assumes the list or map is as the parse's actions left it:
 undoing a push takes the value at that end off, undoing a pop or a `remove`
 puts back what it took out, and undoing an `insert` or a `set` takes out the
@@ -250,9 +248,74 @@ key it added, or puts back the value it replaced, without looking at what the
 list or map holds by then. So that it can, the parser keeps what an action's
 pop or `remove` took out until the parser goes, at exit: a list or a map that
 an action changes in a loop grows. A change to such a list or map from outside
-the parse while the parser can still back up over the action, as the main
-program can make between two sends, isn't only lost: when the parser backs up,
-it can corrupt the list or map, or crash the program.
+the parse while the parser can still back up over the action isn't only lost:
+when the parser backs up, it can corrupt the list or map, or crash the
+program.
+
+So colm doesn't compile a change to a context object from outside its parse,
+except while the program sets the object up, as the next section describes.
+A global has no such guard: while a parse runs, change a global that its
+actions change only from its actions.
+
+[[context-setup]]
+== Setting up a context object
+
+Outside its parse's actions, the program changes a context object only while
+it sets the object up. The setup starts after the statement that puts a new
+object of the context into a variable, as `+Decls: decls = new decls()+` does,
+and goes on through the statements after it in the same block, up to the
+first that uses the variable other than through `+->+`: one that gives the
+object to a parse, a parser or a function, or puts it into another variable.
+Up to there, the program changes the object through the variable, as in
+`+Decls->Types = new map<str, str>()+`. A statement that gives the object to a
+new parser, as `+C->Inner = new parser<ctx::inner>( C )+` does, is the last of
+the setup: a new parser runs nothing until something is sent to it. Giving the
+variable another new object starts the setup of that one.
+
+The setup doesn't reach into a loop, unless the object is made in the loop: a
+loop's body runs again after the statements that follow it in the body. Nor
+does it reach into a function. The setup of an object in a global also ends at
+the first statement that calls a function, parses, sends to a parser or
+finishes one: that code can reach the global.
+
+Anywhere else, colm doesn't compile a change to a context object through a
+reference to it: between two sends to its parser, after its parse, in a
+function, or in the actions of another parse. A change is an assignment to one
+of its variables or to a field of a struct it holds, a write into a tree it
+holds, a call that changes a list or a map it holds, such as `push_tail`, and
+a send to a parser or a stream it holds, or a parser's `finish`. Colm stops
+with the error `cannot change C, a context object, outside its setup`. The
+parse's own actions change the object through the context's variables, by
+name, and in a token action through `this`, as before.
+
+Colm can't tell when the parse the object was given to has ended, so this
+holds after the parse too. For another parse, the program makes a new object.
+A parser that the context holds is finished by an action of the parse, such as
+the action of the last reduction, rather than by the program after it.
+
+What goes into a context object as it is set up is new: an object made with
+`new`, `nil`, or something the object holds already, as in
+`+Lookup->curNamespace->push_tail( Lookup->rootNamespace )+`. Anything else
+could be changed through another reference while a parser can back up. Colm
+stops with the error
+`only a new object, nil or what C holds can go into C as it is set up`.
+An `int`, a `str` or a tree can come from anywhere: a tree is copied when it
+is written.
+
+Outside its parse's actions, the program reads a context object's variables,
+and the lists, maps, structs and parsers they hold in place, through `+->+`,
+as `+C->L->length+`, `+C->M->find( K )+` and `+C->P->tree+` do, or with a
+`for` loop over values that aren't lists, maps, structs or parsers. It can't
+take such a list, map, struct or parser out, where it could be changed: put it
+into a variable, pass it to a function, return it, or test it, or take one out
+of what a call gives, such as the struct `find` gives from a map of structs.
+Colm stops with the error `cannot take L out of C, a context object`.
+
+Colm can't tell whether two parsers are given the same object. Give each parser
+its own, except for a parse that a parser's actions start, and a parser that
+they send to. Two parsers that the program sends to, given one object, change
+it under each other, and a list or a map can be corrupted, or the program can
+crash.
 
 == Rejecting a reduction with data
 

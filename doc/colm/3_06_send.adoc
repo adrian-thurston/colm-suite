@@ -49,7 +49,9 @@ A parser can also be given a context, for a grammar defined inside a
 xref:3_04_undo.adoc#context[The context chapter] covers contexts. The
 context is all `new` takes. A parser gets its input from what is sent to
 it, so colm doesn't compile `+new parser<T>( input )+`, or a `new parser`
-of a type outside a context given any argument.
+of a type outside a context given any argument. Between two sends, and after
+them, the program reads the context object but can't change it, as
+xref:3_04_undo.adoc#context-setup[setting up a context object] explains.
 
 == Sending input piece by piece
 

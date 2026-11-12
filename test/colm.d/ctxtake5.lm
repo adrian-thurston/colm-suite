@@ -1,0 +1,9 @@
+# A struct the object holds, tested.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+parse S: ctx::start( C )[ "a" ]
+if ( C->R )
+	print( "set\n" )
+##### COMP_ERR #####
+6:9: cannot take R out of C, a context object

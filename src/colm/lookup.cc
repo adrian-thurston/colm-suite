@@ -93,6 +93,8 @@ VarRefLookup LangVarRef::lookupQualification( Compiler *pd, NameScope *rootScope
 	int lastPtrInQual = -1;
 	NameScope *searchScope = rootScope;
 	int firstConstPart = -1;
+	int firstCtxPart = -1, secondCtxPart = -1;
+	ObjectField *rootField = 0;
 
 	for ( QualItemVect::Iter qi = *qual; qi.lte(); qi++ ) {
 		/* Lookup the field in the current qualification. A name right after
@@ -121,6 +123,20 @@ VarRefLookup LangVarRef::lookupQualification( Compiler *pd, NameScope *rootScope
 		if ( qualUT->ptr() )
 			lastPtrInQual = qi.pos();
 
+		if ( qi.pos() == 0 )
+			rootField = el;
+
+		/* Going through an object of a context, but not this, the parse's
+		 * own context. */
+		if ( qi->form == QualItem::Arrow && qualUT->typeId == TYPE_STRUCT &&
+				qualUT->structEl->structDef->isContext && !el->isInbuiltObject() )
+		{
+			if ( firstCtxPart < 0 )
+				firstCtxPart = qi.pos();
+			else if ( secondCtxPart < 0 )
+				secondCtxPart = qi.pos();
+		}
+
 		if ( qi->form == QualItem::Dot ) {
 			/* Cannot dot a reference. Iterator yes (access of the iterator
 			 * not the current) */
@@ -138,7 +154,11 @@ VarRefLookup LangVarRef::lookupQualification( Compiler *pd, NameScope *rootScope
 		searchScope = searchObjDef->rootScope;
 	}
 
-	return VarRefLookup( lastPtrInQual, firstConstPart, searchScope->owningObj, searchScope );
+	VarRefLookup lookup( lastPtrInQual, firstConstPart, searchScope->owningObj, searchScope );
+	lookup.firstCtxPart = firstCtxPart;
+	lookup.secondCtxPart = secondCtxPart;
+	lookup.rootField = rootField;
+	return lookup;
 }
 
 bool LangVarRef::isLocalRef() const
@@ -272,6 +292,8 @@ VarRefLookup LangVarRef::lookupField( Compiler *pd ) const
 
 	lookup.objField = field;
 	lookup.uniqueType = field->typeRef->uniqueType;
+	if ( qual->length() == 0 )
+		lookup.rootField = field;
 
 	if ( field->typeRef->searchUniqueType != 0 )
 		lookup.iterSearchUT = field->typeRef->searchUniqueType;

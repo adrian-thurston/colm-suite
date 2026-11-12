@@ -1,0 +1,10 @@
+# A for loop over structs the object holds.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+C->Recs = new list<rec>()
+parse S: ctx::start( C )[ "a" ]
+for R: rec in C->Recs
+	print( R->N, "\n" )
+##### COMP_ERR #####
+7:18: cannot take Recs out of C, a context object

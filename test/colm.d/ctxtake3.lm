@@ -1,0 +1,9 @@
+# The struct find gives from a map the object holds.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+C->M = new map<str, rec>()
+parse S: ctx::start( C )[ "a" ]
+R: rec = C->M->find( "a" )
+##### COMP_ERR #####
+7:16: cannot take what find gives out of C, a context object

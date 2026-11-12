@@ -67,6 +67,20 @@ EXTRA_DIST = \
 	counting2.lm \
 	counting3.lm \
 	counting4.lm \
+	ctxchg1.lm \
+	ctxchg2.lm \
+	ctxchg3.lm \
+	ctxchg4.lm \
+	ctxchg5.lm \
+	ctxchg6.lm \
+	ctxchg7.lm \
+	ctxchg8.lm \
+	ctxchg9.lm \
+	ctxchg10.lm \
+	ctxchg11.lm \
+	ctxchg12.lm \
+	ctxchg13.lm \
+	ctxchg14.lm \
 	ctxgram1.lm \
 	ctxgram2.lm \
 	ctxgram3.lm \
@@ -74,6 +88,15 @@ EXTRA_DIST = \
 	ctxgram5.lm \
 	ctxgram6.lm \
 	ctxgram7.lm \
+	ctxset1.lm \
+	ctxtake1.lm \
+	ctxtake2.lm \
+	ctxtake3.lm \
+	ctxtake4.lm \
+	ctxtake5.lm \
+	ctxtake6.lm \
+	ctxtake7.lm \
+	ctxtake8.lm \
 	ctxthis1.lm \
 	ctxthis2.lm \
 	ctxthis3.lm \
@@ -505,6 +528,7 @@ EXTRA_DIST = \
 	travs2.in \
 	undosplit2.in \
 	include1a.lmi \
+	ctxrule.lmi \
 	redef1.lm \
 	redef2.lm \
 	redef3.lm \

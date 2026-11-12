@@ -1,0 +1,9 @@
+# Finishing a parser the object holds, after the parse.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+C->Inner = new parser<ctx::inner>( C )
+parse S: ctx::start( C )[ "a" ]
+print( C->Inner->finish(), "\n" )
+##### COMP_ERR #####
+7:8: cannot change C, a context object, outside its setup

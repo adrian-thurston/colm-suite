@@ -1931,7 +1931,9 @@ struct LoadColm
 	void walkFieldInit( FieldInitVect *list, field_init fieldInit )
 	{
 		LangExpr *expr = walkCodeExpr( fieldInit.code_expr() );
-		FieldInit *init = FieldInit::cons( expr->loc, "_name", expr );
+		/* The argument's own location: a literal or a variable expression
+		 * doesn't set one. */
+		FieldInit *init = FieldInit::cons( fieldInit.loc(), "_name", expr );
 		list->append( init );
 	}
 

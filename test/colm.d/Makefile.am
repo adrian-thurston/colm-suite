@@ -60,6 +60,7 @@ EXTRA_DIST = \
 	construct4.lm \
 	construct5.lm \
 	construct6.lm \
+	construct7.lm \
 	constructex.lm \
 	context1.lm \
 	context2.lm \

@@ -1,0 +1,14 @@
+# A constructor argument of the wrong type. The error had no location.
+lex
+	token id /[a-z]+/
+	token number /[0-9]+/
+	ignore /space+/
+end
+
+def pair
+	S: str
+	[id number]
+
+P: pair = cons pair( 3 ) [ "x 3" ]
+##### COMP_ERR #####
+12:22: type mismatch in initialization

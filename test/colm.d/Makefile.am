@@ -354,6 +354,7 @@ EXTRA_DIST = \
 	prefixop3.lm \
 	prefixop4.lm \
 	prefixop5.lm \
+	prefixop6.lm \
 	print1.lm \
 	prints.lm \
 	pull1.lm \
@@ -414,6 +415,7 @@ EXTRA_DIST = \
 	ref7.lm \
 	ref8.lm \
 	ref9.lm \
+	ref10.lm \
 	refcond1.lm \
 	regignbt1.lm \
 	regignbt2.lm \
@@ -437,6 +439,7 @@ EXTRA_DIST = \
 	return7.lm \
 	return8.lm \
 	return9.lm \
+	return10.lm \
 	rhsref1.lm \
 	rhsref2.lm \
 	rubyhere.lm \

@@ -1,0 +1,18 @@
+# A void function can return a call of another void function, which gives
+# nothing.
+
+void g()
+{
+	print( "g\n" )
+}
+
+void f()
+{
+	return g()
+}
+
+f()
+print( "ok\n" )
+##### EXP #####
+g
+ok

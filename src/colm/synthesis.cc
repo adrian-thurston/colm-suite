@@ -981,15 +981,17 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 		UniqueType *paramUT = lookup.objMethod->paramUTs[pe.pos()];
 
 		/* The argument to a ref parameter of a function or an iterator the
-		 * program defines must be a tree. The built-in iterators take a
-		 * ref<any>, and compileForIter() checks their arguments. */
+		 * program defines must be a tree, or nil, which a value parameter
+		 * of a tree type takes too. The built-in iterators take a ref<any>,
+		 * and compileForIter() checks their arguments. */
 		bool checkRefArg = paramUT->typeId == TYPE_REF && lookup.objMethod->func != 0;
 
 		if ( paramUT->typeId == TYPE_REF ) {
 			if ( expression->canTakeRef( pd ) ) {
 				if ( checkRefArg ) {
 					CodeVect unused;
-					if ( !expression->evaluate( pd, unused )->treeValue() ) {
+					UniqueType *argUT = expression->evaluate( pd, unused );
+					if ( !argUT->treeValue() && argUT->typeId != TYPE_NIL ) {
 						error(loc) << "arg " << pe.pos()+1 <<
 								" is of the wrong type" << endp;
 					}
@@ -1012,7 +1014,9 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 			else {
 				/* First pass we need to allocate and evaluate temporaries. */
 				UniqueType *exprUT = expression->evaluate( pd, code );
-				if ( checkRefArg && !exprUT->treeValue() ) {
+				if ( checkRefArg && !exprUT->treeValue() &&
+						exprUT->typeId != TYPE_NIL )
+				{
 					error(loc) << "arg " << pe.pos()+1 <<
 							" is of the wrong type" << endp;
 				}
@@ -2547,7 +2551,7 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 				}
 				case '^': {
 					UniqueType *rt = right->evaluate( pd, code );
-					if ( !rt->treeValue() )
+					if ( !rt->treeValue() && rt->typeId != TYPE_NIL )
 						error(loc) << "^ needs a tree" << endp;
 					code.append( IN_TREE_TRIM );
 					return rt;
@@ -3099,10 +3103,12 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 				pd->mainReturnUT = exprUT;
 			}
 			else {
-				/* A void function returns nothing: nil only, which ends it
-				 * early. */
+				/* A void function returns nothing: nil, which ends it early,
+				 * or the nothing a void call gives. */
 				UniqueType *resUT = pd->curFunction->typeRef->uniqueType;
-				if ( resUT == pd->uniqueTypeVoid ? exprUT != pd->uniqueTypeNil :
+				bool voidOk = exprUT == pd->uniqueTypeNil ||
+						exprUT == pd->uniqueTypeVoid;
+				if ( resUT == pd->uniqueTypeVoid ? !voidOk :
 						!castAssignment( pd, code, resUT, 0, exprUT ) )
 					error(loc) << "return value wrong type" << endp;
 			}

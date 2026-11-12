@@ -9,10 +9,11 @@ We can also pass parameters by reference.
 This enables us to change the variable with in the function.
 In a `ref<T>` parameter, `T` must be a tree type, such as `str`, a token or a
 def: a `ref<int>`, or a `ref` to a struct, a list or a map, is a compile error,
-`ref takes a tree type`. The argument must be a tree too: an `int` or a list
-given to a `ref<str>` parameter is `arg 1 is of the wrong type`. A struct, a
-list or a map is shared by every variable that holds it, so a function given
-one can change it, though not which one the caller's variable holds.
+`ref takes a tree type`. The argument must be a tree too, or `nil`: an `int` or
+a list given to a `ref<str>` parameter is `arg 1 is of the wrong type`. A
+struct, a list or a map is shared by every variable that holds it, so a
+function given one can change it, though not which one the caller's variable
+holds.
 
 [source,colm]
 .reference.lm

@@ -43,9 +43,10 @@ the rest of the body in an `if`.
 `return Value` ends a function and gives its result, as
 xref:1_04_functions.adoc#functions[the functions chapter] shows. `return` needs
 a value: a bare `return` is a parse error. In a `void` function the value must
-be `nil`, so `return nil` ends one early. Any other value is
-`return value wrong type`. A `return` in an iterator, a production action, a
-token action or a `preeof` block is a compile error.
+be `nil`, or a call of another `void` function, as in `return g()`, so
+`return nil` ends one early. Any other value is `return value wrong type`. A
+`return` in an iterator, a production action, a token action or a `preeof`
+block is a compile error.
 
 This program prints the primes up to 40:
 

@@ -91,8 +91,8 @@ is the text with the ignored text. `+^X+` is the tree without the ignored
 text around it. xref:3_01_lex.adoc#lexing[The lexing chapter] explains ignored
 text.
 
-`$` and `%` take a tree, an `int` or a `bool`, and `+^+` a tree. Anything else,
-such as a struct or a list, is a compile error:
+`$` and `%` take a tree, an `int`, a `bool` or `nil`, and `+^+` a tree or `nil`.
+Anything else, such as a struct or a list, is a compile error:
 `$ needs a tree, an int or a bool`, or `+^ needs a tree+`. A str has no ignored
 text, so `+^S+` is `S`.
 

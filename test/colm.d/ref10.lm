@@ -1,0 +1,15 @@
+# nil given to a ref<str> parameter, as a value parameter of a tree type
+# takes it. Reading through the ref gives nil.
+void f( R: ref<str> )
+{
+	if ( R )
+		print( "set\n" )
+	else
+		print( "nil\n" )
+}
+
+f( nil )
+print( "ok\n" )
+##### EXP #####
+nil
+ok

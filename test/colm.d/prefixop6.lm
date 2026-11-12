@@ -1,0 +1,6 @@
+# ^ of nil is nil, as tree_trim() gives back a nil tree.
+S: str = ^nil
+if ( !S )
+	print( "nil\n" )
+##### EXP #####
+nil

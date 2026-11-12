@@ -108,8 +108,9 @@ crash lost both.
 
 - `test/colm.d/stdorder1.lm`: with both streams on one pipe, the program's
   own code writes to both in turn, a partial line and a tree among them (1,
-  5); and an exported function writes to both before the host ends with
-  `_exit`, after output of its own (2).
+  5); an exported function writes to both before the host ends with
+  `_exit`, after output of its own (2); and a message with no newline sent
+  to `stderr` comes out ahead of a line printed after it (2).
 - `test/colm.d/ioerr2.lm`: `stdout` on `/dev/full` fails when the program
   ends, and at a send to `stderr` (6, 7).
 - By hand, as the harness gives only pipes: the order and a killed program's

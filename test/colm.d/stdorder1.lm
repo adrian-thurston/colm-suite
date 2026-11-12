@@ -6,7 +6,9 @@
 # code writes to both in turn, a partial line and a tree among them. With
 # export, the host calls report, which writes to both, then ends its process
 # with _exit, as a crash would, before colm writes anything else out. What
-# report sent to stderr is out, and so is what it printed before that.
+# report sent to stderr is out, and so is what it printed before that. With
+# partial, a message with no newline goes to stderr, and comes out ahead of the
+# line printed after it, as it wouldn't if stderr went out a line at a time.
 #
 
 lex
@@ -24,13 +26,18 @@ export str report( S: str )
 	return S
 }
 
-if argv->pop() == "top" {
+A: str = argv->pop()
+if A == "top" {
 	parse S: start[ "a b c" ]
 	print( "one (stdout)\n" )
 	prints( stderr, "two (stderr)\n" )
 	print( "three (stdout), " )
 	send stderr "four (stderr): [S]\n"
 	print "five (stdout)
+}
+elsif A == "partial" {
+	prints( stderr, "six (stderr), " )
+	print( "seven (stdout)\n" )
 }
 ##### HOST #####
 
@@ -67,3 +74,7 @@ export
 report: stdout
 report: stderr
 host after report
+##### ARGS #####
+partial
+##### EXP #####
+six (stderr), seven (stdout)

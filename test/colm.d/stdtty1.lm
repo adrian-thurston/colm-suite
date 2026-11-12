@@ -43,7 +43,14 @@ int main( int argc, const char **argv )
 	if ( pipe( in ) != 0 )
 		return 1;
 
+	/* A failed fork must not reach the kill below: a pid of -1 would send
+	 * the signal to every process the user owns. */
 	pid_t pid = fork();
+	if ( pid < 0 ) {
+		printf( "no fork\n" );
+		return 1;
+	}
+
 	if ( pid == 0 ) {
 		int slave = open( ptsname( master ), O_RDWR | O_NOCTTY );
 		dup2( slave, 1 );

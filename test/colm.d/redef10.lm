@@ -1,0 +1,13 @@
+# A redef before its def. The error had no location.
+lex
+	token word /[a-z]+/
+	ignore /space+/
+end
+
+redef words
+	[word word]
+
+def words
+	[word*]
+##### COMP_ERR #####
+7:7: redef not found 'words'

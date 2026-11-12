@@ -1,0 +1,10 @@
+# A redef of any. It replaced colm's any for the whole program.
+lex
+	token name /[a-z]+/
+	ignore /[ ]+/
+end
+
+redef any
+	[name]
+##### COMP_ERR #####
+7:7: any is not a def

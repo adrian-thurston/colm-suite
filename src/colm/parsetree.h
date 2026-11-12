@@ -495,6 +495,8 @@ struct NtDef
 		return nt;
 	}
 
+	/* The name's location, for a redef. */
+	InputLoc loc;
 	String name;
 	Namespace *nspace;
 	LelProdList *prodList;

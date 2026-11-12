@@ -1,0 +1,11 @@
+# A redef of a token. It made the token's name a def.
+lex
+	token name /[a-z]+/
+	token num /[0-9]+/
+	ignore /[ ]+/
+end
+
+redef num
+	[name]
+##### COMP_ERR #####
+8:7: num is not a def

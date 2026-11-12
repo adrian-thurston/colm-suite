@@ -1345,6 +1345,7 @@ struct LoadColm
 				curStruct(), reduceFirst );
 
 		ntDef->isRedef = true;
+		ntDef->loc = cflRedef.id().loc();
 		BaseParser::cflDef( ntDef, objectDef, prodList );
 	}
 

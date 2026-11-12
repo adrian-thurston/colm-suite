@@ -1,0 +1,16 @@
+# A redef of a struct, with [...]. colm read the struct's null lang el and
+# segfaulted.
+struct s
+	I: int
+end
+
+lex
+	token name /[a-z]+/
+	ignore /[ ]+/
+end
+
+redef s
+	[name]
+|	[...]
+##### COMP_ERR #####
+12:7: s is not a def

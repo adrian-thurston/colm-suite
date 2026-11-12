@@ -463,9 +463,10 @@ order. Without `+[...]+`, the old productions are gone. This lets a program
 change a grammar from an included file without editing it.
 
 The def must come before the `redef`. Otherwise, colm reports that the redef
-is not found. `+[...]+` can only be used in a `redef`. A def can be redefined
-more than once, and `+[...]+` then stands for the productions of the last
-`redef`.
+is not found. `redef` takes only a def: for a token, a struct, `str` or `any`,
+colm reports `NAME is not a def`. `+[...]+` can only be used in a `redef`. A
+def can be redefined more than once, and `+[...]+` then stands for the
+productions of the last `redef`.
 
 This program is `parse_order`, with `statement` defined as an expression
 only, and then redefined, with a declaration first:

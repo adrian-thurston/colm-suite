@@ -1,0 +1,10 @@
+# A redef of str. It made str the program's def.
+lex
+	token name /[a-z]+/
+	ignore /[ ]+/
+end
+
+redef str
+	[name]
+##### COMP_ERR #####
+7:7: str is not a def

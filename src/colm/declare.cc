@@ -475,8 +475,16 @@ void Namespace::declare( Compiler *pd )
 		if ( n->isRedef ) {
 			TypeMapEl *inDict = this->typeMap.find( n->name );
 			if ( inDict == 0 ) {
-				error() << "redef not found '" << n->name << endp;
+				error( n->loc ) << "redef not found '" << n->name << "'" << endp;
 			}
+
+			/* Only a def has productions to redefine. A token and str are
+			 * terminals, a struct has no lang el, and any is the one
+			 * nonterminal that isn't a def. */
+			if ( inDict->type != TypeMapEl::LangElType ||
+					inDict->value->type != LangEl::NonTerm ||
+					inDict->value == pd->anyLangEl )
+				error( n->loc ) << n->name << " is not a def" << endp;
 
 			LangEl *langEl = inDict->value;
 			this->typeMap.remove( n->name );

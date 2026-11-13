@@ -532,13 +532,18 @@ struct StructDef
 		loc(loc),
 		name(name),
 		objectDef(objectDef),
-		structEl(0)
+		structEl(0),
+		isContext(false)
 	{}
 
 	InputLoc loc;
 	String name;
 	ObjectDef *objectDef;
 	StructEl *structEl;
+
+	/* A def or a token is defined in it, so a parse is given an object of
+	 * it: it is a context. */
+	bool isContext;
 
 	StructDef *prev, *next;
 };
@@ -2666,7 +2671,10 @@ struct VarRefLookup
 		objField(0), 
 		objMethod(0), 
 		uniqueType(0),
-		iterSearchUT(0)
+		iterSearchUT(0),
+		firstCtxPart(-1),
+		secondCtxPart(-1),
+		rootField(0)
 	{}
 
 	int lastPtrInQual;
@@ -2677,6 +2685,13 @@ struct VarRefLookup
 	ObjectMethod *objMethod;
 	UniqueType *uniqueType;
 	UniqueType *iterSearchUT;
+
+	/* The first two parts of the qualification that go through an object of
+	 * a context with ->, other than this, or -1. And the variable the
+	 * qualification, or the name alone, starts at. */
+	int firstCtxPart;
+	int secondCtxPart;
+	ObjectField *rootField;
 };
 
 struct QualItem
@@ -2784,6 +2799,11 @@ struct LangVarRef
 			VarRefLookup &lookup, CallArgVect *args, bool temps ) const;
 
 	bool isFinishCall( VarRefLookup &lookup ) const;
+
+	void checkContextChange( Compiler *pd, const VarRefLookup &lookup ) const;
+	void checkContextValue( Compiler *pd, const VarRefLookup &lookup,
+			UniqueType *ut, bool inPlace ) const;
+	ObjectField *setupVar( Compiler *pd, const VarRefLookup &lookup ) const;
 
 	InputLoc loc;
 	Namespace *nspace;
@@ -3054,6 +3074,7 @@ struct LangTerm
 	UniqueType *evaluateReadReduce( Compiler *pd, CodeVect &code ) const;
 	void evaluateSendStream( Compiler *pd, CodeVect &code ) const;
 	void evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) const;
+	void checkSendChange( Compiler *pd, UniqueType *varUt ) const;
 	UniqueType *evaluateSend( Compiler *pd, CodeVect &code ) const;
 	UniqueType *evaluateSendTree( Compiler *pd, CodeVect &code ) const;
 	UniqueType *evaluateMatch( Compiler *pd, CodeVect &code ) const;

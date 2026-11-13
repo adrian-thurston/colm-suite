@@ -1,0 +1,12 @@
+# At setup, what a function gives goes in.
+include 'ctxrule.lmi'
+
+list<str> make()
+{
+	return new list<str>()
+}
+
+C: ctx = new ctx()
+C->L = make()
+##### COMP_ERR #####
+10:8: only a new object, nil or what C holds can go into C as it is set up

@@ -1,0 +1,23 @@
+# Another parse's action, through a reference to the object.
+include 'ctxrule.lmi'
+
+global G: ctx = new ctx()
+G->L = new list<str>()
+
+context other
+	lex
+		token v /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[v*]
+		{
+			G->L->push_tail( "y" )
+		}
+end
+
+O: other = new other()
+parse T: other::start( O )[ "a" ]
+##### COMP_ERR #####
+16:4: cannot change G, a context object, outside its setup

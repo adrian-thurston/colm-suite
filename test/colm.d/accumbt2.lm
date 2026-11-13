@@ -28,9 +28,12 @@ context accum_bt
 				send OneParser [$r1]
 			}
 
+		# The parse ends here: finish the accum parser.
 		def two 
 			[A1 item2* `! NL]
+			{ send OneParser ['\n'] eos }
 		|	[A2 item2* `; NL]
+			{ send OneParser ['\n'] eos }
 	end
 
 end # accum_bt
@@ -39,8 +42,6 @@ AccumBt: accum_bt = new accum_bt()
 AccumBt->OneParser = new parser<accum_bt::one>( AccumBt )
 
 parse Two: accum_bt::two( AccumBt )[ stdin ]
-
-send AccumBt->OneParser ['\n'] eos
 
 print( ^Two )
 print( ^( AccumBt->OneParser->tree ), '\n' )

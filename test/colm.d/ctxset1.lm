@@ -1,0 +1,122 @@
+# What a context object's setup may do, and reading the object, in place,
+# after its parse.
+
+struct rec
+	N: int
+end
+
+context ctx
+	N: int
+	S: str
+	L: list<str>
+	M: map<str, int>
+	R: rec
+	Recs: list<rec>
+	Inner: parser<words>
+
+	lex
+		token wid /[a-z]+/
+		ignore /space+/
+	end
+
+	def words
+		[wid*]
+
+	lex
+		token id /[a-z]+/
+		{
+			this->N = this->N + 1
+			input->push( make_token( typeid<id>, input->pull( match_length ) ) )
+		}
+		ignore /space+/
+	end
+
+	def item
+		[id]
+		{
+			L->push_tail( $r1 )
+			M->insert( $r1, N )
+			R->N = R->N + 1
+			send Inner [" " $r1]
+		}
+
+	def start
+		[item*]
+		{
+			send Inner [] eos
+		}
+end
+
+# A function sets up the object it makes, and returns it.
+ctx make( S: str )
+{
+	C: ctx = new ctx()
+	C->S = S
+	C->L = new list<str>()
+	C->M = new map<str, int>()
+	C->R = new rec()
+	C->Recs = new list<rec>()
+
+	C->Recs->push_tail( C->R )
+	C->Recs->push_tail( new rec() )
+	C->Recs->tail->N = 7
+
+	if ( S == "first" )
+		C->N = 100
+
+	# The last statement of the setup.
+	C->Inner = new parser<ctx::words>( C )
+	return C
+}
+
+C: ctx = make( "first" )
+parse P: ctx::start( C )[ "a b c" ]
+
+print( "S ", C->S, ", N ", C->N, ", R->N ", C->R->N, ", Inner", C->Inner->tree, "\n" )
+for V: str in C->L
+	print( "L ", V, "\n" )
+for K: str in map_keys( C->M )
+	print( "M ", K, "=", C->M->find( K ), "\n" )
+print( "Recs ", C->Recs->length, ", L ", C->L->length, "\n" )
+
+# An object for each parse, set up in the loop's body.
+I: int = 0
+while ( I < 2 ) {
+	D: ctx = new ctx()
+	D->L = new list<str>()
+	D->M = new map<str, int>()
+	D->R = new rec()
+	D->N = I * 10
+	D->Inner = new parser<ctx::words>( D )
+	parse Q: ctx::start( D )[ "x y" ]
+	print( "loop ", I, ": N ", D->N, ", Inner", D->Inner->tree, "\n" )
+	I = I + 1
+}
+
+# A global's object, up to the first statement that runs other code.
+global Last: ctx = new ctx()
+Last->S = "global"
+Last->L = new list<str>()
+print( "Last ", Last->S, ", L ", Last->L->length, "\n" )
+
+# The variable given a new object starts its setup again.
+C = new ctx()
+C->L = new list<str>()
+C->M = new map<str, int>()
+C->R = new rec()
+C->Inner = new parser<ctx::words>( C )
+parse P2: ctx::start( C )[ "z" ]
+print( "again: N ", C->N, ", L ", C->L->length, "\n" )
+##### EXP #####
+S first, N 103, R->N 3, Inner a b c
+L a
+L b
+L c
+M a=102
+M b=103
+M c=103
+Recs 2, L 3
+loop 0: N 2, Inner x y
+loop 1: N 12, Inner x y
+Last global, L 0
+again: N 1, L 1

@@ -177,12 +177,15 @@ but not their buffers. The first time a program uses `stdin`, `stdout` or
 a buffer of its own. The host's `stdin`, `stdout` and `stderr` are the C
 library's, with their own buffers.
 
-colm flushes its output when the program's top-level code ends, and at the
-latest when the program is deleted. The host's output comes out when the host
-flushes it, which, for a pipe or a file, may not be until the host exits. So
-when the order of the two matters, flush the host's output before running colm
-code: `fflush( stdout )` in C, `std::flush` in {cpp}. `emb_run.host.c` prints
-only after the program's top-level code has ended, so it needs no flush.
+colm writes out what the program sends to `stderr` at once, after what the
+program's `stdout` holds. The program's `stdout` goes out a line at a time on
+a terminal. On a pipe or a file, colm flushes it when the program's top-level
+code ends, and at the latest when the program is deleted. The host's output
+comes out when the host flushes it, which, for a pipe or a file, may not be
+until the host exits. So when the order of the two matters, flush the host's
+output before running colm code: `fflush( stdout )` in C, `std::flush` in
+{cpp}. `emb_run.host.c` prints only after the program's top-level code has
+ended, so it needs no flush.
 
 Input is another matter. When the host reads from `stdin`, the C library reads
 ahead into its buffer, possibly the whole input, and the program never sees

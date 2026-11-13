@@ -1,8 +1,10 @@
 #
 # Undoing an action puts back the value the action found. A write from
-# outside the parse, made between two sends, is lost when the parser backs up
-# over an action that ran before it. The first send reduces a; the second
-# reaches the ";" and backs up from A1 to A2, over a's action.
+# outside the parse, made between two sends, would be lost when the parser
+# backed up over an action that ran before it, so it doesn't compile: the
+# program changes a context object only while it sets it up. The first send
+# reduces a; the second would reach the ";" and back up from A1 to A2, over
+# a's action.
 #
 
 context ctx
@@ -36,12 +38,5 @@ print( "main sets I to 100\n" )
 C->I = 100
 send P "c ;" eos
 print( "I ", C->I, ", tree ", P->tree, "\n" )
-##### EXP #####
-item a, I 1
-main sets I to 100
-item b, I 101
-item c, I 102
-item a, I 1
-item b, I 2
-item c, I 3
-I 3, tree a b c ;
+##### COMP_ERR #####
+38:1: cannot change C, a context object, outside its setup

@@ -1,0 +1,15 @@
+# A function a parse item calls runs while the parse can back up.
+include 'ctxrule.lmi'
+
+global C: ctx = new ctx()
+C->L = new list<str>()
+
+str f()
+{
+	C->L->pop_tail()
+	return ""
+}
+
+parse S: ctx::start( C )[ "a " f() "b" ]
+##### COMP_ERR #####
+9:2: cannot change C, a context object, outside its setup

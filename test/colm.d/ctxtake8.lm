@@ -1,0 +1,13 @@
+# At setup, what is read out goes to a function.
+include 'ctxrule.lmi'
+
+int count( L: list<str> )
+{
+	return L->length
+}
+
+C: ctx = new ctx()
+C->L = new list<str>()
+C->N = count( C->L )
+##### COMP_ERR #####
+11:18: cannot take L out of C, a context object

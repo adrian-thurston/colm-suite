@@ -1,0 +1,16 @@
+# A function the object goes through, into a new parser, runs other code.
+include 'ctxrule.lmi'
+
+global G: parser<ctx::start>
+
+ctx pick( O: ctx )
+{
+	G = new parser<ctx::start>( O )
+	send G "a "
+	return O
+}
+
+C: ctx = new ctx()
+C->Inner = new parser<ctx::inner>( pick( C ) )
+##### COMP_ERR #####
+14:1: cannot change C, a context object, outside its setup

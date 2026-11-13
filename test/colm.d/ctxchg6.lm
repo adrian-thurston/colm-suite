@@ -1,0 +1,9 @@
+# A parse ends the setup: a tree write after it.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+C->T = make_token( typeid<ctx::w>, "a" )
+parse S: ctx::start( C )[ "a" ]
+C->T.data = "b"
+##### COMP_ERR #####
+7:1: cannot change C, a context object, outside its setup

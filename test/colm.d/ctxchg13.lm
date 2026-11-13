@@ -1,0 +1,13 @@
+# A change comes after its arguments, which can end the setup.
+include 'ctxrule.lmi'
+
+str name( O: ctx )
+{
+	return "x"
+}
+
+C: ctx = new ctx()
+C->L = new list<str>()
+C->L->push_tail( name( C ) )
+##### COMP_ERR #####
+11:1: cannot change C, a context object, outside its setup

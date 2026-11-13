@@ -1,0 +1,19 @@
+# A context's function, through a parameter.
+context ctx
+	N: int
+
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	void reset( O: ctx )
+	{
+		O->N = 0
+	}
+
+	def start
+		[w*]
+end
+##### COMP_ERR #####
+12:3: cannot change O, a context object, outside its setup

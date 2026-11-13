@@ -1,0 +1,17 @@
+# A function call ends the setup of a global's object.
+include 'ctxrule.lmi'
+
+global C: ctx = new ctx()
+C->L = new list<str>()
+global P: parser<ctx::start>
+
+void start()
+{
+	P = new parser<ctx::start>( C )
+	send P "a "
+}
+
+start()
+C->L->pop_tail()
+##### COMP_ERR #####
+15:1: cannot change C, a context object, outside its setup

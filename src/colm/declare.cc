@@ -453,6 +453,8 @@ void Namespace::declare( Compiler *pd )
 			tokEl->transBlock = tokenDef->codeBlock;
 			tokEl->objectDef = tokenDef->objectDef;
 			tokEl->contextIn = tokenDef->contextIn;
+			if ( tokenDef->contextIn != 0 )
+				tokenDef->contextIn->isContext = true;
 			tokEl->tokenDef = tokenDef;
 
 			if ( tokenDef->noPreIgnore )
@@ -519,6 +521,8 @@ void Namespace::declare( Compiler *pd )
 		langEl->objectDef = n->objectDef;
 		langEl->reduceFirst = n->reduceFirst;
 		langEl->contextIn = n->contextIn;
+		if ( n->contextIn != 0 )
+			n->contextIn->isContext = true;
 		langEl->prodList.transfer( *n->prodList );
 
 		for ( LelProdList::Iter d = langEl->prodList; d.lte(); d++ ) {

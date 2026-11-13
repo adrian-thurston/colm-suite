@@ -534,6 +534,151 @@ long LangVarRef::loadQualificationRefs( Compiler *pd, CodeVect &code,
 	return count;
 }
 
+/* The window of a variable whose context object is being set up, if a change
+ * through the variable compiles here: not in a loop that the setup is outside
+ * of. */
+Compiler::SetupWindow *Compiler::findSetupWindow( ObjectField *var )
+{
+	for ( int i = 0; i < setupWindows.length(); i++ ) {
+		if ( setupWindows[i].var == var && setupWindows[i].loopDepth == loopDepth )
+			return &setupWindows[i];
+	}
+	return 0;
+}
+
+/* Using the variable other than through -> ends the setup of its object, as
+ * does giving the variable another value. A new parser runs nothing, so given
+ * to one as its context, the object's setup ends with the statement, or
+ * before, where other code runs. */
+void Compiler::closeSetupWindow( ObjectField *var, bool atStmtEnd )
+{
+	for ( int i = setupWindows.length() - 1; i >= 0; i-- ) {
+		if ( setupWindows[i].var == var ) {
+			if ( atStmtEnd )
+				setupWindows[i].closing = true;
+			else
+				setupWindows.remove( i );
+		}
+	}
+}
+
+/* Other code can reach a variable that isn't a local, give its object to a
+ * parser and send to it, and it can send to a new parser the statement gave
+ * an object to. So running any ends the setup of such an object: a call, a
+ * parse, a send to a parser, a finish, a user iterator's loop or a yield. */
+void Compiler::endReachableSetups()
+{
+	for ( int i = setupWindows.length() - 1; i >= 0; i-- ) {
+		if ( setupWindows[i].global || setupWindows[i].closing )
+			setupWindows.remove( i );
+	}
+}
+
+/* A list, map, parser, stream or struct other than a context: a value that
+ * code holding it could change, and that a context object can hold. */
+static bool ctxHeldRef( UniqueType *ut )
+{
+	if ( ut->typeId == TYPE_GENERIC )
+		return true;
+	if ( ut->typeId == TYPE_STRUCT && !ut->structEl->structDef->isContext )
+		return true;
+	return false;
+}
+
+/* A for loop reads what it goes over in place if it is named, and the loop's
+ * values aren't what could be changed. */
+static bool forInPlace( UniqueType *searchUT, CallArgVect *args )
+{
+	return !ctxHeldRef( searchUT ) && args != 0 && args->length() == 1 &&
+			args->data[0]->expr->type == LangExpr::TermType &&
+			args->data[0]->expr->term->type == LangTerm::VarRefType;
+}
+
+/* Outside its parse's actions, a context object is changed only while it is
+ * set up, through the variable it was put into. A parser backing up over its
+ * actions assumes the object is as they left it: see
+ * doc/colm/design/context-change-design.md. */
+void LangVarRef::checkContextChange( Compiler *pd, const VarRefLookup &lookup ) const
+{
+	if ( lookup.firstCtxPart < 0 )
+		return;
+
+	/* Through the variable being set up, the change can go no further into
+	 * another context object. */
+	int part = lookup.firstCtxPart;
+	if ( part == 0 && pd->findSetupWindow( lookup.rootField ) != 0 ) {
+		part = lookup.secondCtxPart;
+		if ( part < 0 )
+			return;
+	}
+
+	error(qual->data[part].loc) << "cannot change " << qual->data[part].data <<
+			", a context object, outside its setup" << endp;
+}
+
+/* Outside its parse's actions, what a context object holds that could be
+ * changed is read in place, never taken out, unless inPlace says the use is
+ * one of the few that read it there. */
+void LangVarRef::checkContextValue( Compiler *pd, const VarRefLookup &lookup,
+		UniqueType *ut, bool inPlace ) const
+{
+	if ( lookup.firstCtxPart < 0 || !ctxHeldRef( ut ) || inPlace )
+		return;
+
+	std::ostream &out = error(loc) << "cannot take ";
+	if ( lookup.objMethod != 0 )
+		out << "what " << name << " gives";
+	else
+		out << name;
+	out << " out of " << qual->data[lookup.firstCtxPart].data <<
+			", a context object" << endp;
+}
+
+/* The variable a change through it sets up the object of, or 0. */
+ObjectField *LangVarRef::setupVar( Compiler *pd, const VarRefLookup &lookup ) const
+{
+	if ( lookup.firstCtxPart == 0 && lookup.secondCtxPart < 0 &&
+			pd->findSetupWindow( lookup.rootField ) != 0 )
+		return lookup.rootField;
+	return 0;
+}
+
+/* What a change puts into an object being set up, through var: a new object,
+ * nil, or something read out of the object, through var. Anything else
+ * could be held elsewhere too, and changed from there. */
+static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *expr )
+{
+	ObjectField *var = pd->setupStoreVar;
+	pd->setupStoreVar = 0;
+
+	if ( var == 0 )
+		return expr->evaluate( pd, code );
+
+	LangTerm *term = expr->type == LangExpr::TermType ? expr->term : 0;
+	bool fresh = term != 0 && ( term->type == LangTerm::NewType ||
+			term->type == LangTerm::NilType );
+	bool through = false;
+	if ( term != 0 && term->type == LangTerm::VarRefType &&
+			term->varRef->qual->length() > 0 )
+	{
+		VarRefLookup lookup = term->varRef->lookupField( pd );
+		through = term->varRef->setupVar( pd, lookup ) == var;
+	}
+
+	pd->ctxValueInPlace = through;
+	UniqueType *ut = expr->evaluate( pd, code );
+	pd->ctxValueInPlace = false;
+
+	if ( ctxHeldRef( ut ) && !fresh && !through ) {
+		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
+		error(loc) << "only a new object, nil or what " << var->name <<
+				" holds can go into " << var->name << " as it is set up" << endp;
+	}
+
+	pd->setupStoreVar = var;
+	return ut;
+}
+
 void LangVarRef::loadQualification( Compiler *pd, CodeVect &code, 
 		NameScope *rootScope, int lastPtrInQual, bool forWriting, bool revert ) const
 {
@@ -799,6 +944,11 @@ void LangVarRef::setField( Compiler *pd, CodeVect &code,
 
 UniqueType *LangVarRef::evaluate( Compiler *pd, CodeVect &code, bool forWriting ) const
 {
+	bool inPlace = pd->ctxValueInPlace;
+	bool newParser = pd->newParserContext;
+	pd->ctxValueInPlace = false;
+	pd->newParserContext = false;
+
 	/* Lookup the loadObj. */
 	VarRefLookup lookup = lookupField( pd );
 
@@ -808,6 +958,12 @@ UniqueType *LangVarRef::evaluate( Compiler *pd, CodeVect &code, bool forWriting 
 	/* Load the field. */
 	UniqueType *ut = loadField( pd, code, lookup.inObject, 
 			lookup.objField, forWriting, false );
+
+	checkContextValue( pd, lookup, ut, inPlace );
+
+	/* Used as a value, the variable gives its object away: the setup ends. */
+	if ( qual->length() == 0 )
+		pd->closeSetupWindow( lookup.objField, newParser );
 
 	return ut;
 }
@@ -930,10 +1086,13 @@ IterImpl *LangVarRef::chooseTriterCall( Compiler *pd,
 
 	/* Evaluate the triter args and choose the triter call based on it. */
 	if ( args->length() == 1 ) {
-		/* Evaluate the expression. */
+		/* Evaluate the expression. A loop over the values of a list or a map
+		 * that a context object holds reads it in place. */
 		CodeVect unused;
 		CallArgVect::Iter pe = *args;
+		pd->ctxValueInPlace = forInPlace( searchUT, args );
 		UniqueType *exprUT = (*pe)->expr->evaluate( pd, unused );
+		pd->ctxValueInPlace = false;
 
 		if ( exprUT->typeId == TYPE_GENERIC && exprUT->generic->typeId == GEN_LIST )
 			iterImpl = new IterImpl( IterImpl::ListVal );
@@ -1042,7 +1201,7 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 			pos += 2;
 		}
 		else {
-			UniqueType *exprUT = expression->evaluate( pd, code );
+			UniqueType *exprUT = evaluateSetupValue( pd, code, expression );
 			// pd->unwindCode.remove( 0, 1 );
 
 			if ( !castAssignment( pd, code, paramUT, 0, exprUT ) )
@@ -1209,6 +1368,10 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 
 	Function *func = lookup.objMethod->func;
 
+	/* A call that changes what it is called on. A parser's finish parses. */
+	bool change = func == 0 && ( !lookup.objMethod->isConst ||
+			lookup.objMethod->type == ObjectMethod::ParseFinish );
+
 	/* Prepare the contiguous call args space. */
 	int asLoc;
 	if ( func != 0 && !func->inHost ) {
@@ -1217,8 +1380,21 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 		code.appendHalf( 0 );
 	}
 
-	/* Evaluate and push the arguments. */
+	/* Evaluate and push the arguments. A change through an object being set
+	 * up puts them into it. */
+	pd->setupStoreVar = change ? setupVar( pd, lookup ) : 0;
 	ObjectField **paramRefs = evaluateArgs( pd, code, lookup, args );
+	pd->setupStoreVar = 0;
+
+	/* The change is made after the arguments, which may end the setup, and
+	 * gives its result after that. */
+	if ( change )
+		checkContextChange( pd, lookup );
+
+	checkContextValue( pd, lookup, lookup.uniqueType, false );
+
+	if ( func != 0 || lookup.objMethod->type == ObjectMethod::ParseFinish )
+		pd->endReachableSetups();
 
 	/* A ref argument's qualifiers, or the value a ref argument takes, stay
 	 * on the stack under the call, where an exit can't unwind them. */
@@ -1503,8 +1679,12 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 	if ( context ) {
 		bool contextGiven = false;
 		for ( int i = 0; fieldInitArgs != 0 && i < fieldInitArgs->length(); i++ ) {
-			/* Eval what we are initializing with. */
+			/* Eval what we are initializing with. A new parser runs nothing,
+			 * so its context's setup goes on to the end of the statement, or
+			 * to other code that runs before then. */
+			pd->newParserContext = true;
 			UniqueType *argUT = fieldInitArgs->data[i]->expr->evaluate( pd, code );
+			pd->newParserContext = false;
 
 			if ( argUT->typeId == TYPE_STRUCT ) {
 				checkParserContext( fieldInitArgs->data[i], argUT,
@@ -1719,6 +1899,8 @@ static void checkSendItem( Compiler *pd, const ConsItem *item, UniqueType *ut,
 UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 		bool tree, bool stop ) const
 {
+	pd->endReachableSetups();
+
 	if ( parserText->reduce && parserText->read ) {
 		return evaluateReadReduce( pd, code );
 	}
@@ -1895,6 +2077,8 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 
 void LangTerm::evaluateSendStream( Compiler *pd, CodeVect &code ) const
 {
+	/* A send changes the stream. */
+	pd->ctxValueInPlace = true;
 	UniqueType *varUt = varRef->evaluate( pd, code );
 
 	if ( varUt->listOf( pd->uniqueTypeStream ) ) {
@@ -1963,6 +2147,8 @@ void LangTerm::evaluateSendStream( Compiler *pd, CodeVect &code ) const
 
 void LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) const
 {
+	/* A send changes the parser. */
+	pd->ctxValueInPlace = true;
 	UniqueType *varUt = varRef->evaluate( pd, code );
 
 	if ( varUt->parser() ) {
@@ -2059,6 +2245,17 @@ void LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) 
 	}
 }
 
+/* A send changes what it goes to, once its items are made, which may end the
+ * setup of a context object holding it. A send to a parser runs its actions. */
+void LangTerm::checkSendChange( Compiler *pd, UniqueType *varUt ) const
+{
+	VarRefLookup lookup = varRef->lookupField( pd );
+	varRef->checkContextChange( pd, lookup );
+
+	if ( varUt->parser() )
+		pd->endReachableSetups();
+}
+
 UniqueType *LangTerm::evaluateSend( Compiler *pd, CodeVect &code ) const
 {
 	UniqueType *varUt = varRef->lookup( pd );
@@ -2072,6 +2269,7 @@ UniqueType *LangTerm::evaluateSend( Compiler *pd, CodeVect &code ) const
 	else
 		error(loc) << "can only send to parsers and streams" << endl;
 
+	checkSendChange( pd, varUt );
 	return varUt;
 }
 
@@ -2085,6 +2283,7 @@ UniqueType *LangTerm::evaluateSendTree( Compiler *pd, CodeVect &code ) const
 	else
 		error(loc) << "can only send_tree to parsers" << endl;
 
+	checkSendChange( pd, varUt );
 	return varUt;
 }
 
@@ -2590,6 +2789,8 @@ void LangVarRef::assignValue( Compiler *pd, CodeVect &code,
 	if ( lookup.objField->isConst )
 		error(loc) << "field \"" << name << "\" is const" << endp;
 
+	checkContextChange( pd, lookup );
+
 	/* input and this, in a token action or a preeof block, are the parse's
 	 * input and context. Nothing sets them: they have no set instructions. A
 	 * qualified name is never one of them, so this->N = 1 still compiles. */
@@ -2705,6 +2906,30 @@ UniqueType *LangTerm::evaluateMakeTree( Compiler *pd, CodeVect &code ) const
 	return pd->uniqueTypeAny;
 }
 
+/* A list of statements. The setup of an object that starts in the list ends
+ * with it. */
+static void compileStmtList( Compiler *pd, CodeVect &code, StmtList *stmtList )
+{
+	pd->stmtListDepth += 1;
+	for ( StmtList::Iter stmt = *stmtList; stmt.lte(); stmt++ )
+		stmt->compile( pd, code );
+
+	for ( int i = pd->setupWindows.length() - 1; i >= 0; i-- ) {
+		if ( pd->setupWindows[i].listDepth == pd->stmtListDepth )
+			pd->setupWindows.remove( i );
+	}
+	pd->stmtListDepth -= 1;
+}
+
+/* A loop's body runs again after what follows it in the body, so a setup
+ * outside the loop doesn't reach into it. */
+static void compileLoopBody( Compiler *pd, CodeVect &code, StmtList *stmtList )
+{
+	pd->loopDepth += 1;
+	compileStmtList( pd, code, stmtList );
+	pd->loopDepth -= 1;
+}
+
 void LangStmt::compileForIterBody( Compiler *pd, 
 		CodeVect &code, UniqueType *iterUT ) const
 {
@@ -2731,8 +2956,7 @@ void LangStmt::compileForIterBody( Compiler *pd,
 	pd->unwindCode.insert( 0, objField->iterImpl->inUnwind );
 
 	/* Compile the contents. */
-	for ( StmtList::Iter stmt = *stmtList; stmt.lte(); stmt++ )
-		stmt->compile( pd, code );
+	compileLoopBody( pd, code, stmtList );
 
 	pd->unwindCode.remove( 0, pd->unwindCode.length() - lcLen );
 
@@ -2827,9 +3051,20 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 				" must have a tree type" << endp;
 	}
 
+	/* A loop over the values of a list or a map that a context object holds
+	 * reads it in place. */
+	bool inPlace = iterImpl->useGenericId &&
+			forInPlace( searchUT, iterCall->langTerm->args );
+
+	/* A user iterator is other code. */
+	if ( func != 0 )
+		pd->endReachableSetups();
+
 	/* Evaluate and push the arguments. */
+	pd->ctxValueInPlace = inPlace;
 	ObjectField **paramRefs = iterCall->langTerm->varRef->evaluateArgs(
 			pd, code, lookup, iterCall->langTerm->args );
+	pd->ctxValueInPlace = false;
 
 	/* A tree iterator walks a tree. Its parameter is a ref<any>, which takes
 	 * any argument, so the argument is checked here. A loop that names no
@@ -2863,8 +3098,10 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 
 		LangVarRef *iterRef = iterCall->langTerm->varRef;
 		CodeVect unused;
+		pd->ctxValueInPlace = inPlace;
 		UniqueType *argUT =
 				iterCall->langTerm->args->data[0]->expr->evaluate( pd, unused );
+		pd->ctxValueInPlace = false;
 		if ( argUT->typeId != TYPE_GENERIC ||
 				argUT->generic->typeId != ( overMap ? GEN_MAP : GEN_LIST ) )
 		{
@@ -2928,10 +3165,14 @@ static LangTerm *stmtTerm( LangExpr *expr )
 
 void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 {
-	/* Generate code for the while test. Remember the top. */
+	/* Generate code for the while test. Remember the top. The test runs
+	 * again after the body, so a setup outside the loop doesn't reach into
+	 * it either. */
 	long top = code.length();
 	pd->stmtTerm = stmtTerm( expr );
+	pd->loopDepth += 1;
 	UniqueType *eut = expr->evaluate( pd, code );
+	pd->loopDepth -= 1;
 
 	/* Jump past the while block if false. Note that we don't have the
 	 * distance yet. */
@@ -2941,8 +3182,7 @@ void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 	code.appendHalf( 0 );
 
 	/* Compute the while block. */
-	for ( StmtList::Iter stmt = *stmtList; stmt.lte(); stmt++ )
-		stmt->compile( pd, code );
+	compileLoopBody( pd, code, stmtList );
 
 	/* Jump back to the top to retest. */
 	long retestDist = code.length() - top + 3;
@@ -3005,8 +3245,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			code.appendHalf( 0 );
 
 			/* Compile the if true branch. */
-			for ( StmtList::Iter stmt = *stmtList; stmt.lte(); stmt++ )
-				stmt->compile( pd, code );
+			compileStmtList( pd, code, stmtList );
 
 			if ( elsePart != 0 ) {
 				/* Jump past the else code for the if true branch. */
@@ -3032,8 +3271,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 		}
 		case ElseType: {
 			/* Compile the else branch. */
-			for ( StmtList::Iter stmt = *stmtList; stmt.lte(); stmt++ )
-				stmt->compile( pd, code );
+			compileStmtList( pd, code, stmtList );
 			break;
 		}
 		case RejectType: {
@@ -3062,12 +3300,36 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			break;
 		}
 		case AssignType: {
-			/* Evaluate the exrepssion. */
+			/* Evaluate the exrepssion. A change through an object being set
+			 * up puts it into the object. */
+			pd->setupStoreVar = varRef->setupVar( pd, varRef->lookupField( pd ) );
 			pd->stmtTerm = stmtTerm( expr );
-			UniqueType *exprUT = expr->evaluate( pd, code );
+			UniqueType *exprUT = evaluateSetupValue( pd, code, expr );
+			pd->setupStoreVar = 0;
 
 			/* Do the assignment. */
 			varRef->assignValue( pd, code, exprUT );
+
+			/* A variable given a new object of a context starts its setup.
+			 * Given anything else, it ends the setup of the one it had. */
+			if ( varRef->qual->length() == 0 ) {
+				ObjectField *var = varRef->lookupField( pd ).objField;
+				UniqueType *varUT = var->typeRef->uniqueType;
+				if ( varUT->typeId == TYPE_STRUCT && varUT->structEl->structDef->isContext ) {
+					pd->closeSetupWindow( var, false );
+					if ( expr->type == LangExpr::TermType &&
+							expr->term->type == LangTerm::NewType )
+					{
+						Compiler::SetupWindow window;
+						window.var = var;
+						window.loopDepth = pd->loopDepth;
+						window.listDepth = pd->stmtListDepth;
+						window.closing = false;
+						window.global = !varRef->isLocalRef();
+						pd->setupWindows.append( window );
+					}
+				}
+			}
 			break;
 		}
 		case ForIterType: {
@@ -3153,6 +3415,9 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 					break;
 			}
 
+			/* A yield runs the loop's body, which can reach a global. */
+			pd->endReachableSetups();
+
 			/* take a reference and yield it. Immediately reset the referece. */
 			ObjectField *objField = varRef->preEvaluateRef( pd, code );
 
@@ -3186,12 +3451,29 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 	}
 
 	pd->unwindCode.remove( 0, block.length() );
+
+	/* A statement that gave an object being set up to a new parser ends its
+	 * setup. */
+	for ( int i = pd->setupWindows.length() - 1; i >= 0; i-- ) {
+		if ( pd->setupWindows[i].closing )
+			pd->setupWindows.remove( i );
+	}
 }
 
 void CodeBlock::compile( Compiler *pd, CodeVect &code ) const
 {
-	for ( StmtList::Iter stmt = *stmtList; stmt.lte(); stmt++ )
-		stmt->compile( pd, code );
+	/* A code block's setups are its own. */
+	Vector<Compiler::SetupWindow> outer = pd->setupWindows;
+	int outerLoopDepth = pd->loopDepth, outerListDepth = pd->stmtListDepth;
+	pd->setupWindows.empty();
+	pd->loopDepth = 0;
+	pd->stmtListDepth = 0;
+
+	compileStmtList( pd, code, stmtList );
+
+	pd->setupWindows = outer;
+	pd->loopDepth = outerLoopDepth;
+	pd->stmtListDepth = outerListDepth;
 }
 
 void Compiler::findLocals( ObjectDef *localFrame, CodeBlock *block )

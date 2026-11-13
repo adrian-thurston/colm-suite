@@ -321,6 +321,11 @@ Compiler::Compiler( )
 	curFunction(0),
 	stmtTerm(0),
 	noUnwind(false),
+	loopDepth(0),
+	stmtListDepth(0),
+	setupStoreVar(0),
+	newParserContext(false),
+	ctxValueInPlace(false),
 	nextObjectId(1),     /* 0 is  reserved for no object. */
 	nextFrameId(0),
 	nextParserId(0),

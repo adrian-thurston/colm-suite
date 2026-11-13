@@ -1,0 +1,20 @@
+# A context object another holds isn't set up through it.
+include 'ctxrule.lmi'
+
+context outer
+	Sub: ctx
+
+	lex
+		token v /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[v*]
+end
+
+O: outer = new outer()
+O->Sub = new ctx()
+O->Sub->N = 1
+##### COMP_ERR #####
+18:4: cannot change Sub, a context object, outside its setup

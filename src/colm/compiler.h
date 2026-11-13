@@ -927,6 +927,32 @@ struct Compiler
 	LangTerm *stmtTerm;
 	bool noUnwind;
 
+	/* The variables of the code block being compiled whose context objects
+	 * are being set up: each was given a new object, and hasn't yet been used
+	 * other than through ->. A change through one compiles. Other code can
+	 * reach a variable that isn't a local. */
+	struct SetupWindow
+	{
+		ObjectField *var;
+		int loopDepth;
+		int listDepth;
+		bool closing;
+		bool global;
+	};
+	Vector<SetupWindow> setupWindows;
+	int loopDepth;
+	int stmtListDepth;
+
+	/* The variable being set up that a change puts the value being compiled
+	 * into; the value is a new parser's context; the value is read in place. */
+	ObjectField *setupStoreVar;
+	bool newParserContext;
+	bool ctxValueInPlace;
+
+	SetupWindow *findSetupWindow( ObjectField *var );
+	void closeSetupWindow( ObjectField *var, bool atStmtEnd );
+	void endReachableSetups();
+
 	ObjectField *makeDataEl();
 	ObjectField *makeFileEl();
 	ObjectField *makeLineEl();

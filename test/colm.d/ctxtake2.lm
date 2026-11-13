@@ -1,0 +1,14 @@
+# A struct the object holds, passed to a function.
+include 'ctxrule.lmi'
+
+int show( R: rec )
+{
+	return R->N
+}
+
+C: ctx = new ctx()
+C->R = new rec()
+parse S: ctx::start( C )[ "a" ]
+print( show( C->R ), "\n" )
+##### COMP_ERR #####
+12:17: cannot take R out of C, a context object

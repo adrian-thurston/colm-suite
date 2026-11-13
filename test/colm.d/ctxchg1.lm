@@ -1,0 +1,34 @@
+# #706's program: a change between sends, undone onto an empty list.
+context ctx
+	L: list<str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	# A1 is tried first: the action runs, then the parser backs up to A2.
+	def item
+		[`*]
+		{
+			L->push_tail( "x" )
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+C: ctx = new ctx()
+C->L = new list<str>()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+C->L->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+30:1: cannot change C, a context object, outside its setup

@@ -1,0 +1,11 @@
+# A map the object holds, changed between two sends.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+C->M = new map<str, rec>()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "a "
+C->M->remove( "d" )
+send P "b"
+##### COMP_ERR #####
+8:1: cannot change C, a context object, outside its setup

@@ -1,0 +1,9 @@
+# A list the object holds, taken out into a variable.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+C->L = new list<str>()
+parse S: ctx::start( C )[ "a" ]
+L: list<str> = C->L
+##### COMP_ERR #####
+7:19: cannot take L out of C, a context object

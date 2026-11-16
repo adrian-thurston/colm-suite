@@ -1296,9 +1296,13 @@ void split_ref( program_t *prg, tree_t ***psp, ref_t *from_ref )
 	}
 	ref->next = last;
 
-	/* Now traverse the list, which goes down. */
+	/* Now traverse the list, which goes down. A nil tree has nothing under
+	 * it to share. A str has no attributes or children, so a write through
+	 * a ref to one replaces it, and there is nothing to copy. */
 	while ( ref != 0 ) {
-		if ( ref->kid->tree->refs > 1 ) {
+		if ( ref->kid->tree != 0 && ref->kid->tree->refs > 1 &&
+				ref->kid->tree->id != LEL_ID_STR )
+		{
 			ref_t *next_down = ref->next;
 			while ( next_down != 0 && next_down->kid == ref->kid )
 				next_down = next_down->next;

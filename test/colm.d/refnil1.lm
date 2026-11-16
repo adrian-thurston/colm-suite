@@ -1,0 +1,75 @@
+# Writing through a ref<T> parameter whose tree is nil. X = Y sets the
+# caller's variable, which was nil, or an attribute that wasn't set. Setting an
+# attribute through it stops the program, as setting an attribute of a nil
+# tree does. The host sends standard error to standard output. On main each
+# run segfaulted in split_ref().
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def pair
+	A: int
+	T: id
+	[id]
+int set( X: ref<pair>, Y: pair ) { X = Y }
+int seta( X: ref<pair> ) { X.A = 1 }
+int init( X: ref<id>, Y: id ) { X = Y }
+K: str = argv->pop()
+parse P: pair[ "x" ]
+S: pair
+print( "before\n" )
+if K == "assign" {
+	set( S, P )
+	print( $S, "\n" )
+}
+elsif K == "attr"
+	seta( S )
+elsif K == "unset" {
+	init( P.T, P.id )
+	print( $P.T, "\n" )
+}
+print( "end\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+assign
+##### EXP #####
+before
+x
+end
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+attr
+##### EXP #####
+before
+fatal: setting an attribute of a nil tree
+##### EXIT #####
+1
+##### ARGS #####
+unset
+##### EXP #####
+before
+x
+end
+host: exit status 0
+##### EXIT #####
+0

@@ -1,0 +1,10 @@
+# A str written through a ref<str> parameter while another variable holds the
+# same str. The ref's str is replaced, and the other variable keeps the old
+# one. On main the program aborted: colm_copy_tree() can't copy a str.
+void set( X: ref<str> ) { X = "set" }
+L: str = "local"
+M: str = L
+set( L )
+print( L, " ", M, "\n" )
+##### EXP #####
+set local

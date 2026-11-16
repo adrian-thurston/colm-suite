@@ -1107,6 +1107,22 @@ IterImpl *LangVarRef::chooseTriterCall( Compiler *pd,
 	return iterImpl;
 }
 
+/* A ref argument takes what a value argument of the parameter's tree type
+ * takes, as castAssignment() decides it: a tree of the type, any tree for
+ * a ref<any>, an any, which isn't checked, and nil. */
+static bool refArgTypeOk( Compiler *pd, UniqueType *paramUT, UniqueType *argUT )
+{
+	if ( argUT->typeId == TYPE_NIL )
+		return true;
+
+	if ( !argUT->treeValue() )
+		return false;
+
+	return argUT->langEl == paramUT->langEl ||
+			paramUT->langEl == pd->anyLangEl ||
+			argUT->langEl == pd->anyLangEl;
+}
+
 ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code, 
 		VarRefLookup &lookup, CallArgVect *args )
 {
@@ -1140,9 +1156,9 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 		UniqueType *paramUT = lookup.objMethod->paramUTs[pe.pos()];
 
 		/* The argument to a ref parameter of a function or an iterator the
-		 * program defines must be a tree, or nil, which a value parameter
-		 * of a tree type takes too. The built-in iterators take a ref<any>,
-		 * and compileForIter() checks their arguments. */
+		 * program defines must be a tree of the parameter's type, or nil,
+		 * as a value parameter of a tree type takes. The built-in iterators
+		 * take a ref<any>, and compileForIter() checks their arguments. */
 		bool checkRefArg = paramUT->typeId == TYPE_REF && lookup.objMethod->func != 0;
 
 		if ( paramUT->typeId == TYPE_REF ) {
@@ -1150,7 +1166,7 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 				if ( checkRefArg ) {
 					CodeVect unused;
 					UniqueType *argUT = expression->evaluate( pd, unused );
-					if ( !argUT->treeValue() && argUT->typeId != TYPE_NIL ) {
+					if ( !refArgTypeOk( pd, paramUT, argUT ) ) {
 						error(loc) << "arg " << pe.pos()+1 <<
 								" is of the wrong type" << endp;
 					}
@@ -1173,9 +1189,7 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 			else {
 				/* First pass we need to allocate and evaluate temporaries. */
 				UniqueType *exprUT = expression->evaluate( pd, code );
-				if ( checkRefArg && !exprUT->treeValue() &&
-						exprUT->typeId != TYPE_NIL )
-				{
+				if ( checkRefArg && !refArgTypeOk( pd, paramUT, exprUT ) ) {
 					error(loc) << "arg " << pe.pos()+1 <<
 							" is of the wrong type" << endp;
 				}

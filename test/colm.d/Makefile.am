@@ -452,6 +452,9 @@ EXTRA_DIST = \
 	refnilchild2.lm \
 	refsplit1.lm \
 	refstr1.lm \
+	reftype1.lm \
+	reftype2.lm \
+	reftype3.lm \
 	regignbt1.lm \
 	regignbt2.lm \
 	reject1.lm \

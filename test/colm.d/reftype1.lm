@@ -1,0 +1,17 @@
+# A ref<T> argument must have the parameter's type, as a value argument must.
+# An id given to a ref<d> compiled on main, and set() then wrote an attribute
+# of a d into the id: the program segfaulted.
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	ignore /[ \n]+/
+end
+def d
+	I: int
+	[num]
+void set( X: ref<d> ) { X.I = 9 }
+N: id = parse id[ "abc" ]
+set( N )
+print( "N=", N, "\n" )
+##### COMP_ERR #####
+14:1: arg 1 is of the wrong type

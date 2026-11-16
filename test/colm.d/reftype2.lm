@@ -1,0 +1,16 @@
+# The same for a ref<id> parameter passed on to a ref<d> one.
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	ignore /[ \n]+/
+end
+def d
+	I: int
+	[num]
+void g( X: ref<d> ) { X.I = 9 }
+void f( R: ref<id> ) { g( R ) }
+N: id = parse id[ "abc" ]
+f( N )
+print( "N=", N, "\n" )
+##### COMP_ERR #####
+11:24: arg 1 is of the wrong type

@@ -1,0 +1,30 @@
+# What a ref<T> parameter still takes: a tree of type T, any tree for a
+# ref<any>, nil, and an any, which isn't checked, as a value parameter's
+# isn't. The any here holds a d.
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	ignore /[ \n]+/
+end
+def d
+	I: int
+	[num]
+void set( X: ref<d> ) { X.I = 9 }
+void show( X: ref<any> ) { print( "show ", X, "\n" ) }
+void isnil( X: ref<d> ) { if ( !X ) print( "nil\n" ) }
+D: d = parse d[ "1" ]
+set( D )
+print( "D.I=", D.I, "\n" )
+N: id = parse id[ "abc" ]
+show( N )
+show( D )
+isnil( nil )
+A: any = parse d[ "2" ]
+set( A )
+print( "A=", A, "\n" )
+##### EXP #####
+D.I=9
+show abc
+show 1
+nil
+A=2

@@ -1,0 +1,22 @@
+# The same, where the iterator yields through a function it calls.
+def d
+	I: int
+	[]
+global G: d = cons d[]
+void give( R: ref<d> )
+{
+	yield R
+}
+iter each( R: ref<d> )
+{
+	give( R )
+}
+void f( X: ref<d> )
+{
+	for C: d in each( X )
+		C.I = 9
+}
+f( G )
+print( G.I, "\n" )
+##### COMP_ERR #####
+19:1: f can write through ref parameter X, so arg 1 must be a local, or an attribute or child of one

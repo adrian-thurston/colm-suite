@@ -1,0 +1,8 @@
+# A str global given to a ref<str> parameter that the function assigns. On
+# main the program aborted in colm_copy_tree(), which can't copy a str.
+global G: str = "global"
+void set( X: ref<str> ) { X = "set" }
+set( G )
+print( G, "\n" )
+##### COMP_ERR #####
+5:1: set can write through ref parameter X, so arg 1 must be a local, or an attribute or child of one

@@ -1,0 +1,24 @@
+# A context's variable, given to a ref<T> parameter in a production action of
+# the context. It lives in the context object, not in the action's frame, so
+# it is a copy. On main T stayed "t".
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	literal `=
+	ignore /[ \n]+/
+end
+void setit( R: ref<id> ) { R = cons id "z" }
+context c
+	T: id
+	def assign
+		[Name: id `= Val: num] {
+			T = cons id "t"
+			setit( T )
+			print( "T=", T, "\n" )
+		}
+end
+C: c = new c()
+parse P: c::assign( C )[ "x = 1" ]
+print( P, "\n" )
+##### COMP_ERR #####
+16:4: setit can write through ref parameter R, so arg 1 must be a local, or an attribute or child of one

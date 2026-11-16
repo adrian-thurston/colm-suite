@@ -1,0 +1,12 @@
+# A str field of a struct given to a ref<str> parameter the function assigns.
+# On main the program aborted in colm_copy_tree().
+struct s
+	F: str
+end
+void set( X: ref<str> ) { X = "set" }
+S: s = new s()
+S->F = "field"
+set( S->F )
+print( S->F, "\n" )
+##### COMP_ERR #####
+9:1: set can write through ref parameter X, so arg 1 must be a local, or an attribute or child of one

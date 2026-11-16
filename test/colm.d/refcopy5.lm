@@ -1,0 +1,16 @@
+# A child of a global's tree given to a ref<T> parameter is a copy too. On main
+# G kept its name.
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	literal `=
+	ignore /[ \n]+/
+end
+def assign
+	[Name: id `= Val: num]
+void setit( R: ref<id> ) { R = cons id "z" }
+global G: assign = parse assign[ "g = 1" ]
+setit( G.Name )
+print( G, "\n" )
+##### COMP_ERR #####
+13:1: setit can write through ref parameter R, so arg 1 must be a local, or an attribute or child of one

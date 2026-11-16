@@ -1,0 +1,19 @@
+# A ref parameter given to a user iterator that yields it can be written by
+# the loop over the iterator. On main G.I stayed 0.
+def d
+	I: int
+	[]
+global G: d = cons d[]
+iter each( R: ref<d> )
+{
+	yield R
+}
+void f( X: ref<d> )
+{
+	for C: d in each( X )
+		C.I = 9
+}
+f( G )
+print( G.I, "\n" )
+##### COMP_ERR #####
+16:1: f can write through ref parameter X, so arg 1 must be a local, or an attribute or child of one

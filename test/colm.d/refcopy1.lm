@@ -1,0 +1,13 @@
+# A global given to a ref<T> parameter is a copy, which the function may only
+# read. set() writes through its parameter, so the call is a compile error.
+# On main the write went to the copy, and G.I stayed 1.
+def d
+	I: int
+	[]
+void set( X: ref<d> ) { X.I = 9 }
+global G: d = cons d[]
+G.I = 1
+set( G )
+print( G.I, "\n" )
+##### COMP_ERR #####
+10:1: set can write through ref parameter X, so arg 1 must be a local, or an attribute or child of one

@@ -1,0 +1,61 @@
+# What still works with a copy given to a ref<T> parameter. A global, a str
+# global, a struct's field, a str field, a child of a global's tree and a
+# global passed down two calls can be read through the ref. A list held in
+# an attribute isn't copied with the tree, so a push to it through the ref
+# reaches the global's list. A literal or an expression gets a copy the
+# function can change: what it writes there is lost, and nothing else sees it.
+# A loop over a user iterator that yields without writing reads a global.
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	literal `=
+	ignore /[ \n]+/
+end
+def assign
+	L: list<str>
+	[Name: id `= Val: num]
+struct s
+	T: assign
+	F: str
+end
+
+void show( X: ref<assign> ) { print( "show ", $X, "\n" ) }
+void shows( X: ref<str> ) { print( "shows ", X, "\n" ) }
+void showid( X: ref<id> ) { print( "showid ", $X, "\n" ) }
+void outer( X: ref<assign> ) { middle( X ) }
+void middle( Y: ref<assign> ) { show( Y ) }
+void push( X: ref<assign> ) { X.L->push_tail( "pushed" ) }
+void change( X: ref<str> ) { X = "changed" print( "change ", X, "\n" ) }
+
+# The list goes in while the tree is in a local: setting an attribute of a
+# global's tree that is shared aborts (#628).
+T: assign = parse assign[ "g = 1" ]
+T.L = new list<str>()
+global G: assign = T
+global GS: str = "gs"
+S: s = new s()
+S->T = parse assign[ "t = 2" ]
+S->F = "f"
+
+show( G )
+shows( GS )
+show( S->T )
+shows( S->F )
+showid( G.Name )
+outer( G )
+push( G )
+print( "G.L ", G.L->length, "\n" )
+change( "lit" )
+change( GS + "x" )
+print( "GS ", GS, "\n" )
+##### EXP #####
+show g = 1
+shows gs
+show t = 2
+shows f
+showid g
+show g = 1
+G.L 1
+change changed
+change changed
+GS gs

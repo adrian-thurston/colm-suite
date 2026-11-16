@@ -1,0 +1,16 @@
+# The check is for each function, not each call: maybe() can write through X,
+# so a copy is refused even for a call that doesn't take the write. On main it
+# ran and printed "X.I=0".
+def d
+	I: int
+	[]
+global G: d = cons d[]
+void maybe( X: ref<d>, B: bool )
+{
+	if B
+		X.I = 9
+	print( "X.I=", X.I, "\n" )
+}
+maybe( G, false )
+##### COMP_ERR #####
+14:1: maybe can write through ref parameter X, so arg 1 must be a local, or an attribute or child of one

@@ -1,0 +1,14 @@
+# A function that passes its ref parameter on to one that writes through it
+# can write through it too, however far down the write is. outer() and
+# middle() come before inner() is defined. On main G.I stayed 0.
+def d
+	I: int
+	[]
+global G: d = cons d[]
+void outer( X: ref<d> ) { middle( X ) }
+void middle( Y: ref<d> ) { inner( Y ) }
+void inner( Z: ref<d> ) { Z.I = 9 }
+outer( G )
+print( G.I, "\n" )
+##### COMP_ERR #####
+11:1: outer can write through ref parameter X, so arg 1 must be a local, or an attribute or child of one

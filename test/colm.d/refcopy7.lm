@@ -1,0 +1,22 @@
+# A namespace-qualified global, a::G, given to a ref<T> parameter while a local
+# G is in scope. It is the global, not the local, so it is a copy, and set()
+# writes through it. On main colm took it for the local, and the program
+# segfaulted in set().
+def d
+	I: int
+	[]
+void set( X: ref<d> ) { X.I = 9 }
+namespace a
+	global G: d = cons d[]
+end
+int t()
+{
+	G: d = cons d[]
+	G.I = 100
+	set( a::G )
+	print( G.I, "\n" )
+	return 0
+}
+t()
+##### COMP_ERR #####
+16:2: set can write through ref parameter X, so arg 1 must be a local, or an attribute or child of one

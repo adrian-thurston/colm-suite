@@ -1,0 +1,16 @@
+# A struct's field, reached through the struct's pointer, given to a ref<T>
+# parameter the function writes through. On main the field kept its value.
+def d
+	I: int
+	[]
+struct s
+	T: d
+end
+void set( X: ref<d> ) { X.I = 9 }
+S: s = new s()
+S->T = cons d[]
+S->T.I = 1
+set( S->T )
+print( S->T.I, "\n" )
+##### COMP_ERR #####
+13:1: set can write through ref parameter X, so arg 1 must be a local, or an attribute or child of one

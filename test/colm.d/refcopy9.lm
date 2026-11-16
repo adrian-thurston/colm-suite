@@ -1,0 +1,17 @@
+# A loop over a ref parameter that writes its loop variable writes through
+# the parameter. On main G stayed "a b".
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def start [id*]
+void f( X: ref<start> )
+{
+	for I: id in X
+		I = cons id "x"
+}
+global G: start = parse start[ "a b" ]
+f( G )
+print( "G=", G, "\n" )
+##### COMP_ERR #####
+14:1: f can write through ref parameter X, so arg 1 must be a local, or an attribute or child of one

@@ -2455,6 +2455,7 @@ struct ObjectField
 		generic(0),
 		mapKeyField(0),
 		dirtyTree(false),
+		refWrite(false),
 		inGetR( IN_HALT ),
 		inGetWC( IN_HALT ),
 		inGetWV( IN_HALT ),
@@ -2544,6 +2545,11 @@ struct ObjectField
 	 * old lhs vars. If only a lhs attribute changes we don't need to preserve
 	 * the original for backtracking. */
 	bool dirtyTree;
+
+	/* A write can go through this variable's tree: an assignment to it, a
+	 * write inside it, or a ref to it that something writes through. Read
+	 * for ref parameters and loop variables, by checkRefCopies(). */
+	bool refWrite;
 
 	Vector<RhsVal> rhsVal;
 
@@ -3472,7 +3478,8 @@ struct Function
 		paramUTs(0),
 		inContext(0),
 		objMethod(0),
-		inHost(false)
+		inHost(false),
+		yieldWrite(false)
 	{}
 
 	static Function *cons( const InputLoc &loc, Namespace *nspace, TypeRef *typeRef,
@@ -3513,6 +3520,10 @@ struct Function
 	bool exprt;
 	ObjectMethod *objMethod;
 	bool inHost;
+
+	/* A write can go through what the function yields: a loop over it
+	 * writes its variable. */
+	bool yieldWrite;
 
 	Function *prev, *next;
 };

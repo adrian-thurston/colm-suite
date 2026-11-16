@@ -448,6 +448,19 @@ EXTRA_DIST = \
 	refabsent1.lm \
 	refargs1.lm \
 	refcond1.lm \
+	refcopy1.lm \
+	refcopy2.lm \
+	refcopy3.lm \
+	refcopy4.lm \
+	refcopy5.lm \
+	refcopy6.lm \
+	refcopy7.lm \
+	refcopy8.lm \
+	refcopy9.lm \
+	refcopy10.lm \
+	refcopy11.lm \
+	refcopy12.lm \
+	refcopy13.lm \
 	refcopy14.lm \
 	refnil1.lm \
 	refnilchild1.lm \

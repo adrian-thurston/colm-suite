@@ -393,6 +393,10 @@ UniqueType *LangVarRef::loadField( Compiler *pd, CodeVect &code,
 	/* Ensure that the field is referenced. */
 	inObject->referenceField( pd, el );
 
+	/* Loaded for writing, something is written inside it. */
+	if ( forWriting )
+		el->refWrite = true;
+
 	UniqueType *elUT = el->typeRef->uniqueType;
 
 	if ( elUT->ptr() || elUT->scalar() ) {
@@ -900,6 +904,8 @@ void LangVarRef::setFieldIter( Compiler *pd, CodeVect &code,
 		ObjectDef *inObject, ObjectField *el, UniqueType *objUT,
 		UniqueType *exprType, bool revert ) const
 {
+	el->refWrite = true;
+
 	code.append( el->iterImpl->inSetCurWC );
 	code.appendHalf( el->offset );
 }
@@ -910,6 +916,8 @@ void LangVarRef::setField( Compiler *pd, CodeVect &code,
 {
 	/* Ensure that the field is referenced. */
 	inObject->referenceField( pd, el );
+
+	el->refWrite = true;
 
 	/* The field's type picks the store, not the value's: nil stored in a
 	 * struct, list or map field replaces a pointer, which isn't released as
@@ -1107,6 +1115,17 @@ IterImpl *LangVarRef::chooseTriterCall( Compiler *pd,
 	return iterImpl;
 }
 
+/* The parameter of func at pos. */
+static ObjectField *paramField( Function *func, long pos )
+{
+	long p = 0;
+	for ( ParameterList::Iter param = *func->paramList; param.lte(); param++, p++ ) {
+		if ( p == pos )
+			return param;
+	}
+	return 0;
+}
+
 /* A ref argument takes what a value argument of the parameter's tree type
  * takes, as castAssignment() decides it: a tree of the type, any tree for
  * a ref<any>, an any, which isn't checked, and nil. */
@@ -1174,6 +1193,15 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 
 				/* Push object loads for reference parameters. */
 				LangVarRef *varRef = expression->term->varRef;
+
+				/* A write through the parameter is a write through the
+				 * variable the argument starts at. */
+				if ( lookup.objMethod->func != 0 ) {
+					VarRefLookup argLookup = varRef->lookupField( pd );
+					ObjectField *param = paramField( lookup.objMethod->func, pe.pos() );
+					pd->refFlow( &argLookup.rootField->refWrite, &param->refWrite );
+				}
+
 				ObjectField *refOf = varRef->preEvaluateRef( pd, code );
 				paramRefs[pe.pos()] = refOf;
 
@@ -1199,6 +1227,23 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 				if ( checkRefArg && lookup.objMethod->iterDef != 0 ) {
 					error(loc) << "arg " << pe.pos()+1 << " of iterator " << name <<
 							" must be a local, or an attribute or child of one" << endp;
+				}
+
+				/* A variable the parameter can't refer to, a global, a
+				 * struct's field or a context's variable, is given as a copy,
+				 * which the function may only read. checkRefCopies() checks
+				 * it once all the code is compiled. A literal or an expression
+				 * gets a copy the function can change: nothing sees it. */
+				if ( checkRefArg && expression->type == LangExpr::TermType &&
+						expression->term->type == LangTerm::VarRefType )
+				{
+					Compiler::RefCopy copy;
+					copy.loc = loc;
+					copy.argPos = pe.pos();
+					copy.func = lookup.objMethod->func;
+					copy.param = paramField( lookup.objMethod->func, pe.pos() );
+					copy.loopVar = 0;
+					pd->refCopies.append( copy );
 				}
 
 				(*pe)->exprUT = exprUT;
@@ -1376,6 +1421,11 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 		error(loc) << "iterator " << name << " called outside a for loop" << endp;
 
 	Function *func = lookup.objMethod->func;
+
+	/* A function can yield for the iterator that calls it, so what it
+	 * yields goes where the caller's yields go. */
+	if ( func != 0 && pd->curFunction != 0 )
+		pd->refFlow( &func->yieldWrite, &pd->curFunction->yieldWrite );
 
 	/* A call that changes what it is called on. A parser's finish parses. */
 	bool change = func == 0 && ( !lookup.objMethod->isConst ||
@@ -3094,7 +3144,19 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 			}
 			error(iterRef->loc) << iterRef->name << " takes a tree" << endp;
 		}
+
+		/* The loop variable is in the tree the loop walks. A write through
+		 * it is a write through the variable the argument starts at. */
+		LangExpr *rootExpr = iterCall->langTerm->args->data[0]->expr;
+		if ( rootExpr->canTakeRef( pd ) ) {
+			VarRefLookup rootLookup = rootExpr->term->varRef->lookupField( pd );
+			pd->refFlow( &rootLookup.rootField->refWrite, &objField->refWrite );
+		}
 	}
+
+	/* The variable of a loop over a user iterator holds what it yields. */
+	if ( func != 0 )
+		pd->refFlow( &func->yieldWrite, &objField->refWrite );
 
 	/* A loop over a list or a map. Its iterator walks one kind, and gives the
 	 * values or the keys as they are stored. So the argument must be of that
@@ -3444,6 +3506,12 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 				error(varRef->loc) << "cannot yield " << objField->name <<
 						", the variable of a loop over a list or a map" << endp;
 			}
+
+			/* A write through the loop's variable is a write through the
+			 * variable the yield starts at. */
+			VarRefLookup yieldLookup = varRef->lookupField( pd );
+			pd->refFlow( &yieldLookup.rootField->refWrite,
+					&pd->curFunction->yieldWrite );
 
 			varRef->evaluateRef( pd, code, 0 );
 
@@ -4124,4 +4192,43 @@ void Compiler::compileByteCode()
 	/* Compile the init code */
 	compileRootBlock( );
 	removeNonUnparsableRepls();
+
+	/* A call can come before the function it calls is compiled, so copies
+	 * are checked once all the code is. */
+	checkRefCopies();
+}
+
+void Compiler::refFlow( bool *from, bool *to )
+{
+	RefFlow flow;
+	flow.from = from;
+	flow.to = to;
+	refFlows.append( flow );
+}
+
+/* A copy given to a ref parameter is read-only: a write through it would be
+ * lost. Carry each write back along the flows, to the parameters and loop
+ * variables it goes through, then refuse each copy given to a parameter
+ * that can be written through. This is for the function, not for each
+ * path through it. */
+void Compiler::checkRefCopies()
+{
+	bool changed = true;
+	while ( changed ) {
+		changed = false;
+		for ( Vector<RefFlow>::Iter flow = refFlows; flow.lte(); flow++ ) {
+			if ( *flow->to && !*flow->from ) {
+				*flow->from = true;
+				changed = true;
+			}
+		}
+	}
+
+	for ( Vector<RefCopy>::Iter copy = refCopies; copy.lte(); copy++ ) {
+		if ( copy->param != 0 && copy->param->refWrite ) {
+			error(copy->loc) << copy->func->name << " can write through ref parameter " <<
+					copy->param->name << ", so arg " << copy->argPos + 1 <<
+					" must be a local, or an attribute or child of one" << endp;
+		}
+	}
 }

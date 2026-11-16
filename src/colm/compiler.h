@@ -979,6 +979,31 @@ struct Compiler
 
 	bool revertOn;
 
+	/* Where a write through a ref can lead, for the check that a ref
+	 * parameter given a copy only reads it. When *to is set, *from is. */
+	struct RefFlow
+	{
+		bool *from;
+		bool *to;
+	};
+
+	/* A copy, of a global, a struct's field or a context's variable, given
+	 * to param of func, or walked by the loop with loopVar. */
+	struct RefCopy
+	{
+		InputLoc loc;
+		long argPos;
+		Function *func;
+		ObjectField *param;
+		ObjectField *loopVar;
+	};
+
+	Vector<RefFlow> refFlows;
+	Vector<RefCopy> refCopies;
+
+	void refFlow( bool *from, bool *to );
+	void checkRefCopies();
+
 	LexReducer *reducer;
 
 	PdaGraph *pdaGraph;

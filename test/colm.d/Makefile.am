@@ -443,6 +443,7 @@ EXTRA_DIST = \
 	ref8.lm \
 	ref9.lm \
 	ref10.lm \
+	refargs1.lm \
 	refcond1.lm \
 	regignbt1.lm \
 	regignbt2.lm \

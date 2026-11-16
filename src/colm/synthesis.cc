@@ -1319,38 +1319,26 @@ void LangVarRef::callOperation( Compiler *pd, CodeVect &code, VarRefLookup &look
 void LangVarRef::popRefQuals( Compiler *pd, CodeVect &code, 
 		VarRefLookup &lookup, CallArgVect *args, bool temps ) const
 {
-	long popCount = 0;
-
-	/* Evaluate and push the args. */
+	/* Each ref argument left words on the stack: the refs of its
+	 * qualification, or the value it was given as a copy. The last
+	 * argument's are on top, so pop from the last argument to the first. */
 	if ( args != 0 ) {
-		for ( CallArgVect::Iter pe = *args; pe.lte(); pe++ ) {
+		for ( long a = args->length() - 1; a >= 0; a-- ) {
 			/* Get the expression and the UT for the arg. */
-			LangExpr *expression = (*pe)->expr;
-			UniqueType *paramUT = lookup.objMethod->paramUTs[pe.pos()];
+			LangExpr *expression = args->data[a]->expr;
+			UniqueType *paramUT = lookup.objMethod->paramUTs[a];
 
 			if ( paramUT->typeId == TYPE_REF ) {
 				if ( expression->canTakeRef( pd ) ) {
 					LangVarRef *varRef = expression->term->varRef;
-					popCount += varRef->qual->length() * 2;
+					long popCount = varRef->qual->length() * 2;
+					if ( popCount > 0 ) {
+						code.append( IN_POP_N_WORDS );
+						code.appendHalf( (short)popCount );
+					}
 				}
-			}
-		}
-
-		if ( popCount > 0 ) {
-			code.append( IN_POP_N_WORDS );
-			code.appendHalf( (short)popCount );
-		}
-
-		if ( temps ) {
-			for ( CallArgVect::Iter pe = *args; pe.lte(); pe++ ) {
-				/* Get the expression and the UT for the arg. */
-				LangExpr *expression = (*pe)->expr;
-				UniqueType *paramUT = lookup.objMethod->paramUTs[pe.pos()];
-
-				if ( paramUT->typeId == TYPE_REF ) {
-					if ( ! expression->canTakeRef( pd ) )
-						code.append( IN_POP_TREE );
-				}
+				else if ( temps )
+					code.append( IN_POP_TREE );
 			}
 		}
 	}

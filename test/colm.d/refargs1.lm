@@ -1,0 +1,24 @@
+# A ref argument reached through a local, followed by a literal given to a ref
+# parameter. After the call the literal's copy and the local's reference are
+# popped, each in its place. On main the words were popped in the wrong order,
+# and the literal's copy was lost: the leak check failed with "lost trees: 1".
+lex
+	token id /[a-z]+/
+	literal `=
+	token num /[0-9]+/
+	ignore /[ \n]+/
+end
+def assign
+	[Name: id `= Val: num]
+void f( X: ref<id>, Y: ref<str> ) { print( "f ", Y, "\n" ) X = cons id "z" }
+void g( Y: ref<str>, X: ref<id> ) { print( "g ", Y, "\n" ) X = cons id "w" }
+A: assign = parse assign[ "x = 1" ]
+f( A.Name, "lit" )
+print( "A=", A, "\n" )
+g( "lit", A.Name )
+print( "A=", A, "\n" )
+##### EXP #####
+f lit
+A=z= 1
+g lit
+A=w= 1

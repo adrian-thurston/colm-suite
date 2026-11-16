@@ -203,6 +203,17 @@ bool LangVarRef::isProdRef( Compiler *pd ) const
 	return false;
 }
 
+/* A child that isProdRef() finds, named on its own in a case, is the
+ * switch's variable qualified by the name, as loadObj() loads it. Qualify
+ * it so in place, so that what takes a ref to it sees the child of that
+ * variable. Once qualified, isLocalRef() or isProdRef() no longer finds it
+ * as a bare name, so a second call does nothing. */
+void LangVarRef::qualifyProdRef( Compiler *pd )
+{
+	if ( !isNspaceQual() && !isInbuiltObject() && !isLocalRef() && isProdRef( pd ) )
+		qual->prepend( QualItem( QualItem::Dot, loc, scope->caseClauseVarRef->name ) );
+}
+
 bool LangVarRef::isStructRef() const
 {
 	if ( structDef != 0 ) {

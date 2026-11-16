@@ -1181,6 +1181,13 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 		bool checkRefArg = paramUT->typeId == TYPE_REF && lookup.objMethod->func != 0;
 
 		if ( paramUT->typeId == TYPE_REF ) {
+			/* A child of a switch's variable, named on its own in a case,
+			 * is a child of that variable, so a ref to it is a ref to the
+			 * child, not a copy. */
+			if ( expression->type == LangExpr::TermType &&
+					expression->term->type == LangTerm::VarRefType )
+				expression->term->varRef->qualifyProdRef( pd );
+
 			if ( expression->canTakeRef( pd ) ) {
 				if ( checkRefArg ) {
 					CodeVect unused;

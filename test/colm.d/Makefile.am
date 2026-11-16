@@ -453,6 +453,7 @@ EXTRA_DIST = \
 	ref10.lm \
 	refabsent1.lm \
 	refargs1.lm \
+	refcase1.lm \
 	refcond1.lm \
 	refcopy1.lm \
 	refcopy2.lm \

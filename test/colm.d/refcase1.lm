@@ -1,0 +1,78 @@
+# A child of the switched variable, named on its own in a case, means that
+# variable's child, so a ref<T> parameter given it refers to the child. show()
+# reads it, set() writes it, and a user iterator yields it. Before, the name
+# went to the ref as a copy: the call aborted in colm_tree_upref(), whether
+# the function read the parameter or not, and a function that writes through
+# it, or an iterator, was refused as if the name weren't a child of a local.
+lex
+	token id /[a-z]+/
+	literal `=
+	ignore /[ \n]+/
+end
+def assign
+	[Name: id `= Val: id] :Eq
+void nop( R: ref<id> )
+{
+}
+void show( R: ref<id> )
+{
+	print( "R=", $R, "\n" )
+}
+void set( R: ref<id> )
+{
+	R = cons id "z"
+}
+iter it( R: ref<id> )
+{
+	yield R
+}
+K: str = argv->pop()
+A: assign = parse assign[ "a = b" ]
+print( "before\n" )
+if K == "nop" {
+	switch A
+	case Eq {
+		nop( Name )
+	}
+}
+elsif K == "read" {
+	switch A
+	case Eq {
+		show( Name )
+	}
+}
+elsif K == "write" {
+	switch A
+	case Eq {
+		set( Name )
+	}
+}
+elsif K == "uiter" {
+	switch A
+	case Eq {
+		for C: id in it( Name )
+			C = cons id "y"
+	}
+}
+print( "A=", A, "\n" )
+##### ARGS #####
+nop
+##### EXP #####
+before
+A=a = b
+##### ARGS #####
+read
+##### EXP #####
+before
+R=a
+A=a = b
+##### ARGS #####
+write
+##### EXP #####
+before
+A=z= b
+##### ARGS #####
+uiter
+##### EXP #####
+before
+A=y= b

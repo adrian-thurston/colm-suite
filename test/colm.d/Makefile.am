@@ -264,6 +264,12 @@ EXTRA_DIST = \
 	locname1.lm \
 	logical1.lm \
 	lookup1.lm \
+	loopcopy1.lm \
+	loopcopy2.lm \
+	loopcopy3.lm \
+	loopcopy4.lm \
+	loopcopy5.lm \
+	loopcopy6.lm \
 	loopnil1.lm \
 	loopvar1.lm \
 	loopvar2.lm \

@@ -1,0 +1,15 @@
+# The tree of a parser, P->tree, is a field reached through the parser, so a
+# loop over it walks a copy. Here with child(), writing the loop variable.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def pair [id id]
+P: parser<pair> = new parser<pair>()
+send P [ "a b" ]
+P->finish()
+for I: id in child( P->tree )
+	I = cons id "z"
+print( P->tree, "\n" )
+##### COMP_ERR #####
+11:5: the loop can write through I, so it must be over a local, or an attribute or child of one

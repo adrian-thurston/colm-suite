@@ -1,0 +1,40 @@
+# What still works in a loop over a copy. A loop over a global, a struct's
+# field or a parser's tree reads it, and can give the loop variable to a
+# function that only reads it. A loop over an expression, such as start in G,
+# walks a copy the loop can change, which nothing else sees.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def start [id*]
+struct s
+	T: start
+end
+void show( R: ref<id> ) { print( "show ", $R, "\n" ) }
+global G: start = parse start[ "a b" ]
+S: s = new s()
+S->T = parse start[ "c d" ]
+P: parser<start> = new parser<start>()
+send P [ "e f" ]
+P->finish()
+for I: id in G
+	print( "G ", $I, "\n" )
+for I: id in S->T
+	show( I )
+for I: id in P->tree
+	print( "P ", $I, "\n" )
+for I: id in ( start in G ) {
+	I = cons id "x"
+	print( "expr ", $I, "\n" )
+}
+print( "G=", G, "\n" )
+##### EXP #####
+G a
+G b
+show c
+show d
+P e
+P f
+expr x
+expr x
+G=a b

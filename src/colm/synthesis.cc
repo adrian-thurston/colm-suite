@@ -3146,11 +3146,24 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 		}
 
 		/* The loop variable is in the tree the loop walks. A write through
-		 * it is a write through the variable the argument starts at. */
+		 * it is a write through the variable the argument starts at. A loop
+		 * over a global, a struct's field or a context's variable walks a
+		 * copy, so its variable is read-only: checkRefCopies() checks it. */
 		LangExpr *rootExpr = iterCall->langTerm->args->data[0]->expr;
 		if ( rootExpr->canTakeRef( pd ) ) {
 			VarRefLookup rootLookup = rootExpr->term->varRef->lookupField( pd );
 			pd->refFlow( &rootLookup.rootField->refWrite, &objField->refWrite );
+		}
+		else if ( rootExpr->type == LangExpr::TermType &&
+				rootExpr->term->type == LangTerm::VarRefType )
+		{
+			Compiler::RefCopy copy;
+			copy.loc = loc;
+			copy.argPos = 0;
+			copy.func = 0;
+			copy.param = 0;
+			copy.loopVar = objField;
+			pd->refCopies.append( copy );
 		}
 	}
 
@@ -4206,11 +4219,12 @@ void Compiler::refFlow( bool *from, bool *to )
 	refFlows.append( flow );
 }
 
-/* A copy given to a ref parameter is read-only: a write through it would be
- * lost. Carry each write back along the flows, to the parameters and loop
- * variables it goes through, then refuse each copy given to a parameter
- * that can be written through. This is for the function, not for each
- * path through it. */
+/* A copy given to a ref parameter, or walked by a loop, is read-only: a
+ * write through it would be lost. Carry each write back along the flows, to
+ * the parameters and loop variables it goes through, then refuse each copy
+ * given to a parameter, or walked by a loop variable, that can be written
+ * through. This is for the function or the loop, not for each path through
+ * it. */
 void Compiler::checkRefCopies()
 {
 	bool changed = true;
@@ -4225,6 +4239,10 @@ void Compiler::checkRefCopies()
 	}
 
 	for ( Vector<RefCopy>::Iter copy = refCopies; copy.lte(); copy++ ) {
+		if ( copy->loopVar != 0 && copy->loopVar->refWrite ) {
+			error(copy->loc) << "the loop can write through " << copy->loopVar->name <<
+					", so it must be over a local, or an attribute or child of one" << endp;
+		}
 		if ( copy->param != 0 && copy->param->refWrite ) {
 			error(copy->loc) << copy->func->name << " can write through ref parameter " <<
 					copy->param->name << ", so arg " << copy->argPos + 1 <<

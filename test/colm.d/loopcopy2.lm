@@ -1,0 +1,20 @@
+# The same for a loop over a struct's field, writing an attribute of the loop
+# variable.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def item
+	A: int
+	[id]
+def start [item*]
+struct s
+	T: start
+end
+S: s = new s()
+S->T = parse start[ "a b" ]
+for I: item in S->T
+	I.A = 1
+print( "S->T=", S->T, "\n" )
+##### COMP_ERR #####
+16:5: the loop can write through I, so it must be over a local, or an attribute or child of one

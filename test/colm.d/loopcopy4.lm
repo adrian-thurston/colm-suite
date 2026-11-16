@@ -1,0 +1,16 @@
+# A loop nested in a loop over a copy walks the copy too, so its variable is
+# read-only as well.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def item [id]
+def start [item*]
+global G: start = parse start[ "a b" ]
+for I: item in G {
+	for J: id in I
+		J = cons id "z"
+}
+print( "G=", G, "\n" )
+##### COMP_ERR #####
+10:5: the loop can write through I, so it must be over a local, or an attribute or child of one

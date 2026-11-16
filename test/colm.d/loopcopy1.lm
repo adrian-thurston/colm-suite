@@ -1,0 +1,14 @@
+# The variable of a loop over a global is read-only: the loop walks a copy.
+# Assigning to it is a compile error. On main the change was lost, and G
+# stayed "a b".
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def start [id*]
+global G: start = parse start[ "a b" ]
+for I: id in G
+	I = cons id "x"
+print( "G=", G, "\n" )
+##### COMP_ERR #####
+10:5: the loop can write through I, so it must be over a local, or an attribute or child of one

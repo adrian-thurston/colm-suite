@@ -31,7 +31,6 @@ OnHeap: on_heap = newHeap( S )
 for Id: id in OnHeap->S 
 {
 	print[ @Id ]
-	Id = cons id "s"
 }
 
 print[ @S ]
@@ -44,7 +43,6 @@ int main( S: start )
 	for Id: id in OnHeap->S 
 	{
 		print[ @Id ]
-		Id = cons id "s"
 	}
 
 	print[ @S ]

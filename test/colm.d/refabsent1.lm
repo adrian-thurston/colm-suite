@@ -1,0 +1,72 @@
+# A ref<T> argument naming a child that the tree's production doesn't have.
+# Reading through it gives nil, as reading the child does. Assigning through it
+# stops the program, as setting such a child does, and setting an attribute
+# through it stops as one of a nil tree does. The host sends standard error to
+# standard output. On main each run segfaulted.
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	ignore /[ \n]+/
+end
+def item
+	A: int
+	[id]
+def pair
+	[L: item R: num]
+|	[num]
+int rd( X: ref<item> ) { print( X, "\n" ) }
+int wr( X: ref<item>, Y: item ) { X = Y }
+int seta( X: ref<item> ) { X.A = 1 }
+K: str = argv->pop()
+parse P: pair[ "1" ]
+parse Q: pair[ "y 2" ]
+print( "before\n" )
+if K == "read"
+	rd( P.L )
+elsif K == "write"
+	wr( P.L, Q.L )
+elsif K == "attr"
+	seta( P.L )
+print( "end\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+read
+##### EXP #####
+before
+NIL
+end
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+write
+##### EXP #####
+before
+fatal: setting a child the tree's production doesn't have
+##### EXIT #####
+1
+##### ARGS #####
+attr
+##### EXP #####
+before
+fatal: setting an attribute of a nil tree
+##### EXIT #####
+1

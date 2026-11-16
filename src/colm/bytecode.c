@@ -1497,8 +1497,10 @@ again:
 
 			debug( prg, REALM_BYTECODE, "IN_GET_LOCAL_REF_R\n" );
 
+			/* A ref to a child that the tree's production doesn't have has
+			 * no kid. It reads as nil, as the child does. */
 			ref_t *ref = (ref_t*) vm_get_plocal(exec, field);
-			tree_t *val = ref->kid->tree;
+			tree_t *val = ref->kid != 0 ? ref->kid->tree : 0;
 			colm_tree_upref( prg, val );
 			vm_push_tree( val );
 			break;
@@ -1509,9 +1511,14 @@ again:
 
 			debug( prg, REALM_BYTECODE, "IN_GET_LOCAL_REF_WC\n" );
 
+			/* With no kid, the ref reads as nil and has nothing to split. A
+			 * write inside it stops as one inside a nil tree does. */
 			ref_t *ref = (ref_t*) vm_get_plocal(exec, field);
-			split_ref( prg, &sp, ref );
-			tree_t *val = ref->kid->tree;
+			tree_t *val = 0;
+			if ( ref->kid != 0 ) {
+				split_ref( prg, &sp, ref );
+				val = ref->kid->tree;
+			}
 			colm_tree_upref( prg, val );
 			vm_push_tree( val );
 			break;
@@ -1524,6 +1531,8 @@ again:
 
 			tree_t *val = vm_pop_tree();
 			ref_t *ref = (ref_t*) vm_get_plocal(exec, field);
+			if ( ref->kid == 0 )
+				runtime_error( prg, "setting a child the tree's production doesn't have" );
 			split_ref( prg, &sp, ref );
 			ref_set_value( prg, sp, ref, val );
 			break;

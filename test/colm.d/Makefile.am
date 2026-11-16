@@ -443,6 +443,7 @@ EXTRA_DIST = \
 	ref8.lm \
 	ref9.lm \
 	ref10.lm \
+	refabsent1.lm \
 	refargs1.lm \
 	refcond1.lm \
 	refnil1.lm \

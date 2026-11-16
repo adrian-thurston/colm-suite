@@ -1,0 +1,41 @@
+# A write through a loop variable copies the trees above it that another
+# variable shares, every time, not only the first. After the first write, M
+# takes the tree; the second write must leave M as it was. On main the second
+# write changed M too, since split_ref() dropped the reference chain after the
+# first.
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	literal `=
+	ignore /[ \n]+/
+end
+def assign
+	[Name: id `= Val: num]
+iter names( T: ref<assign> )
+{
+	for C: id in T
+		yield C
+}
+L: assign = parse assign[ "x = 1" ]
+for C: id in L {
+	C = cons id "q"
+	M: assign = L
+	C = cons id "r"
+	print( "M=", M, "\n" )
+	break
+}
+print( "L=", L, "\n" )
+U: assign = parse assign[ "x = 1" ]
+for C: id in names( U ) {
+	C = cons id "q"
+	V: assign = U
+	C = cons id "r"
+	print( "V=", V, "\n" )
+	break
+}
+print( "U=", U, "\n" )
+##### EXP #####
+M=q= 1
+L=r= 1
+V=q= 1
+U=r= 1

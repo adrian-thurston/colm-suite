@@ -1295,6 +1295,7 @@ void split_ref( program_t *prg, tree_t ***psp, ref_t *from_ref )
 		ref = next;
 	}
 	ref->next = last;
+	ref_t *top = ref;
 
 	/* Now traverse the list, which goes down. A nil tree has nothing under
 	 * it to share. A str has no attributes or children, so a write through
@@ -1319,11 +1320,8 @@ void split_ref( program_t *prg, tree_t ***psp, ref_t *from_ref )
 			ref->kid->tree->refs -= 1;
 
 			while ( ref != 0 && ref != next_down ) {
-				next = ref->next;
-				ref->next = 0;
-
 				ref->kid->tree = new_tree;
-				ref = next;
+				ref = ref->next;
 			}
 
 			/* Correct kid pointers down from ref. */
@@ -1333,11 +1331,19 @@ void split_ref( program_t *prg, tree_t ***psp, ref_t *from_ref )
 			}
 		}
 		else {
-			/* Reset the list as we go down. */
-			next = ref->next;
-			ref->next = 0;
-			ref = next;
+			ref = ref->next;
 		}
+	}
+
+	/* Turn the pointers back up, so the chain is whole for the next write
+	 * through it, and for anything that looks up a ref's parent. */
+	last = 0;
+	ref = top;
+	while ( ref != 0 ) {
+		next = ref->next;
+		ref->next = last;
+		last = ref;
+		ref = next;
 	}
 }
 

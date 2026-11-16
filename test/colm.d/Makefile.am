@@ -446,6 +446,7 @@ EXTRA_DIST = \
 	refargs1.lm \
 	refcond1.lm \
 	refnil1.lm \
+	refsplit1.lm \
 	refstr1.lm \
 	regignbt1.lm \
 	regignbt2.lm \

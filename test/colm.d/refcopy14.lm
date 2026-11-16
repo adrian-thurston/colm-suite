@@ -1,0 +1,23 @@
+# a::G given to a ref<T> parameter that only reads it, with a local G in
+# scope, reads the global. On main colm took a::G for the local G, and the
+# function read the wrong slot of the frame.
+def d
+	I: int
+	[]
+void show( X: ref<d> ) { print( "X.I=", X.I, "\n" ) }
+namespace a
+	global G: d = cons d[]
+end
+int t()
+{
+	G: d = cons d[]
+	G.I = 100
+	a::G.I = 7
+	show( a::G )
+	show( G )
+	return 0
+}
+t()
+##### EXP #####
+X.I=7
+X.I=100

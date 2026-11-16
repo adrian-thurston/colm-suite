@@ -1,0 +1,26 @@
+# A production action that assigns a::G while a local G is in scope. The
+# parser backs up over the action, so the assignment is undone, as one to a
+# global is. On main colm took a::G for the local: the assignment wasn't
+# undone, and the program segfaulted.
+lex
+	token id /[a-z]+/
+	literal `; `!
+	ignore /[ \n]+/
+end
+namespace a
+	global G: str = "start"
+end
+def item
+	[id] {
+		G: str = "local"
+		a::G = "changed"
+		print( "action a::G=", a::G, " G=", G, "\n" )
+	}
+def start
+	[item id `!]
+|	[id id `;]
+parse S: start[ "x y ;" ]
+print( "S=", S, " a::G=", a::G, "\n" )
+##### EXP #####
+action a::G=changed G=local
+S=x y ; a::G=start

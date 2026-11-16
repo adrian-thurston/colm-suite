@@ -348,6 +348,7 @@ EXTRA_DIST = \
 	noctx3.lm \
 	noctx4.lm \
 	noctx5.lm \
+	nsref1.lm \
 	ntignbt1.lm \
 	ntignbt2.lm \
 	ntignbt3.lm \
@@ -447,6 +448,7 @@ EXTRA_DIST = \
 	refabsent1.lm \
 	refargs1.lm \
 	refcond1.lm \
+	refcopy14.lm \
 	refnil1.lm \
 	refnilchild1.lm \
 	refnilchild2.lm \

@@ -166,6 +166,11 @@ VarRefLookup LangVarRef::lookupQualification( Compiler *pd, NameScope *rootScope
 
 bool LangVarRef::isLocalRef() const
 {
+	/* A name after a namespace qualifier is never a local, even with a
+	 * local of the same name in scope. */
+	if ( isNspaceQual() )
+		return false;
+
 	if ( qual->length() > 0 ) {
 		if ( scope->findField( qual->data[0].data ) != 0 )
 			return true;
@@ -216,6 +221,9 @@ bool LangVarRef::isStructRef() const
 
 bool LangVarRef::isInbuiltObject() const
 {
+	if ( isNspaceQual() )
+		return false;
+
 	if ( qual->length() > 0 ) {
 		ObjectField *field = scope->findField( qual->data[0].data );
 		if ( field != 0 && field->isInbuiltObject() )

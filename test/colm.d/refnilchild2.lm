@@ -1,0 +1,87 @@
+# The same stop when the nil is the second write through the ref or the loop
+# variable. On main, and with a check that looked only at the reference chain
+# as split_ref() left it, the program segfaulted: split_ref() dropped the chain
+# after the first write.
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	literal `=
+	ignore /[ \n]+/
+end
+def assign
+	[Name: id `= Val: num]
+void setit( R: ref<id> )
+{
+	R = cons id "a"
+	N: id
+	R = N
+}
+iter names( T: ref<assign> )
+{
+	for C: id in T
+		yield C
+}
+K: str = argv->pop()
+A: assign = parse assign[ "x = 1" ]
+N: id
+print( "before\n" )
+if K == "ref"
+	setit( A.Name )
+elsif K == "for" {
+	for C: id in A {
+		C = cons id "q"
+		C = N
+		break
+	}
+}
+elsif K == "uiter" {
+	for C: id in names( A ) {
+		C = cons id "q"
+		C = N
+		break
+	}
+}
+print( "set\n" )
+if match A [id `= num]
+	print( "matched\n" )
+print( "done\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+ref
+##### EXP #####
+before
+fatal: setting a child to nil
+##### EXIT #####
+1
+##### ARGS #####
+for
+##### EXP #####
+before
+fatal: setting a child to nil
+##### EXIT #####
+1
+##### ARGS #####
+uiter
+##### EXP #####
+before
+fatal: setting a child to nil
+##### EXIT #####
+1

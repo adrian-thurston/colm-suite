@@ -1,0 +1,147 @@
+# A child of a tree can't be nil. Setting one to nil through a for loop's
+# variable, a user iterator's loop variable, or a ref<T> parameter given the
+# child, directly or passed on, stops the program with "setting a child to
+# nil". So does setting the root of a loop to nil when the root is a child.
+# An attribute can be nil, and so can a local, through a ref or as the root
+# of a loop, which then ends. The host sends standard error to standard
+# output. On main each child run segfaulted in the match after it, as did the
+# local run, in the loop.
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	literal `=
+	ignore /[ \n]+/
+end
+def assign
+	Attr: id
+	[Name: id `= Val: num]
+void setit( R: ref<id> )
+{
+	N: id
+	R = N
+}
+void passon( R: ref<id> ) { setit( R ) }
+iter names( T: ref<assign> )
+{
+	for C: id in T
+		yield C
+}
+K: str = argv->pop()
+A: assign = parse assign[ "x = 1" ]
+A.Attr = cons id "q"
+N: id
+print( "before\n" )
+if K == "for" {
+	for C: id in A {
+		C = N
+		break
+	}
+}
+elsif K == "ref"
+	setit( A.Name )
+elsif K == "passon"
+	passon( A.Name )
+elsif K == "uiter" {
+	for C: id in names( A ) {
+		C = N
+		break
+	}
+}
+elsif K == "forroot" {
+	for C: id in A.Name
+		C = N
+}
+elsif K == "attr" {
+	setit( A.Attr )
+	print( "attr=", A.Attr, "\n" )
+}
+elsif K == "local" {
+	L: id = cons id "l"
+	setit( L )
+	print( "L=", L, "\n" )
+	M: id = cons id "m"
+	for C: id in M
+		C = N
+	print( "M=", M, "\n" )
+}
+print( "set\n" )
+if match A [id `= num]
+	print( "matched\n" )
+print( "done\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+for
+##### EXP #####
+before
+fatal: setting a child to nil
+##### EXIT #####
+1
+##### ARGS #####
+ref
+##### EXP #####
+before
+fatal: setting a child to nil
+##### EXIT #####
+1
+##### ARGS #####
+passon
+##### EXP #####
+before
+fatal: setting a child to nil
+##### EXIT #####
+1
+##### ARGS #####
+uiter
+##### EXP #####
+before
+fatal: setting a child to nil
+##### EXIT #####
+1
+##### ARGS #####
+forroot
+##### EXP #####
+before
+fatal: setting a child to nil
+##### EXIT #####
+1
+##### ARGS #####
+attr
+##### EXP #####
+before
+attr=NIL
+set
+matched
+done
+host: exit status 0
+##### EXIT #####
+0
+##### ARGS #####
+local
+##### EXP #####
+before
+L=NIL
+M=NIL
+set
+matched
+done
+host: exit status 0
+##### EXIT #####
+0

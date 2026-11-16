@@ -1,0 +1,43 @@
+# A loop whose root is a local, set to nil through the loop variable. A local
+# can be nil, so the loop goes on, and ends: a nil tree has nothing in it. On
+# main the loop's next step read the nil tree, and the program segfaulted.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+N: id
+K: str = argv->pop()
+M: id = cons id "m"
+if K == "tree" {
+	for C: id in M
+		C = N
+}
+elsif K == "with_ignore" {
+	for C: id in with_ignore( M )
+		C = N
+}
+elsif K == "repeat" {
+	for C: id in repeat( M )
+		C = N
+}
+elsif K == "rev_repeat" {
+	for C: id in rev_repeat( M )
+		C = N
+}
+print( "M=", M, "\n" )
+##### ARGS #####
+tree
+##### EXP #####
+M=NIL
+##### ARGS #####
+with_ignore
+##### EXP #####
+M=NIL
+##### ARGS #####
+repeat
+##### EXP #####
+M=NIL
+##### ARGS #####
+rev_repeat
+##### EXP #####
+M=NIL

@@ -389,7 +389,9 @@ rec_call:
 		return;
 	}
 	else {
-		child = tree_child_maybe_ignore( prg, iter->ref.kid->tree, with_ignore );
+		/* The loop's root can have been set to nil, which has no children. */
+		child = iter->ref.kid->tree == 0 ? 0 :
+				tree_child_maybe_ignore( prg, iter->ref.kid->tree, with_ignore );
 		if ( child != 0 ) {
 			vm_contiguous( 2 );
 			vm_push_ref( iter->ref.next );
@@ -541,7 +543,10 @@ rec_call:
 		 * root of the iteration, or if does not have any neighbours to the
 		 * right. */
 		if ( top == vm_ptop() || iter->ref.kid->next == 0  ) {
-			child = tree_child( prg, iter->ref.kid->tree );
+			/* The loop's root can have been set to nil, which has no
+			 * children. */
+			child = iter->ref.kid->tree == 0 ? 0 :
+					tree_child( prg, iter->ref.kid->tree );
 			if ( child != 0 ) {
 				vm_contiguous( 2 );
 				vm_push_ref( iter->ref.next );

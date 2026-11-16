@@ -264,6 +264,7 @@ EXTRA_DIST = \
 	locname1.lm \
 	logical1.lm \
 	lookup1.lm \
+	loopnil1.lm \
 	loopvar1.lm \
 	loopvar2.lm \
 	loopvar3.lm \
@@ -447,6 +448,8 @@ EXTRA_DIST = \
 	refargs1.lm \
 	refcond1.lm \
 	refnil1.lm \
+	refnilchild1.lm \
+	refnilchild2.lm \
 	refsplit1.lm \
 	refstr1.lm \
 	regignbt1.lm \

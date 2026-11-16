@@ -660,6 +660,34 @@ static tree_t *get_rhs_el_split( program_t *prg, tree_t *obj, long pos )
 	return split;
 }
 
+/* Says whether a ref, or a loop's current position, names a child of a
+ * tree, which can't be nil, and not an attribute, a local or a copy, which
+ * can. The refs above it with the same kid, which IN_REF_FROM_REF and the
+ * loops' refs to their current position make, name the same slot. The one
+ * above those holds the parent: the slot is an attribute if it is one of
+ * the parent's attribute kids, and a child otherwise. With no parent, the
+ * slot is a local or a copy. */
+static int ref_names_child( program_t *prg, const ref_t *ref )
+{
+	const ref_t *up = ref->next;
+	while ( up != 0 && up->kid == ref->kid )
+		up = up->next;
+
+	if ( up == 0 || up->kid == 0 || up->kid->tree == 0 )
+		return 0;
+
+	tree_t *parent = up->kid->tree;
+	long object_length = prg->rtd->lel_info[parent->id].object_length;
+	kid_t *attr = tree_attr( prg, parent );
+	long a;
+	for ( a = 0; a < object_length && attr != 0; a++, attr = attr->next ) {
+		if ( attr == ref->kid )
+			return 0;
+	}
+
+	return 1;
+}
+
 static void downref_local_trees( program_t *prg, tree_t **sp,
 		execution_t *exec, struct local_info *locals, long locals_len )
 {
@@ -1427,6 +1455,8 @@ again:
 
 			tree_t *t = vm_pop_tree();
 			user_iter_t *uiter = (user_iter_t*) vm_get_local(exec, field);
+			if ( t == 0 && ref_names_child( prg, &uiter->ref ) )
+				runtime_error( prg, "setting a child to nil" );
 			split_ref( prg, &sp, &uiter->ref );
 			tree_t *old = uiter->ref.kid->tree;
 			set_uiter_cur( prg, uiter, t );
@@ -1533,6 +1563,8 @@ again:
 			ref_t *ref = (ref_t*) vm_get_plocal(exec, field);
 			if ( ref->kid == 0 )
 				runtime_error( prg, "setting a child the tree's production doesn't have" );
+			if ( val == 0 && ref_names_child( prg, ref ) )
+				runtime_error( prg, "setting a child to nil" );
 			split_ref( prg, &sp, ref );
 			ref_set_value( prg, sp, ref, val );
 			break;
@@ -2709,6 +2741,8 @@ again:
 
 			tree_t *tree = vm_pop_tree();
 			tree_iter_t *iter = (tree_iter_t*) vm_get_plocal(exec, field);
+			if ( tree == 0 && ref_names_child( prg, &iter->ref ) )
+				runtime_error( prg, "setting a child to nil" );
 			split_iter_cur( prg, &sp, iter );
 			tree_t *old = tree_iter_deref_cur( iter );
 			set_triter_cur( prg, iter, tree );

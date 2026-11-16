@@ -1,0 +1,12 @@
+# A user iterator's ref parameter takes only a local, or an attribute or
+# child of one. On main a literal was copied to the stack, where it stayed
+# after the loop: the program aborted at its end with "sp == root".
+iter it( R: ref<str> )
+{
+	yield R
+}
+for S: str in it( "abc" )
+	print( "S=", S, "\n" )
+print( "ok\n" )
+##### COMP_ERR #####
+8:15: arg 1 of iterator it must be a local, or an attribute or child of one

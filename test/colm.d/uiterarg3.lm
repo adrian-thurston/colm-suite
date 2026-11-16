@@ -1,0 +1,10 @@
+# nil given to a user iterator's ref parameter is refused too.
+iter it( R: ref<str> )
+{
+	yield R
+}
+for S: str in it( nil )
+	print( "S=", S, "\n" )
+print( "ok\n" )
+##### COMP_ERR #####
+6:15: arg 1 of iterator it must be a local, or an attribute or child of one

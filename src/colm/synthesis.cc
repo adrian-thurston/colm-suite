@@ -1194,6 +1194,13 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 							" is of the wrong type" << endp;
 				}
 
+				/* An iterator's ref parameter takes no copy: nothing would pop
+				 * it after the loop. */
+				if ( checkRefArg && lookup.objMethod->iterDef != 0 ) {
+					error(loc) << "arg " << pe.pos()+1 << " of iterator " << name <<
+							" must be a local, or an attribute or child of one" << endp;
+				}
+
 				(*pe)->exprUT = exprUT;
 
 				size += 1;

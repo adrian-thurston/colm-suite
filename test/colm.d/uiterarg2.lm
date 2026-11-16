@@ -1,0 +1,17 @@
+# A global given to a user iterator's ref parameter, in a function. On main
+# the copy left on the stack shifted the function's frame, and the program
+# stopped with "UNKNOWN INSTRUCTION".
+global G: str = "abc"
+iter it( R: ref<str> )
+{
+	yield R
+}
+void f()
+{
+	for S: str in it( G )
+		print( "S=", S, "\n" )
+}
+f()
+print( "ok\n" )
+##### COMP_ERR #####
+11:16: arg 1 of iterator it must be a local, or an attribute or child of one

@@ -541,6 +541,9 @@ EXTRA_DIST = \
 	uiter11.lm \
 	uiter12.lm \
 	uiter13.lm \
+	uiterarg1.lm \
+	uiterarg2.lm \
+	uiterarg3.lm \
 	undoctx1.lm \
 	undoctx2.lm \
 	undoctx3.lm \

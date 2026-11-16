@@ -4,7 +4,6 @@
 # an attribute isn't copied with the tree, so a push to it through the ref
 # reaches the global's list. A literal or an expression gets a copy the
 # function can change: what it writes there is lost, and nothing else sees it.
-# A loop over a user iterator that yields without writing reads a global.
 lex
 	token id /[a-z]+/
 	token num /[0-9]+/

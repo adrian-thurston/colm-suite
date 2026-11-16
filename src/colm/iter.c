@@ -629,9 +629,8 @@ static void iter_find_rev_repeat( program_t *prg, tree_t ***psp, tree_iter_t *it
 		}
 		
 		if ( iter->ref.kid->next == 0 ) {
-			/* Go up one and then down. Remember we can't use iter->ref.next
-			 * because the chain may have been split, setting it null (to
-			 * prevent repeated walks up). */
+			/* Go up one and then down. The ref on top of the stack is the
+			 * parent's. */
 			ref_t *ref = (ref_t*)vm_ptop();
 			iter->ref.kid = tree_child( prg, ref->kid->tree );
 		}

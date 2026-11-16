@@ -239,9 +239,10 @@ Some mistakes stop the program where they happen:
 * reading or setting a child or an attribute of a nil tree, as
   xref:3_02_parse.adoc#parsing[the parsing chapter] and
   xref:3_05_reduction.adoc#attributes[the attributes section] describe;
-* setting a child to nil, by assigning nil to its label or by giving
-  `make_tree` a nil child, or setting a child that the tree's production
-  doesn't have, as xref:3_03_match.adoc#changing[the patterns chapter]
+* setting a child to nil, by assigning nil to its label, through a loop
+  variable or a `ref<T>` parameter, or by giving `make_tree` a nil child, or
+  setting a child that the tree's production doesn't have, through its label or
+  a `ref<T>` parameter, as xref:3_03_match.adoc#changing[the patterns chapter]
   describes;
 * `make_tree` given the id of a token type or of `str` another way than
   `typeid<T>`, as xref:3_03_match.adoc#make[the patterns chapter] describes;

@@ -15,6 +15,37 @@ struct, a list or a map is shared by every variable that holds it, so a
 function given one can change it, though not which one the caller's variable
 holds.
 
+A `ref<T>` parameter is the caller's variable when the argument is a local, a
+parameter or a loop variable, or an attribute or child reached through one,
+with no struct or other pointer on the way. Anything else is a copy:
+
+* A global, a field of a struct, a context's variable, or an attribute or child
+  of one, is a copy the function may only read. If the function can write
+  through the parameter, the call is a compile error: `set can write through
+  ref parameter X, so arg 1 must be a local, or an attribute or child of one`.
+  A function writes through a parameter by assigning it, by setting an
+  attribute or child through it, by writing the variable of a loop over it, by
+  yielding it, or by giving it to another `ref` parameter that is written
+  through. This is decided for the function, not for the call, so a write on a
+  path that a call doesn't take counts too. A function that only reads can take
+  the tree as a value parameter instead. A tree passed by value is shared until
+  one side changes it, so nothing is copied.
+* A literal, or an expression such as `start in S`, is a copy the function can
+  change. What it writes there is lost.
+
+A struct, a list or a map held in an attribute isn't copied with the tree. A
+function given a copy can change one through it, as `+X.L->push_tail( "x" )+`
+does.
+
+The argument must have the parameter's type, as a value argument must. A
+`ref<any>` takes any tree. The argument to an iterator's `ref` parameter must
+be a local, or an attribute or child of one, as
+xref:1_06_iterators.adoc#iterators[the iterators chapter] says.
+
+Reading through a `ref<T>` given a child that the tree's production doesn't
+have gives nil, as reading the child does. Writing through it stops the
+program, as xref:3_03_match.adoc#changing[changing a tree] describes.
+
 [source,colm]
 .reference.lm
 ----

@@ -14,10 +14,10 @@ A variable whose type is a token or a def holds a tree, or nil. A parse that
 fails gives nil, and so does a `match` that fails. Most of what this chapter
 does with a tree needs one that isn't nil, so check a tree before using it.
 
-Assigning a tree to a variable copies it, and so does passing it to a
-function. A change made through one variable doesn't show in the other. A
-parameter of type `ref<T>` refers to the caller's variable instead, so a
-function can change the caller's tree through it.
+Assigning a tree to a variable copies it, and so does passing it to a function.
+A change made through one variable doesn't show in the other. A parameter of
+type `ref<T>` refers to the caller's variable instead, when that is a local, so
+a function can change the caller's tree through it.
 xref:1_04_functions.adoc#functions[The functions chapter] covers `ref`.
 
 `==` and `!=` compare two trees. They are equal when they have the same
@@ -234,15 +234,19 @@ A child can't be nil. Assigning nil to one, as `S.Name = nil` does, or
 assigning a variable that holds nil, stops the program: it prints
 `fatal: setting a child to nil` and exits with status 1, as
 xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]
-says. It stops even when the production of `S` has no `Name`. An attribute,
-which xref:3_05_reduction.adoc#attributes[the attributes section] describes,
-can be set to nil.
+says. It stops even when the production of `S` has no `Name`. So does assigning
+nil through the variable of a loop that has reached a child, or through a
+`ref<T>` parameter given a child. An attribute, which
+xref:3_05_reduction.adoc#attributes[the attributes section] describes, can be
+set to nil.
 
 Assigning a tree to a child that the production of `S` doesn't have stops the
 program too, with `fatal: setting a child the tree's production doesn't
 have`. Reading such a child gives nil, as
 xref:3_02_parse.adoc#parsing[the parsing chapter] says, so a write inside it
-stops as a write inside a nil tree does.
+stops as a write inside a nil tree does. A `ref<T>` parameter given such a
+child is the same: reading through it gives nil, and assigning through it stops
+the program with that message.
 
 Ignored text belongs to the token before it. Ignored text at the start of the
 input, before any token, belongs to the first token. So a tree that is

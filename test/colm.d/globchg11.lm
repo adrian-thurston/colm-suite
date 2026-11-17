@@ -1,0 +1,27 @@
+# An action that a parse runs, and a restartable parser runs too. The parse
+# alone could change the global.
+global G: int = 0
+
+lex
+	token id /[a-z]+/
+	literal `; `!
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+	{
+		G = G + 1
+	}
+
+def start
+	[item* `;]
+
+def other
+	[item `!]
+
+parse S: start[ "a b ;" ]
+P: parser<other> = new parser<other>()
+send P "a !" eos
+##### COMP_ERR #####
+14:3: cannot change G, a global, in an action of a restartable parser: keep the data in a context

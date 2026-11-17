@@ -1,0 +1,41 @@
+# #368's program, with a global in place of the context: an action sends to a
+# parser that a global holds, and the program sends to it too, between sends.
+lex
+	ignore /[ \t\n]+/
+	token id /[a-z]+/
+end
+
+def nested
+	[id*]
+
+global O: parser<nested> = new parser<nested>()
+
+lex
+	ignore /[ \t]+/
+	token word /[a-z]+/
+	literal `^ `! `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+def item
+	[`^ word]
+	{
+		send O [$r2 " "]
+	}
+
+def two
+	[A1 item* `! NL]
+|	[A2 item* `; NL]
+
+P: parser<two> = new parser<two>()
+send P ["^ab ^cd "]
+send O ["x "]
+send P [argv->pop() "\n"]
+P->finish()
+send O [] eos
+print( '[', O->tree, ']\n' )
+##### COMP_ERR #####
+26:8: cannot change O, a global, in an action of a restartable parser: keep the data in a context

@@ -2665,6 +2665,20 @@ struct FieldInit
 
 typedef Vector<FieldInit*> FieldInitVect;
 
+/* A change that revert code makes to what a global holds, or a value it
+ * takes out of one that could be changed: kept with the block for
+ * Compiler::checkRestartable(). What is taken out is a field of the global,
+ * what a call on it gives, or, if what is empty, the global itself. */
+struct GlobalUse
+{
+	enum Kind { Change, Take };
+
+	Kind kind;
+	InputLoc loc;
+	String global;
+	String what;
+};
+
 struct VarRefLookup
 {
 	VarRefLookup( int lastPtrInQual, int firstConstPart,
@@ -2808,6 +2822,8 @@ struct LangVarRef
 	bool isFinishCall( VarRefLookup &lookup ) const;
 
 	void checkContextChange( Compiler *pd, const VarRefLookup &lookup ) const;
+	bool isGlobalRef( Compiler *pd ) const;
+	void noteGlobalUse( Compiler *pd, GlobalUse::Kind kind, const String &what ) const;
 	void checkContextValue( Compiler *pd, const VarRefLookup &lookup,
 			UniqueType *ut, bool inPlace ) const;
 	ObjectField *setupVar( Compiler *pd, const VarRefLookup &lookup ) const;
@@ -3468,6 +3484,12 @@ struct CodeBlock
 	/* Each frame has two versions of 
 	 * the code: revert and commit. */
 	CodeVect codeWV, codeWC;
+
+	/* What its revert code does to globals, and the functions and
+	 * iterators it calls and the types it parses. */
+	Vector<GlobalUse> globalUses;
+	Vector<Function*> calls;
+	Vector<LangEl*> parses;
 };
 
 struct Function

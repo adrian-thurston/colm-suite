@@ -330,6 +330,8 @@ Compiler::Compiler( )
 	nextFrameId(0),
 	nextParserId(0),
 	revertOn(true),
+	curBlock(0),
+	otherCodeRuns(0),
 	reducer(0),
 	predValue(0),
 	nextMatchEndNum(0),

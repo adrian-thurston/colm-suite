@@ -1,0 +1,29 @@
+# The list of a struct that a global holds, put into a local, where the
+# action could change it.
+struct rec
+	L: list<str>
+end
+
+global R: rec = new rec()
+
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+	{
+		L: list<str> = R->L
+		L->push_tail( $r1 )
+	}
+
+def start
+	[item* `;]
+
+R->L = new list<str>()
+P: parser<start> = new parser<start>()
+send P "a b ;" eos
+##### COMP_ERR #####
+18:18: cannot take L out of R, a global, in an action of a restartable parser: keep the data in a context

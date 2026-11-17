@@ -1,0 +1,23 @@
+# A global's list put into a local, where the action could change it.
+global GL: list<str> = new list<str>()
+
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+	{
+		L: list<str> = GL
+		L->push_tail( $r1 )
+	}
+
+def start
+	[item* `;]
+
+P: parser<start> = new parser<start>()
+send P "a b ;" eos
+##### COMP_ERR #####
+13:18: cannot take GL, a global, out in an action of a restartable parser: keep the data in a context

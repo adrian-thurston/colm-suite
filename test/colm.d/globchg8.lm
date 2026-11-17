@@ -1,0 +1,29 @@
+# An assignment to a global in an action of a parse that an action of a
+# restartable parser starts: backing up over the action backs up the parse.
+global G: int = 0
+
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+end
+
+def inner
+	[id]
+	{
+		G = G + 1
+	}
+
+def item
+	[id]
+	{
+		parse I: inner[ "x" ]
+	}
+
+def start
+	[item* `;]
+
+P: parser<start> = new parser<start>()
+send P "a b ;" eos
+##### COMP_ERR #####
+14:3: cannot change G, a global, in an action of a restartable parser: keep the data in a context

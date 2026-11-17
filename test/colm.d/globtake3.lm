@@ -1,0 +1,28 @@
+# The struct that find gives from a global's map, which the action could
+# change.
+struct rec
+	N: int
+end
+
+global M: map<str, rec> = new map<str, rec>()
+
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+	{
+		X: rec = M->find( "k" )
+		X->N = 3
+	}
+
+def start
+	[item* `;]
+
+P: parser<start> = new parser<start>()
+send P "a b ;" eos
+##### COMP_ERR #####
+18:12: cannot take what find gives out of M, a global, in an action of a restartable parser: keep the data in a context

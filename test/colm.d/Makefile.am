@@ -198,6 +198,26 @@ EXTRA_DIST = \
 	func4.lm \
 	generate1.lm \
 	generate2.lm \
+	globchg1.lm \
+	globchg2.lm \
+	globchg3.lm \
+	globchg4.lm \
+	globchg5.lm \
+	globchg6.lm \
+	globchg7.lm \
+	globchg8.lm \
+	globchg9.lm \
+	globchg10.lm \
+	globchg11.lm \
+	globchg12.lm \
+	globchg13.lm \
+	globchg14.lm \
+	globchg15.lm \
+	globread1.lm \
+	globtake1.lm \
+	globtake2.lm \
+	globtake3.lm \
+	globtake4.lm \
 	heredoc.lm \
 	highbyte1.lm \
 	highbyte2.lm \

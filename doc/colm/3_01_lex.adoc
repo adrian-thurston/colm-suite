@@ -519,7 +519,9 @@ result of a parse that failed, stops the program, as
 xref:8_04_error_handling.adoc#run-time-errors[an error at run time] does.
 
 An action can declare variables of its own. To use a variable declared at
-the top of the program, the variable has to be declared with `global`. A
+the top of the program, the variable has to be declared with `global`. The
+actions of a parser that the program sends to can only read a global, as
+xref:3_04_undo.adoc#restartable[globals in a restartable parser] explains. A
 token with an empty pattern, `//`, never matches any input, so the scanner
 never makes one. Code has to make it with `make_token`, as the action in the
 next example does.

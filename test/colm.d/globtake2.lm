@@ -1,0 +1,27 @@
+# A global's list given to a function, which could change it.
+global GL: list<str> = new list<str>()
+
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+end
+
+void add( L: list<str>, S: str )
+{
+	L->push_tail( S )
+}
+
+def item
+	[id]
+	{
+		add( GL, $r1 )
+	}
+
+def start
+	[item* `;]
+
+P: parser<start> = new parser<start>()
+send P "a b ;" eos
+##### COMP_ERR #####
+18:8: cannot take GL, a global, out in an action of a restartable parser: keep the data in a context

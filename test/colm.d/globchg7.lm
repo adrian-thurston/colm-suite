@@ -1,0 +1,29 @@
+# An assignment to a global in an iterator that an action loops over.
+global G: int = 0
+
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+end
+
+iter it( T: id )
+{
+	G = G + 1
+	yield T
+}
+
+def item
+	[id]
+	{
+		for X: id in it( r1 )
+			print( X, "\n" )
+	}
+
+def start
+	[item* `;]
+
+P: parser<start> = new parser<start>()
+send P "a b ;" eos
+##### COMP_ERR #####
+12:2: cannot change G, a global, in it, which an action of a restartable parser runs: keep the data in a context

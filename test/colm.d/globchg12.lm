@@ -1,0 +1,24 @@
+# An assignment to a global of a namespace.
+namespace ns
+	global G: int = 0
+end
+
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+	{
+		ns::G = ns::G + 1
+	}
+
+def start
+	[item* `;]
+
+P: parser<start> = new parser<start>()
+send P "a b ;" eos
+##### COMP_ERR #####
+15:7: cannot change G, a global, in an action of a restartable parser: keep the data in a context

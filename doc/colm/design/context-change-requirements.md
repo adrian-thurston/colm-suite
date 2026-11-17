@@ -61,9 +61,10 @@ was given can back up, and what colm checks. The
   object, except a parse that a parser's actions start and a parser they
   send to.
 - Globals that a parse's actions change and the program changes too: the
-  companion rule, that an incremental parser keeps its data in a context,
-  is [#714], with [#683] and [#687] its cases. [#368] is also met through a
-  global accum parser.
+  companion rule, [#714], makes globals read-only in what a restartable
+  parser runs, so that such a parser keeps the data it changes in a context.
+  Its [requirements](global-change-requirements.md) cover [#683] and [#687],
+  and [#368] met through a global accum parser.
 - Trees whose attributes, or those of trees below them, hold a list, map,
   parser, stream or struct ([#720]): a copy taken out of a context object,
   or a tree the program put in and kept, shares what the attribute holds,

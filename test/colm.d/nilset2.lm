@@ -1,7 +1,9 @@
 # Assigning nil to a struct or a list global in a production action that the
 # parser keeps. The reverse code held the old struct as a tree, and the
-# commit released it as one, aborting. The parser is made before the struct,
-# so the struct is still allocated when the reverse code is released.
+# commit released it as one, aborting. The parse's first item makes the
+# struct, after the parser, so the struct is still allocated when the
+# reverse code is released. A parse whose only item that runs code is its
+# first isn't restartable, so its actions can change globals.
 
 struct point
 	X: int
@@ -26,12 +28,14 @@ def item
 def start
 	[item item] commit
 
-P: parser<start> = new parser<start>()
-G = new point()
-L = new list<int>()
-G->X = 7
-send P [ "abc ; def ;" ]
-S: start = P->finish()
+void make()
+{
+	G = new point()
+	L = new list<int>()
+	G->X = 7
+}
+
+parse S: start[ make() "abc ; def ;" ]
 if ( !G )
 	print( "G: nil\n" )
 if ( !L )

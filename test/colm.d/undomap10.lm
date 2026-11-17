@@ -5,7 +5,9 @@
 # finds its element where it left it. Input "+ - ;" is parsed as A1 first,
 # running both actions. Then "^" and a newline keep A1, and a newline alone
 # makes the parser back up to A2, undoing both. A kept action's reverse code
-# frees the element the second one took out once, when the parser goes.
+# frees the element the second one took out once, when the parser goes. The
+# parse's second item is a variable, which runs no code, so the parse isn't
+# restartable, and its actions can change globals.
 
 global M: map<str, str> = new map<str, str>()
 global L: list<str> = new list<str>()
@@ -38,13 +40,10 @@ def start
 	[A1 item* `; `^ NL]
 |	[A2 `+ `- `; NL]
 
-P: parser<start> = new parser<start>()
-send P "+ - ;"
+Tail: str = "\n"
 if ( argv->pop() == "keep" )
-	send P "^\n"
-else
-	send P "\n"
-S: start = P->finish()
+	Tail = "^\n"
+parse S: start[ "+ - ;" Tail ]
 print( "after: M ", M->length, " ", M->find( "k" ), " ", M->find( "j" ),
 		", L ", L->length, "\n" )
 ##### ARGS #####

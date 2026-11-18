@@ -4,10 +4,10 @@
 # far as it can be: the function's locals and the iterator's are released,
 # and the rest is popped with the iterator. A loop the iterator is in, under
 # the expression's words, loses its iterator's locals, which the LOST section
-# lists. Before, every local was lost. With func, the expression is in a
-# function the iterator called, between the iterator and the one that
-# yielded. The walk stops in that function's frame, and the iterator's own
-# locals are still released.
+# lists. Before, only the iterator's own locals were released. With func, the
+# expression is in a function the iterator called, between the iterator and
+# the one that yielded. The walk stops in that function's frame, and the
+# iterator's own locals are still released.
 iter j()
 {
 	J: str = "j"

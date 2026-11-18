@@ -1,0 +1,98 @@
+# An exit in a user iterator's own code ends the iterator, and every frame
+# under it. Before, the exit took the iterator's frame for the loop's, and
+# the program aborted or crashed. The argument picks where the exit is: in
+# the iterator, for a loop at the top level or in a function, in a function
+# the iterator calls, in the iterator's own loop over a tree, in an iterator
+# that it loops over, or in an action of a parse that it runs.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def start
+	[id*]
+	{
+		if $r1 == 'stop'
+			exit( 2 )
+	}
+
+global How: str = argv->pop()
+
+void g()
+{
+	G: str = "g"
+	exit( 2 )
+}
+
+iter inner()
+{
+	N: str = "n"
+	exit( 2 )
+	yield N
+}
+
+iter i()
+{
+	S: str = "s"
+	if How == "root" || How == "func"
+		exit( 2 )
+	if How == "call"
+		g()
+	if How == "loop" {
+		P: start = parse start[ "a b" ]
+		for X: id in P {
+			print( $X, "\n" )
+			exit( 2 )
+		}
+	}
+	if How == "inner" {
+		for T: str in inner()
+			yield T
+	}
+	if How == "parse"
+		parse Q: start[ "stop" ]
+	yield S
+}
+
+void f()
+{
+	for T: str in i() {}
+}
+
+if How == "func"
+	f()
+else {
+	for T: str in i() {}
+}
+print( "not reached\n" )
+##### ARGS #####
+root
+##### EXP #####
+##### EXIT #####
+2
+##### ARGS #####
+func
+##### EXP #####
+##### EXIT #####
+2
+##### ARGS #####
+call
+##### EXP #####
+##### EXIT #####
+2
+##### ARGS #####
+loop
+##### EXP #####
+a
+##### EXIT #####
+2
+##### ARGS #####
+inner
+##### EXP #####
+##### EXIT #####
+2
+##### ARGS #####
+parse
+##### EXP #####
+##### EXIT #####
+2

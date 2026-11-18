@@ -259,8 +259,7 @@ Some rules for user iterators:
   child of one`.
 * Use an iterator only in a `for` loop, after `in`. Calling one as a
   function, as in `i( S )` or `child( T )`, is a compile error.
-* Don't use `exit` in an iterator, or in a function that it calls. A
-  `return` in an iterator is a compile error.
+* A `return` in an iterator is a compile error.
 * An iterator can't have the name of a function or another iterator in its
   namespace, or, at the top level, of a built-in one: colm reports it as
   redeclared.

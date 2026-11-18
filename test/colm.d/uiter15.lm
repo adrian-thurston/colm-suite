@@ -1,0 +1,48 @@
+# An exit in a user iterator that a production's action loops over ends the
+# iterator, the action and the parse. The argument puts the exit in the
+# iterator, or in a function that it calls. Before, the program aborted.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+global How: str = argv->pop()
+
+void g()
+{
+	G: str = "g"
+	exit( 5 )
+}
+
+iter i()
+{
+	S: str = "s"
+	print( "in i\n" )
+	if How == "iter"
+		exit( 5 )
+	g()
+	yield S
+}
+
+def start
+	[id] {
+		L: str = "l"
+		for T: str in i() {
+			print( T, "\n" )
+		}
+	}
+
+parse start[ "a" ]
+print( "not reached\n" )
+##### ARGS #####
+iter
+##### EXP #####
+in i
+##### EXIT #####
+5
+##### ARGS #####
+call
+##### EXP #####
+in i
+##### EXIT #####
+5

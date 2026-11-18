@@ -174,9 +174,9 @@ include::code/err_parts.exp[]
 
 `exit( N )` ends the program with the status `N`, as
 xref:1_00_language_overview.adoc#exit[the language overview] says. It works
-in a function, as `err_twice` shows, and in a token action or a production's
-action: the parse stops there, and the program ends with that status. Use
-`exit` as a statement of its own.
+in a function, as `err_twice` shows, in an iterator, and in a token action or
+a production's action: the parse stops there, and the program ends with that
+status. Use `exit` as a statement of its own.
 
 In a program run from a C or {cpp} host, `exit` ends the program, and the host
 gets back its status and its `error`, as xref:8_01_embedding.adoc#embedding[the

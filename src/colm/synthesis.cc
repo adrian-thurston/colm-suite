@@ -2999,23 +2999,6 @@ static void compileLoopBody( Compiler *pd, CodeVect &code, StmtList *stmtList )
 void LangStmt::compileForIterBody( Compiler *pd, 
 		CodeVect &code, UniqueType *iterUT, const CodeVect &under ) const
 {
-	/* Remember the top of the loop. */
-	long top = code.length();
-
-	/* Advance */
-	code.append( objField->iterImpl->inAdvance );
-	code.appendHalf( objField->offset );
-
-	/* Test: jump past the while block if false. Note that we don't have the
-	 * distance yet. */
-	long jumpFalse = code.length();
-	code.append( IN_JMP_FALSE_VAL );
-	code.appendHalf( 0 );
-
-	/*
-	 * Set up the loop cleanup code. 
-	 */
-
 	/* Add the cleanup for the current loop: the iterator's unwind, then the
 	 * words under the iterator. */
 	int lcLen = pd->unwindCode.length();
@@ -3024,6 +3007,24 @@ void LangStmt::compileForIterBody( Compiler *pd,
 	leave.appendHalf( objField->offset );
 	leave.append( under );
 	pd->unwindCode.insert( 0, leave );
+
+	/* Remember the top of the loop. */
+	long top = code.length();
+
+	/* Advance */
+	code.append( objField->iterImpl->inAdvance );
+	code.appendHalf( objField->offset );
+
+	/* A user iterator's own code runs at the advance. An exit in it comes
+	 * back to the loop, whose unwind code ends the iterator. */
+	if ( objField->iterImpl->type == IterImpl::User )
+		appendUnwindCode( pd, code );
+
+	/* Test: jump past the while block if false. Note that we don't have the
+	 * distance yet. */
+	long jumpFalse = code.length();
+	code.append( IN_JMP_FALSE_VAL );
+	code.appendHalf( 0 );
 
 	/* Compile the contents. Its breaks are its own. */
 	LongVect outerBreaks = pd->breakJumps;

@@ -1478,7 +1478,8 @@ again:
 
 			assert( uiter->yield_size == (vm_ssize() - uiter->root_size) );
 
-			/* Fix the return instruction pointer. */
+			/* Fix the return instruction pointer: the unwind code after
+			 * this instruction, which an exit in the iterator runs. */
 			uiter->stack_root[-IFR_AA + IFR_RIN] = (SW)instr;
 
 			instr = uiter->resume;
@@ -4286,10 +4287,12 @@ again:
 				uiter->resume = instr;  /* At the yield's unwind code. */
 				uiter->frame = exec->frame_ptr;
 
-				/* Restore the instruction and frame pointer. */
+				/* Restore the instruction and frame pointer. The loop goes on
+				 * after the unwind code of its advance. */
 				instr = (code_t*) vm_local_iframe(IFR_RIN);
 				exec->frame_ptr = (tree_t**) vm_local_iframe(IFR_RFR);
 				exec->iframe_ptr = (tree_t**) vm_local_iframe(IFR_RIF);
+				instr = skip_unwind( instr );
 
 				/* Return the yield result on the top of the stack. */
 				tree_t *result = uiter->ref.kid != 0 ? prg->true_val : prg->false_val;
@@ -5256,6 +5259,23 @@ again:
 					 * can't be unwound past. */
 					if ( unwind_len < 0 )
 						exit_now( prg );
+
+					/* In a user iterator's own code. Leave the iterator
+					 * suspended here, as at a yield, and go on in the frame
+					 * of the loop over it, whose unwind code ends it. */
+					if ( exec->iframe_ptr != 0 && exec->frame_ptr == exec->iframe_ptr ) {
+						user_iter_t *uiter = (user_iter_t*) vm_plocal_iframe( IFR_AA );
+						uiter->yield_size = vm_ssize() - uiter->root_size;
+						uiter->resume = instr - SIZEOF_HALF;
+						uiter->frame = exec->frame_ptr;
+
+						instr = (code_t*) vm_local_iframe(IFR_RIN);
+						exec->frame_ptr = (tree_t**) vm_local_iframe(IFR_RFR);
+						exec->iframe_ptr = (tree_t**) vm_local_iframe(IFR_RIF);
+
+						read_half( unwind_len );
+						continue;
+					}
 
 					/* The root: end its loops, then stop, leaving the
 					 * pseudo-call setup and the locals to colm_execute. */

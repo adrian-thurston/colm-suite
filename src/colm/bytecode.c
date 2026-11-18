@@ -4385,7 +4385,7 @@ again:
 			short field;
 			read_half( field );
 
-			debug( prg, REALM_BYTECODE, "IN_UITER_DESTROY %hd\n", field );
+			debug( prg, REALM_BYTECODE, "IN_UITER_DESTROY/IN_UITER_UNWIND %hd\n", field );
 
 			/* The loop ended, or a break, a return or an exit left it. The
 			 * loop's code pops the iterator's arguments after this.

@@ -339,7 +339,6 @@ void colm_tree_iter_destroy( struct colm_program *prg,
 void colm_rev_tree_iter_destroy( struct colm_program *prg,
 		tree_t ***psp, rev_tree_iter_t *iter );
 
-
 tree_t *cast_tree( struct colm_program *prg, int lang_el_id, tree_t *tree );
 
 void colm_init_list_iter( generic_iter_t *list_iter, tree_t **stack_root,

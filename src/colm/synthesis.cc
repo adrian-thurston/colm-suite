@@ -3294,19 +3294,6 @@ void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 
 void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 {
-	CodeVect block;
-
-	StringMapEl *mapEl = 0;
-	if ( pd->literalStrings.insert( "unwind code\n", &mapEl ) )
-		mapEl->value = pd->literalStrings.length()-1;
-
-	block.append( IN_LOAD_STR );
-	block.appendWord( mapEl->value );
-
-	block.append( IN_POP_TREE );
-
-	pd->unwindCode.insert( 0, block );
-
 	switch ( type ) {
 		case ExprType: {
 			/* Evaluate the exrepssion, then pop it immediately. */
@@ -3546,8 +3533,6 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			break;
 		}
 	}
-
-	pd->unwindCode.remove( 0, block.length() );
 
 	/* A statement that gave an object being set up to a new parser ends its
 	 * setup. */

@@ -4261,30 +4261,19 @@ again:
 			uiter_init( prg, sp, uiter, fi, false );
 			break;
 		}
-		case IN_UITER_DESTROY: {
+		case IN_UITER_DESTROY:
+		case IN_UITER_UNWIND: {
 			short field;
 			read_half( field );
 
 			debug( prg, REALM_BYTECODE, "IN_UITER_DESTROY %hd\n", field );
 
-			/* The loop ended, or a break left it. colm_uiter_destroy pops
-			 * the iterator off the stack, so clear its local. */
+			/* The loop ended, or a break, a return or an exit left it. The
+			 * loop's code pops the iterator's arguments after this.
+			 * colm_uiter_destroy pops the iterator off the stack, so clear
+			 * its local. */
 			user_iter_t *uiter = (user_iter_t*) vm_get_local(exec, field);
 			colm_uiter_destroy( prg, &sp, uiter );
-			vm_set_local( exec, field, 0 );
-			break;
-		}
-
-		case IN_UITER_UNWIND: {
-			short field;
-			read_half( field );
-
-			debug( prg, REALM_BYTECODE, "IN_UITER_UNWIND %hd\n", field );
-
-			/* A return or an exit left the loop. Clear the local, as
-			 * IN_UITER_DESTROY does. */
-			user_iter_t *uiter = (user_iter_t*) vm_get_local(exec, field);
-			colm_uiter_unwind( prg, &sp, uiter );
 			vm_set_local( exec, field, 0 );
 			break;
 		}

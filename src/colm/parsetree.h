@@ -3406,7 +3406,8 @@ struct LangStmt
 
 	void chooseDefaultIter( Compiler *pd, IterCall *iterCall ) const;
 	void compileWhile( Compiler *pd, CodeVect &code ) const;
-	void compileForIterBody( Compiler *pd, CodeVect &code, UniqueType *iterUT ) const;
+	void compileForIterBody( Compiler *pd, CodeVect &code,
+			UniqueType *iterUT, const CodeVect &under ) const;
 	void compileForIter( Compiler *pd, CodeVect &code ) const;
 	void compile( Compiler *pd, CodeVect &code ) const;
 

@@ -326,32 +326,6 @@ void colm_uiter_destroy( program_t *prg, tree_t ***psp, user_iter_t *uiter )
 	}
 }
 
-void colm_uiter_unwind( program_t *prg, tree_t ***psp, user_iter_t *uiter )
-{
-	if ( uiter != 0 && (int)uiter->type != 0 ) {
-		tree_t **sp = *psp;
-
-		/* We should always be coming from a yield. The current stack size will be
-		 * nonzero and the stack size in the iterator will be correct. */
-		assert( uiter->yield_size == (vm_ssize() - uiter->root_size) );
-
-		long arg_size = uiter->arg_size;
-
-		uiter_downref_locals( prg, sp, uiter );
-
-		vm_popn( uiter->yield_size );
-		vm_popn( sizeof(user_iter_t) / sizeof(word_t) );
-
-		/* The IN_PREP_ARGS stack data. */
-		vm_popn( arg_size );
-		vm_pop_value();
-
-		uiter->type = 0;
-
-		*psp = sp;
-	}
-}
-
 tree_t *tree_iter_deref_cur( tree_iter_t *iter )
 {
 	return iter->ref.kid == 0 ? 0 : iter->ref.kid->tree;

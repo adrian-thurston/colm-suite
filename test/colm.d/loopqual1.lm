@@ -1,0 +1,86 @@
+# A return or an exit inside a loop over a qualified field, in a function,
+# pops the qualification's words under the loop's iterator, along with the
+# iterator. Before, they were left, the frame was popped two words off, and
+# the program crashed. The argument picks what leaves the loop: a return, an
+# exit, or a call of a function that exits, in a loop over P.item, or a
+# return or an exit in a loop over a user iterator given P.item.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+
+def pair
+	[item item]
+
+void g()
+{
+	print( 'g\n' )
+	exit( 3 )
+}
+
+iter i( R: ref<item> )
+{
+	yield R
+}
+
+str f( How: str )
+{
+	P: pair = parse pair[ "a b" ]
+	for X: id in P.item {
+		if How == 'return'
+			return $X
+		if How == 'exit' {
+			print( $X, '\n' )
+			exit( 3 )
+		}
+		if How == 'call'
+			g()
+	}
+	for Y: item in i( P.item ) {
+		if How == 'iter-return'
+			return $Y
+		if How == 'iter-exit' {
+			print( $Y, '\n' )
+			exit( 3 )
+		}
+	}
+	return 'none'
+}
+
+print( f( argv->pop() ), '\n' )
+print( 'after\n' )
+##### ARGS #####
+return
+##### EXP #####
+a
+after
+##### EXIT #####
+0
+##### ARGS #####
+exit
+##### EXP #####
+a
+##### EXIT #####
+3
+##### ARGS #####
+call
+##### EXP #####
+g
+##### EXIT #####
+3
+##### ARGS #####
+iter-return
+##### EXP #####
+a
+after
+##### EXIT #####
+0
+##### ARGS #####
+iter-exit
+##### EXP #####
+a
+##### EXIT #####
+3

@@ -2997,7 +2997,7 @@ static void compileLoopBody( Compiler *pd, CodeVect &code, StmtList *stmtList )
 }
 
 void LangStmt::compileForIterBody( Compiler *pd, 
-		CodeVect &code, UniqueType *iterUT ) const
+		CodeVect &code, UniqueType *iterUT, const CodeVect &under ) const
 {
 	/* Remember the top of the loop. */
 	long top = code.length();
@@ -3016,10 +3016,14 @@ void LangStmt::compileForIterBody( Compiler *pd,
 	 * Set up the loop cleanup code. 
 	 */
 
-	/* Add the cleanup for the current loop. */
+	/* Add the cleanup for the current loop: the iterator's unwind, then the
+	 * words under the iterator. */
 	int lcLen = pd->unwindCode.length();
-	pd->unwindCode.insertHalf( 0, objField->offset );
-	pd->unwindCode.insert( 0, objField->iterImpl->inUnwind );
+	CodeVect leave;
+	leave.append( objField->iterImpl->inUnwind );
+	leave.appendHalf( objField->offset );
+	leave.append( under );
+	pd->unwindCode.insert( 0, leave );
 
 	/* Compile the contents. Its breaks are its own. */
 	LongVect outerBreaks = pd->breakJumps;
@@ -3045,11 +3049,10 @@ void LangStmt::compileForIterBody( Compiler *pd,
 	}
 	pd->breakJumps = outerBreaks;
 
-	/* Destroy the iterator. */
+	/* Destroy the iterator, then pop the words under it. */
 	code.append( objField->iterImpl->inDestroy );
 	code.appendHalf( objField->offset );
-
-	/* Clean up any prepush args. */
+	code.append( under );
 }
 
 void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
@@ -3236,19 +3239,22 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	if ( iterImpl->useGenericId )
 		code.appendHalf( generic->id );
 
-	compileForIterBody( pd, code, iterUT );
-
-	iterCall->langTerm->varRef->popRefQuals( pd, code, lookup,
+	/* The words the loop leaves under its iterator: the refs of a ref
+	 * argument's qualification, and a user iterator's arguments. The end of
+	 * the loop pops them, and so does a return or an exit that leaves it. */
+	CodeVect under;
+	iterCall->langTerm->varRef->popRefQuals( pd, under, lookup,
 			iterCall->langTerm->args, false );
+	if ( func != 0 ) {
+		under.append( IN_CLEAR_ARGS );
+		under.appendHalf( func->paramListSize );
+		code.setHalf( asLoc, func->paramListSize );
+	}
+
+	compileForIterBody( pd, code, iterUT, under );
 
 	iterCall->langTerm->varRef->resetActiveRefs( pd, lookup, paramRefs );
 	delete[] paramRefs;
-
-	if ( func != 0 ) {
-		code.append( IN_CLEAR_ARGS );
-		code.appendHalf( func->paramListSize );
-		code.setHalf( asLoc, func->paramListSize );
-	}
 }
 
 /* The term an expression is, if it is one. */

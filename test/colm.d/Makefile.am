@@ -276,6 +276,7 @@ EXTRA_DIST = \
 	loopcopy5.lm \
 	loopcopy6.lm \
 	loopnil1.lm \
+	loopqual1.lm \
 	loopvar1.lm \
 	loopvar2.lm \
 	loopvar3.lm \

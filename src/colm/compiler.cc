@@ -332,6 +332,7 @@ Compiler::Compiler( )
 	revertOn(true),
 	curBlock(0),
 	otherCodeRuns(0),
+	refTreesFound(false),
 	reducer(0),
 	predValue(0),
 	nextMatchEndNum(0),

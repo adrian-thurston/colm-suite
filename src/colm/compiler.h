@@ -1013,6 +1013,12 @@ struct Compiler
 	LangElSet restartTypes;
 	long otherCodeRuns;
 
+	/* The tree types that an attribute of theirs, or of a tree below them,
+	 * can hold a list, map, parser, stream or struct in. */
+	LangElSet refTrees;
+	bool refTreesFound;
+	bool treeHoldsRef( LangEl *lel );
+
 	void checkRestartable();
 	void reportGlobalUses( CodeBlock *block, Function *func );
 

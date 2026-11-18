@@ -359,9 +359,13 @@ In a function `f` that such an action calls, the error says
 
 Nor can that code take a list, map, struct, parser or stream out of a
 global, where it could be changed: put it into a variable, pass it to a
-function, return it, or test it. It reads them in place, as `+L->length+` and
-`+M->find( K )+` do, or with a `for` loop over values that aren't lists,
-maps, structs, parsers or streams. Colm stops with the error
+function, return it, or test it. A copy of a tree shares the list, map,
+struct, parser or stream that an attribute of it, or of a tree below it,
+holds, so a tree of a type with such an attribute counts as one too: using
+it as a value, even to print or match it, takes it out. That code reads all
+of these in place, as `+L->length+`, `+M->find( K )+` and, for such a tree
+`G`, `+G.L->length+` do, or with a `for` loop over values that aren't any of
+them. Colm stops with the error
 `cannot take L, a global, out in an action of a restartable parser: keep the data in a context`.
 
 The actions can read globals, which the program can change between sends,

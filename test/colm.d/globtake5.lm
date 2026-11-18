@@ -1,0 +1,43 @@
+# A tree whose attribute holds a list, taken out of a global into a local,
+# whose copy shares the list: review item 2 on #728.
+lex
+	literal `h
+end
+
+def holder
+	L: list<str>
+	[`h]
+
+global G: holder
+
+lex
+	ignore /[ \t]+/
+	literal `* `^ `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+def item
+	[`*]
+	{
+		T: holder = G
+		T.L->push_tail( "x" )
+	}
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 `* `; NL]
+
+parse H: holder[ "h" ]
+H.L = new list<str>()
+G = H
+P: parser<start> = new parser<start>()
+send P "* ;"
+G.L->pop_tail()
+send P "\n"
+P->finish()
+print( "done\n" )
+##### COMP_ERR #####
+25:15: cannot take G, a global, out in an action of a restartable parser: keep the data in a context

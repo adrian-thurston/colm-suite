@@ -41,8 +41,10 @@ companion of the [rule for context objects](context-change-requirements.md),
    it holds; and a send to, or a `finish` of, a parser it holds.
 5. That code can't take a list, map, struct, parser or stream out of a
    global, where it could be changed through another reference: put it into
-   a variable, pass it to a function, return it or test it. It reads them in
-   place.
+   a variable, pass it to a function, return it or test it. A copy of a tree
+   shares what its attributes, and those of the trees below it, hold, so a
+   tree whose type can hold one of those there counts as one too. That code
+   reads them in place.
 6. It reads globals freely, and sends to a stream that a global holds: what
    goes to a stream isn't undone.
 7. Each refusal is a compile error at the global, saying what can't be done
@@ -54,10 +56,9 @@ companion of the [rule for context objects](context-change-requirements.md),
 
 - The undo of what the actions of a parse that isn't restartable do to
   globals, which still runs, and its holes, such as [#537].
-- A tree that a global holds, whose attribute, or that of a tree below it,
-  holds a list, map or struct: an action reads the tree, as a copy, and the
-  copy shares what the attribute holds, so the action changes the global's
-  data through it. This is [#720]'s fault, for a global.
+- A tree that a context object holds, whose attribute, or that of a tree
+  below it, holds a list, map or struct ([#720]): a copy of it shares what
+  the attribute holds. For a global, requirement 5 covers it.
 - Two parsers given one context object ([#718]).
 - Host programs: exports give a host trees, never structs.
 

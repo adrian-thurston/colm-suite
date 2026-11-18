@@ -1,0 +1,54 @@
+# A restartable parser's actions read the attributes of a tree that a global
+# holds in place, though the tree's L attribute holds a list: a str, the
+# list's length and its values. The program pushes onto the list between
+# sends, and P backs up from A1 to A2, so its actions run again and see it.
+lex
+	literal `h
+end
+
+def holder
+	L: list<str>
+	S: str
+	[`h]
+
+global G: holder
+
+lex
+	ignore /[ \t]+/
+	literal `* `^ `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+def item
+	[`*]
+	{
+		print( "item: S ", G.S, ", L ", G.L->length, ":" )
+		for V: str in G.L
+			print( " ", V )
+		print( "\n" )
+	}
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 item* `; NL]
+
+parse H: holder[ "h" ]
+H.L = new list<str>()
+H.S = "s"
+G = H
+G.L->push_tail( "a" )
+
+P: parser<start> = new parser<start>()
+send P "* * "
+G.L->push_tail( "b" )
+send P ";\n"
+print( "P: ", P->finish() )
+##### EXP #####
+item: S s, L 1: a
+item: S s, L 2: a b
+item: S s, L 2: a b
+item: S s, L 2: a b
+P: * * ;

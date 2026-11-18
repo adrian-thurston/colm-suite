@@ -602,6 +602,76 @@ static bool forInPlace( UniqueType *searchUT, CallArgVect *args )
 			args->data[0]->expr->term->type == LangTerm::VarRefType;
 }
 
+/* A tree type that refTrees has, as far as it is found. Any can be any tree. */
+static bool refTreeSoFar( Compiler *pd, LangEl *lel )
+{
+	if ( lel == pd->anyLangEl )
+		return pd->refTrees.length() > 0;
+	return pd->refTrees.find( lel ) != 0;
+}
+
+/* A tree type with an attribute, or a child, that can hold a list, map,
+ * parser, stream or struct, given the tree types found so far to. */
+static bool treeReachesRef( Compiler *pd, LangEl *lel )
+{
+	if ( lel == pd->anyLangEl )
+		return pd->refTrees.length() > 0;
+
+	if ( lel->objectDef != 0 ) {
+		for ( FieldList::Iter f = lel->objectDef->fieldList; f.lte(); f++ ) {
+			UniqueType *ut = f->value->typeRef != 0 ?
+					f->value->typeRef->uniqueType : 0;
+			if ( ut == 0 )
+				continue;
+			if ( ctxHeldRef( ut ) )
+				return true;
+			if ( ( ut->typeId == TYPE_TREE || ut->typeId == TYPE_REF ) &&
+					ut->langEl != 0 && refTreeSoFar( pd, ut->langEl ) )
+				return true;
+		}
+	}
+
+	for ( LelProdList::Iter prod = lel->prodList; prod.lte(); prod++ ) {
+		for ( ProdElList::Iter pe = *prod->prodElList; pe.lte(); pe++ ) {
+			if ( pe->langEl != 0 && refTreeSoFar( pd, pe->langEl ) )
+				return true;
+		}
+	}
+	return false;
+}
+
+/* A copy of a tree shares what its attributes hold. The tree types that can
+ * hold, below them, what code holding it could change, are found once, by
+ * adding the types that reach one until no more do. */
+bool Compiler::treeHoldsRef( LangEl *lel )
+{
+	if ( !refTreesFound ) {
+		refTreesFound = true;
+		bool grew = true;
+		while ( grew ) {
+			grew = false;
+			for ( LelList::Iter el = langEls; el.lte(); el++ ) {
+				if ( refTrees.find( el ) == 0 && treeReachesRef( this, el ) ) {
+					refTrees.insert( el );
+					grew = true;
+				}
+			}
+		}
+	}
+	return refTreeSoFar( this, lel );
+}
+
+/* What code holding it could change, and a global can hold: as for a context
+ * object, and a tree whose attributes, or a tree's below it, can hold such a
+ * value, since a copy of the tree shares it. */
+static bool globalHeldRef( Compiler *pd, UniqueType *ut )
+{
+	if ( ctxHeldRef( ut ) )
+		return true;
+	return ( ut->typeId == TYPE_TREE || ut->typeId == TYPE_REF ) &&
+			ut->langEl != 0 && pd->treeHoldsRef( ut->langEl );
+}
+
 /* Outside its parse's actions, a context object is changed only while it is
  * set up, through the variable it was put into. A parser backing up over its
  * actions assumes the object is as they left it: see
@@ -1000,7 +1070,7 @@ UniqueType *LangVarRef::evaluate( Compiler *pd, CodeVect &code, bool forWriting 
 
 	checkContextValue( pd, lookup, ut, inPlace );
 
-	if ( ctxHeldRef( ut ) && !inPlace )
+	if ( !inPlace && pd->revertOn && globalHeldRef( pd, ut ) )
 		noteGlobalUse( pd, GlobalUse::Take, qual->length() > 0 ? name : String() );
 
 	/* Used as a value, the variable gives its object away: the setup ends. */
@@ -1497,7 +1567,7 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	if ( qual->length() > 0 ) {
 		if ( change )
 			noteGlobalUse( pd, GlobalUse::Change, String() );
-		if ( ctxHeldRef( lookup.uniqueType ) )
+		if ( pd->revertOn && globalHeldRef( pd, lookup.uniqueType ) )
 			noteGlobalUse( pd, GlobalUse::Take, "what " + name + " gives" );
 	}
 
@@ -3187,6 +3257,14 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	 * reads it in place. */
 	bool inPlace = iterImpl->useGenericId &&
 			forInPlace( searchUT, iterCall->langTerm->args );
+
+	/* Over a global's, values that are trees whose attributes can hold a
+	 * list, map or struct are copies that share them: a take. */
+	if ( inPlace && pd->revertOn && globalHeldRef( pd, searchUT ) ) {
+		LangVarRef *over = iterCall->langTerm->args->data[0]->expr->term->varRef;
+		over->noteGlobalUse( pd, GlobalUse::Take,
+				over->qual->length() > 0 ? over->name : String() );
+	}
 
 	/* A user iterator is other code. */
 	if ( func != 0 )

@@ -215,10 +215,13 @@ EXTRA_DIST = \
 	globchg15.lm \
 	globchg16.lm \
 	globread1.lm \
+	globread2.lm \
 	globtake1.lm \
 	globtake2.lm \
 	globtake3.lm \
 	globtake4.lm \
+	globtake5.lm \
+	globtake6.lm \
 	heredoc.lm \
 	highbyte1.lm \
 	highbyte2.lm \

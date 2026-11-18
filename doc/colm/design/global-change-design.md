@@ -23,10 +23,18 @@ reverse code or the runtime changes.
     global holds that changes it (the `change` that `checkContextChange()`
     gets, which counts a parser's `finish`); and in
     `LangTerm::checkSendChange()`, for a send to a parser, not to a stream;
-  - a take: in `LangVarRef::evaluate()`, of a value that `ctxHeldRef()`
+  - a take: in `LangVarRef::evaluate()`, of a value that `globalHeldRef()`
     counts, unless it is read in place (`ctxValueInPlace`), and in
     `evaluateCall()`, of such a value that a call on what a global holds
-    gives.
+    gives. `globalHeldRef()` counts what `ctxHeldRef()` does, and a tree type
+    that `Compiler::treeHoldsRef()` finds: one with an attribute, or a tree
+    below it with one, that can hold a list, map, parser, stream or struct.
+    It finds them once, adding each def or token whose attributes or
+    production children reach one until no more do, and `any` counts once
+    any type does;
+  - a take in `compileForIter()`, of the list or map that a `for` loop over
+    such trees reads in place: each value is a copy that shares what its
+    attributes hold.
 - `evaluateCall()` and `compileForIter()` note the functions and iterators a
   block calls (`CodeBlock::calls`), and `evaluateParse()` the types it parses
   (`CodeBlock::parses`).
@@ -97,28 +105,33 @@ The error is at the global's name:
 - Not taken: a run-time stop in the reverse code's global loads. It would
   need the parser's kind at run time, and a mark on each pointer loaded from
   a global, and would stop only when the action runs.
+- A tree that can hold a list, map or struct below it counts as a take for a
+  global only: `ctxHeldRef()`, which [#706]'s checks use, is as it was, and
+  the same fault for a context object is left to [#720]. Kept simple at a
+  small cost: printing or matching such a tree, which uses it as a value,
+  counts too.
 
 ## Limits
 
-- A tree that a global holds, whose attribute holds a list, map or struct,
-  lets an action change the global's data through a copy of the tree. A
-  restartable parser's action can read the tree into a variable and push
-  onto the attribute's list, and backing up over the push after the program
-  popped the list segfaults. This is [#720]'s fault, for a global.
+- A tree that a context object holds, whose attribute holds a list, map or
+  struct, lets the program change the context's data through a copy of it
+  ([#720]).
 - Two parsers that the program drives, given one context object ([#718]).
 
 ## Tests
 
 In `test/colm.d`. `globchg1`–`globchg16` (changes) and
-`globtake1`–`globtake4` (takes) are compile errors, one each, and say in
+`globtake1`–`globtake6` (takes) are compile errors, one each, and say in
 their first lines what they show. `globchg1`, `globchg2` and `globchg9` are
 [#687]'s, [#683]'s and [#368]'s programs, through a global. `globchg3` is a
 parse whose second item calls a function, and `globchg16` one whose second
-item pops the list. `globread1` runs what stays: reads in place and a send
-to a stream in a restartable parser, and a change undone in a parse whose
-only item that runs code is its first. `nilset2` and `undomap10` became
-parses that aren't restartable, and `sendown1`–`sendown4` keep their parsers
-in a context.
+item pops the list. `globtake5` and `globtake6` take a tree whose attribute
+holds a list out of a global, into a variable and as a loop over a list of
+them. `globread1` runs what stays: reads in place and a send to a stream in
+a restartable parser, and a change undone in a parse whose only item that
+runs code is its first. `globread2` reads such a tree's attributes in place.
+`nilset2` and `undomap10` became parses that aren't restartable, and
+`sendown1`–`sendown4` keep their parsers in a context.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#683]: https://github.com/adrian-thurston/colm-suite/issues/683

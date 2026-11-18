@@ -611,7 +611,7 @@ static bool refTreeSoFar( Compiler *pd, LangEl *lel )
 }
 
 /* A tree type with an attribute, or a child, that can hold a list, map,
- * parser, stream or struct, given the tree types found so far to. */
+ * parser, stream or struct, as far as the tree types found so far tell. */
 static bool treeReachesRef( Compiler *pd, LangEl *lel )
 {
 	if ( lel == pd->anyLangEl )
@@ -3258,8 +3258,9 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	bool inPlace = iterImpl->useGenericId &&
 			forInPlace( searchUT, iterCall->langTerm->args );
 
-	/* Over a global's, values that are trees whose attributes can hold a
-	 * list, map or struct are copies that share them: a take. */
+	/* In a loop over a global's list or map, values that are trees whose
+	 * attributes can hold a list, map or struct are copies that share them:
+	 * a take. */
 	if ( inPlace && pd->revertOn && globalHeldRef( pd, searchUT ) ) {
 		LangVarRef *over = iterCall->langTerm->args->data[0]->expr->term->varRef;
 		over->noteGlobalUse( pd, GlobalUse::Take,

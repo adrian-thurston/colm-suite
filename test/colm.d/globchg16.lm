@@ -1,5 +1,5 @@
-# A parse whose second item is a call that changes a global, popping the list
-# that an action pushed onto, before the parser backs up: review item 1 on #728.
+# #683's push form, with the pop as a parse's item: the second item pops the
+# list that an action pushed onto, before the parser backs up.
 global K: list<str> = new list<str>()
 
 lex

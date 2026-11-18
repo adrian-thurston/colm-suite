@@ -1,5 +1,5 @@
-# A tree whose attribute holds a list, taken out of a global into a local,
-# whose copy shares the list: review item 2 on #728.
+# The global form of #720's program: a tree whose attribute holds a list,
+# taken out of a global into a local, whose copy shares the list.
 lex
 	literal `h
 end

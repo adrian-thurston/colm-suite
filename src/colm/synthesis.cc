@@ -570,7 +570,8 @@ void Compiler::closeSetupWindow( ObjectField *var, bool atStmtEnd )
  * parser and send to it, and it can send to a new parser the statement gave
  * an object to. So running any ends the setup of such an object: a call, a
  * parse, a send to a parser, a finish, a user iterator's loop or a yield.
- * Each is counted, for a parse's items. */
+ * Each is counted, for a parse's items, as is a call that changes what it is
+ * called on (evaluateCall()). */
 void Compiler::endReachableSetups()
 {
 	otherCodeRuns += 1;
@@ -1502,6 +1503,11 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 
 	if ( func != 0 || lookup.objMethod->type == ObjectMethod::ParseFinish )
 		pd->endReachableSetups();
+
+	/* A call that changes what it is called on is the program's own code,
+	 * for a parse's items, as a call of a function is. */
+	if ( change )
+		pd->otherCodeRuns += 1;
 
 	if ( func != 0 && pd->revertOn && pd->curBlock != 0 )
 		pd->curBlock->calls.append( func );

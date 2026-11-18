@@ -213,6 +213,7 @@ EXTRA_DIST = \
 	globchg13.lm \
 	globchg14.lm \
 	globchg15.lm \
+	globchg16.lm \
 	globread1.lm \
 	globtake1.lm \
 	globtake2.lm \

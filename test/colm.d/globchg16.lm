@@ -1,0 +1,27 @@
+# A parse whose second item is a call that changes a global, popping the list
+# that an action pushed onto, before the parser backs up: review item 1 on #728.
+global K: list<str> = new list<str>()
+
+lex
+	ignore /[ \t]+/
+	literal `* `^ `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+def item
+	[`*]
+	{
+		K->push_tail( "" )
+	}
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 `* `; NL]
+
+parse S: start[ "* ;" K->pop_tail() "\n" ]
+print( S, "\n" )
+##### COMP_ERR #####
+17:3: cannot change K, a global, in an action of a restartable parser: keep the data in a context

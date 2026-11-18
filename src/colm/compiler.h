@@ -1007,7 +1007,8 @@ struct Compiler
 	/* The block being compiled, if it is an action's, a preeof block's, a
 	 * function's or an iterator's. The types that restartable parsers
 	 * parse, and the count of the places compiled so far where other code
-	 * runs (endReachableSetups()). */
+	 * runs (endReachableSetups()), or a call changes what it is called on
+	 * (evaluateCall()). */
 	CodeBlock *curBlock;
 	LangElSet restartTypes;
 	long otherCodeRuns;

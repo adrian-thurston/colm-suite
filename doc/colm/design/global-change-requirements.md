@@ -12,8 +12,9 @@ companion of the [rule for context objects](context-change-requirements.md),
   while the parser can still back up over its actions: a parser made with
   `new parser`, which the program sends to; a `parse` with an item after the
   first that runs code (a call of a function, a parse, a send to a parser, a
-  `finish`); and a parse that an action of a restartable parser starts,
-  since backing up over the action backs up the parse.
+  `finish`, or a call that changes what it is called on); and a parse that
+  an action of a restartable parser starts, since backing up over the action
+  backs up the parse.
 - What a parser *runs*: the actions of the productions of what it parses,
   the token actions and preeof blocks of the lex blocks it scans with, and
   the functions and iterators these call.

@@ -40,7 +40,9 @@ reverse code or the runtime changes.
   first that runs other code. `Compiler::otherCodeRuns` counts the calls of
   `endReachableSetups()`, which [#706] makes wherever other code runs: a call
   of a function, a parse, a send to a parser, a `finish`, a user iterator's
-  loop and a yield. An item whose evaluation changes the count runs code.
+  loop and a yield. `evaluateCall()` counts a call that changes what it is
+  called on, such as `pop_tail`, too. An item whose evaluation changes the
+  count runs code.
 
 ## What a restartable parser runs
 
@@ -107,15 +109,16 @@ The error is at the global's name:
 
 ## Tests
 
-In `test/colm.d`. `globchg1`–`globchg15` (changes) and
+In `test/colm.d`. `globchg1`–`globchg16` (changes) and
 `globtake1`–`globtake4` (takes) are compile errors, one each, and say in
 their first lines what they show. `globchg1`, `globchg2` and `globchg9` are
-[#687]'s, [#683]'s and [#368]'s programs, through a global, and `globchg3`
-is a parse whose second item calls a function. `globread1` runs what stays:
-reads in place and a send to a stream in a restartable parser, and a change
-undone in a parse whose only item that runs code is its first. `nilset2` and
-`undomap10` became parses that aren't restartable, and `sendown1`–`sendown4`
-keep their parsers in a context.
+[#687]'s, [#683]'s and [#368]'s programs, through a global. `globchg3` is a
+parse whose second item calls a function, and `globchg16` one whose second
+item pops the list. `globread1` runs what stays: reads in place and a send
+to a stream in a restartable parser, and a change undone in a parse whose
+only item that runs code is its first. `nilset2` and `undomap10` became
+parses that aren't restartable, and `sendown1`–`sendown4` keep their parsers
+in a context.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#683]: https://github.com/adrian-thurston/colm-suite/issues/683

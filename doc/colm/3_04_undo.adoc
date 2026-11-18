@@ -336,9 +336,10 @@ parser can still back up over its actions:
 * A parser made with `new parser`. The program runs between the sends to it,
   as xref:3_06_send.adoc#send[the send chapter] describes.
 * A `parse` with an item after the first that runs code: a call of a
-  function, a parse, a send to a parser, or a parser's `+finish()+`. A parse
-  sends its items one at a time, and makes each item after it has sent the
-  ones before it.
+  function, a parse, a send to a parser, a parser's `+finish()+`, or a call
+  that changes what it is called on, such as `+L->pop_tail()+`. A parse sends
+  its items one at a time, and makes each item after it has sent the ones
+  before it.
 * A parse that an action of a restartable parser starts. Backing up over the
   action backs up the parse too.
 

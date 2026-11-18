@@ -264,6 +264,3 @@ Some rules for user iterators:
 * An iterator can't have the name of a function or another iterator in its
   namespace, or, at the top level, of a built-in one: colm reports it as
   redeclared.
-* Let a loop over an iterator run to its end, without `break` or `return`,
-  if the iterator yields from inside its own loop over a user iterator, as
-  `bottom_up` does, or from a function that it calls.

@@ -3540,6 +3540,20 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 
 			code.append( IN_YIELD );
 
+			/* Leaving the loop the iterator yields to ends the iterator
+			 * from here, with this unwind code: the refs of the yield's
+			 * qualification, then the loops the yield is in. */
+			{
+				CodeVect quals;
+				if ( varRef->qual->length() > 0 ) {
+					quals.append( IN_POP_N_WORDS );
+					quals.appendHalf( (short)(varRef->qual->length()*2) );
+				}
+				pd->unwindCode.insert( 0, quals );
+				appendUnwindCode( pd, code );
+				pd->unwindCode.remove( 0, quals.length() );
+			}
+
 			if ( varRef->qual->length() > 0 ) {
 				code.append( IN_POP_N_WORDS );
 				code.appendHalf( (short)(varRef->qual->length()*2) );
@@ -4061,14 +4075,19 @@ void Compiler::compileUserIter( Function *func, CodeVect &code )
 {
 	CodeBlock *block = func->codeBlock;
 
+	/* The iterator starts as if from a yield, with nothing to unwind. */
+	code.appendHalf( 0 );
+
 	/* Compile the block. */
 	block->compile( this, code );
 
 	/* Always yield a nil at the end. This causes iteration to stop. Yield pops
-	 * a ref, which is two words: the next pointer and the kid. */
+	 * a ref, which is two words: the next pointer and the kid. Its loops have
+	 * all ended, so it has nothing to unwind. */
 	code.append( IN_LOAD_NIL );
 	code.append( IN_LOAD_NIL );
 	code.append( IN_YIELD );
+	code.appendHalf( 0 );
 }
 
 void Compiler::compileUserIter( Function *func )

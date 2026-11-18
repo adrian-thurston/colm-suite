@@ -1,0 +1,65 @@
+# Leaving a loop over a user iterator early, while the iterator is in a
+# function that it called inside an expression and that yielded. The words of
+# the expression lie under the function's frame, so the iterator is ended as
+# far as it can be: the function's locals and the iterator's are released,
+# and the rest is popped with the iterator. A loop the iterator is in, under
+# the expression's words, loses its iterator's locals, which the LOST section
+# lists. Before, every local was lost.
+iter j()
+{
+	J: str = "j"
+	yield J
+}
+
+int g()
+{
+	L: str = "l"
+	yield L
+	return 1
+}
+
+iter i()
+{
+	S: str = "s"
+	X: int = 1 + g()
+}
+
+iter k()
+{
+	for U: str in j() {
+		X: int = 1 + g()
+	}
+}
+
+Where: str = argv->pop()
+if Where == "iter" {
+	for T: str in i() {
+		print( T, "\n" )
+		break
+	}
+}
+else {
+	for T: str in k() {
+		print( T, "\n" )
+		break
+	}
+}
+print( "done\n" )
+##### ARGS #####
+iter
+##### EXP #####
+l
+done
+##### EXIT #####
+0
+##### LOST #####
+##### ARGS #####
+loop
+##### EXP #####
+l
+done
+##### EXIT #####
+0
+##### LOST #####
+lost trees: 1
+lost heads: 1

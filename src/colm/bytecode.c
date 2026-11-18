@@ -706,6 +706,112 @@ static void release_locals( program_t *prg, tree_t **sp, tree_t **frame,
 	}
 }
 
+/* Moves past the unwind code at instr: its length, then the code. */
+static code_t *skip_unwind( code_t *instr )
+{
+	short unwind_len;
+	read_half( unwind_len );
+	if ( unwind_len > 0 )
+		instr += unwind_len;
+	return instr;
+}
+
+/* Pops a call frame, once its values are released, as IN_RET does, and the
+ * arguments IN_PREP_ARGS pushed for the call. Gives the instruction after
+ * the call, which is the call's unwind code. */
+static code_t *pop_call_frame( program_t *prg, execution_t *exec, tree_t ***psp,
+		struct frame_info *fi )
+{
+	tree_t **sp = *psp;
+
+	vm_popn( fi->frame_size );
+
+	exec->frame_id = vm_pop_type(long);
+	exec->frame_ptr = vm_pop_type(tree_t**);
+	code_t *instr = vm_pop_type(code_t*);
+
+	tree_t *ret_val = vm_pop_tree();
+	vm_pop_value();
+
+	/* The IN_PREP_ARGS stack data. */
+	vm_popn( fi->arg_size );
+	vm_pop_value();
+
+	if ( fi->ret_tree )
+		colm_tree_downref( prg, sp, ret_val );
+
+	*psp = sp;
+	return instr;
+}
+
+/* Ends a user iterator that is suspended at a yield. From there, it runs the
+ * unwind code of each frame, which ends the frame's loops, then releases the
+ * frame's values and pops it, up to the iterator's own frame. Then it pops
+ * that frame and the iterator. A call inside an expression has words of the
+ * expression under it, and no unwind code: from there, the rest of the
+ * iterator's frames are popped with it, and what their loops hold is lost. */
+static void uiter_teardown( program_t *prg, execution_t *exec, tree_t ***psp,
+		user_iter_t *uiter )
+{
+	if ( uiter == 0 || (int)uiter->type == 0 )
+		return;
+
+	tree_t **sp = *psp;
+
+	/* We should always be coming from a yield. The current stack size will be
+	 * nonzero and the stack size in the iterator will be correct. */
+	assert( uiter->yield_size == (vm_ssize() - uiter->root_size) );
+
+	/* The unwind code runs in the iterator's frames. */
+	tree_t **frame_ptr = exec->frame_ptr;
+	tree_t **iframe_ptr = exec->iframe_ptr;
+	long frame_id = exec->frame_id;
+	tree_t **call_args = exec->call_args;
+
+	tree_t **iframe = &uiter->stack_root[-IFR_AA];
+	code_t *instr = uiter->resume;
+	exec->frame_ptr = uiter->frame;
+	exec->iframe_ptr = iframe;
+
+	/* Suspended in a function the iterator called: IN_YIELD kept its frame
+	 * id on the top of the stack. */
+	if ( exec->frame_ptr != iframe )
+		exec->frame_id = vm_pop_type( long );
+
+	while ( true ) {
+		short unwind_len;
+		read_half( unwind_len );
+		if ( unwind_len < 0 )
+			break;
+
+		if ( unwind_len > 0 )
+			sp = colm_execute_code( prg, exec, sp, instr );
+
+		if ( exec->frame_ptr == iframe )
+			break;
+
+		struct frame_info *fi = &prg->rtd->frame_info[exec->frame_id];
+		release_locals( prg, sp, exec->frame_ptr, fi );
+		instr = pop_call_frame( prg, exec, &sp, fi );
+	}
+
+	/* The iterator's own frame. It is the one IN_UITER_CREATE pushed after
+	 * the iterator. */
+	if ( exec->frame_ptr == iframe )
+		release_locals( prg, sp, iframe, &prg->rtd->frame_info[uiter->frame_id] );
+
+	vm_popn( vm_ssize() - uiter->root_size );
+	vm_popn( sizeof(user_iter_t) / sizeof(word_t) );
+	uiter->type = 0;
+
+	exec->frame_ptr = frame_ptr;
+	exec->iframe_ptr = iframe_ptr;
+	exec->frame_id = frame_id;
+	exec->call_args = call_args;
+
+	*psp = sp;
+}
+
 static tree_t *construct_arg0( program_t *prg, int argc, const char **argv, const int *argl )
 {
 	tree_t *arg0 = 0;
@@ -1383,6 +1489,9 @@ again:
 			 * id, which IN_YIELD kept on the stack. */
 			if ( exec->frame_ptr != exec->iframe_ptr )
 				exec->frame_id = vm_pop_type( long );
+
+			/* The iterator goes on after the unwind code of its yield. */
+			instr = skip_unwind( instr );
 			break;
 		}
 		case IN_UITER_GET_CUR_R: {
@@ -4174,7 +4283,7 @@ again:
 				uiter->ref.kid = kid;
 				uiter->ref.next = next;
 				uiter->yield_size = vm_ssize() - uiter->root_size;
-				uiter->resume = instr;
+				uiter->resume = instr;  /* At the yield's unwind code. */
 				uiter->frame = exec->frame_ptr;
 
 				/* Restore the instruction and frame pointer. */
@@ -4186,6 +4295,9 @@ again:
 				tree_t *result = uiter->ref.kid != 0 ? prg->true_val : prg->false_val;
 				//colm_tree_upref( prg, result );
 				vm_push_tree( result );
+			}
+			else {
+				instr = skip_unwind( instr );
 			}
 			break;
 		}
@@ -4270,10 +4382,10 @@ again:
 
 			/* The loop ended, or a break, a return or an exit left it. The
 			 * loop's code pops the iterator's arguments after this.
-			 * colm_uiter_destroy pops the iterator off the stack, so clear
-			 * its local. */
+			 * uiter_teardown pops the iterator off the stack, so clear its
+			 * local. */
 			user_iter_t *uiter = (user_iter_t*) vm_get_local(exec, field);
-			colm_uiter_destroy( prg, &sp, uiter );
+			uiter_teardown( prg, exec, &sp, uiter );
 			vm_set_local( exec, field, 0 );
 			break;
 		}
@@ -5177,9 +5289,10 @@ again:
 					}
 
 					release_locals( prg, sp, exec->frame_ptr, fi );
-					vm_popn( fi->frame_size );
 
 					if ( action ) {
+						vm_popn( fi->frame_size );
+
 						/* Back to the IN_PARSE_FRAG_W that called the
 						 * action, which left the parser on the stack. */
 						instr = pcr_return( prg, exec, &sp );
@@ -5197,22 +5310,7 @@ again:
 						instr += SIZEOF_CODE;
 					}
 					else {
-						/* Call layout. */
-						exec->frame_id = vm_pop_type(long);
-						exec->frame_ptr = vm_pop_type(tree_t**);
-						instr = vm_pop_type(code_t*);
-
-						tree_t *ret_val = vm_pop_tree();
-						vm_pop_value();
-
-						/* The IN_PREP_ARGS stack data. */
-						vm_popn( fi->arg_size );
-						vm_pop_value();
-
-						if ( fi->ret_tree ) {
-							/* Problem here. */
-							colm_tree_downref( prg, sp, ret_val );
-						}
+						instr = pop_call_frame( prg, exec, &sp, fi );
 					}
 
 					read_half( unwind_len );

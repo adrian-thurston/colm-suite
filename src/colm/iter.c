@@ -286,46 +286,6 @@ void colm_rev_tree_iter_destroy( struct colm_program *prg, tree_t ***psp, rev_tr
 	}
 }
 
-/* Release the iterator's tree locals and args, as IN_RET does for a function.
- * Its frame and the args must still be on the stack. The frame is the one
- * IN_UITER_CREATE pushed after the iterator. It is not uiter->frame: a yield
- * from a function the iterator called sets that to the function's frame. */
-static void uiter_downref_locals( program_t *prg, tree_t **sp, user_iter_t *uiter )
-{
-	struct frame_info *fi = &prg->rtd->frame_info[uiter->frame_id];
-	tree_t **frame = &uiter->stack_root[-IFR_AA];
-	tree_t **call_args = (tree_t**)frame[FR_CA];
-	long i;
-	for ( i = fi->locals_len-1; i >= 0; i-- ) {
-		if ( fi->locals[i].type == LI_Tree ) {
-			long offset = fi->locals[i].offset;
-			tree_t *tree = offset >= FR_AA ?
-					call_args[offset - FR_AA] : frame[offset];
-			colm_tree_downref( prg, sp, tree );
-		}
-	}
-}
-
-void colm_uiter_destroy( program_t *prg, tree_t ***psp, user_iter_t *uiter )
-{
-	if ( uiter != 0 && (int)uiter->type != 0 ) {
-		tree_t **sp = *psp;
-
-		/* We should always be coming from a yield. The current stack size will be
-		 * nonzero and the stack size in the iterator will be correct. */
-		assert( uiter->yield_size == (vm_ssize() - uiter->root_size) );
-
-		uiter_downref_locals( prg, sp, uiter );
-
-		vm_popn( uiter->yield_size );
-		vm_popn( sizeof(user_iter_t) / sizeof(word_t) );
-
-		uiter->type = 0;
-
-		*psp = sp;
-	}
-}
-
 tree_t *tree_iter_deref_cur( tree_iter_t *iter )
 {
 	return iter->ref.kid == 0 ? 0 : iter->ref.kid->tree;

@@ -1,0 +1,120 @@
+# An exit at the top level, inside a loop over a user iterator, ends what the
+# iterator is in the middle of: its own loop over another iterator, a
+# function it called that yielded, that function's own loop, or its own calls
+# of itself. Before, the exit popped them without releasing their locals.
+# With plain, the iterator is at a yield in its own code, which worked
+# before too.
+iter plain()
+{
+	S: str = "1"
+	yield S
+}
+
+iter inner()
+{
+	S: str = "in"
+	yield S
+}
+
+iter outer()
+{
+	O: str = "o"
+	for T: str in inner() {
+		yield T
+	}
+}
+
+int g()
+{
+	L: str = "l"
+	yield L
+	return 1
+}
+
+iter j()
+{
+	J: str = "j"
+	yield J
+}
+
+int h()
+{
+	H: str = "h"
+	for U: str in j() {
+		yield U
+	}
+	return 1
+}
+
+iter callg()
+{
+	C: str = "c"
+	g()
+}
+
+iter callh()
+{
+	C: str = "c"
+	h()
+}
+
+iter rec( N: int )
+{
+	R: str = "r"
+	if N > 0 {
+		for T: str in rec( N - 1 )
+			yield T
+	}
+	else {
+		yield R
+	}
+}
+
+Where: str = argv->pop()
+
+if Where == "plain" {
+	for T: str in plain()
+		exit( 3 )
+}
+if Where == "inner" {
+	for T: str in outer()
+		exit( 3 )
+}
+if Where == "func" {
+	for T: str in callg()
+		exit( 3 )
+}
+if Where == "funcloop" {
+	for T: str in callh()
+		exit( 3 )
+}
+if Where == "rec" {
+	for T: str in rec( 2 )
+		exit( 3 )
+}
+print( "not reached\n" )
+##### ARGS #####
+plain
+##### EXP #####
+##### EXIT #####
+3
+##### ARGS #####
+inner
+##### EXP #####
+##### EXIT #####
+3
+##### ARGS #####
+func
+##### EXP #####
+##### EXIT #####
+3
+##### ARGS #####
+funcloop
+##### EXP #####
+##### EXIT #####
+3
+##### ARGS #####
+rec
+##### EXP #####
+##### EXIT #####
+3

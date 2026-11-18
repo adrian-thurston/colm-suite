@@ -1,0 +1,200 @@
+# Leaving a loop over a user iterator early ends what the iterator is in the
+# middle of: its own loop over another iterator, a function it called that
+# yielded, that function's own loop, or the iterator's own calls of itself.
+# Before, a break, a return or an exit popped them without releasing their
+# locals. The first argument is how the loop is left, the second where the
+# iterator is when it is.
+iter inner()
+{
+	S: str = "in"
+	yield S
+}
+
+iter outer()
+{
+	O: str = "o"
+	for T: str in inner() {
+		yield T
+	}
+}
+
+int g()
+{
+	L: str = "l"
+	yield L
+	return 1
+}
+
+iter j()
+{
+	J: str = "j"
+	yield J
+}
+
+int h()
+{
+	H: str = "h"
+	for U: str in j() {
+		yield U
+	}
+	return 1
+}
+
+iter callg()
+{
+	C: str = "c"
+	g()
+}
+
+iter callh()
+{
+	C: str = "c"
+	h()
+}
+
+iter rec( N: int )
+{
+	R: str = "r"
+	if N > 0 {
+		for T: str in rec( N - 1 )
+			yield T
+	}
+	else {
+		yield R
+	}
+}
+
+global How: str = argv->pop()
+global Where: str = argv->pop()
+
+str leave()
+{
+	if Where == "inner" {
+		for T: str in outer() {
+			if How == "return"
+				return T
+			if How == "exit"
+				exit( 3 )
+			break
+		}
+	}
+	if Where == "func" {
+		for T: str in callg() {
+			if How == "return"
+				return T
+			if How == "exit"
+				exit( 3 )
+			break
+		}
+	}
+	if Where == "funcloop" {
+		for T: str in callh() {
+			if How == "return"
+				return T
+			if How == "exit"
+				exit( 3 )
+			break
+		}
+	}
+	if Where == "rec" {
+		for T: str in rec( 2 ) {
+			if How == "return"
+				return T
+			if How == "exit"
+				exit( 3 )
+			break
+		}
+	}
+	return "broke"
+}
+
+print( leave(), "\n" )
+print( "done\n" )
+##### ARGS #####
+break
+inner
+##### EXP #####
+broke
+done
+##### EXIT #####
+0
+##### ARGS #####
+return
+inner
+##### EXP #####
+in
+done
+##### EXIT #####
+0
+##### ARGS #####
+exit
+inner
+##### EXP #####
+##### EXIT #####
+3
+##### ARGS #####
+break
+func
+##### EXP #####
+broke
+done
+##### EXIT #####
+0
+##### ARGS #####
+return
+func
+##### EXP #####
+l
+done
+##### EXIT #####
+0
+##### ARGS #####
+exit
+func
+##### EXP #####
+##### EXIT #####
+3
+##### ARGS #####
+break
+funcloop
+##### EXP #####
+broke
+done
+##### EXIT #####
+0
+##### ARGS #####
+return
+funcloop
+##### EXP #####
+j
+done
+##### EXIT #####
+0
+##### ARGS #####
+exit
+funcloop
+##### EXP #####
+##### EXIT #####
+3
+##### ARGS #####
+break
+rec
+##### EXP #####
+broke
+done
+##### EXIT #####
+0
+##### ARGS #####
+return
+rec
+##### EXP #####
+r
+done
+##### EXIT #####
+0
+##### ARGS #####
+exit
+rec
+##### EXP #####
+##### EXIT #####
+3

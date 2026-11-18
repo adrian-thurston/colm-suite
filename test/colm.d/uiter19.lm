@@ -1,0 +1,65 @@
+# Leaving a loop over a user iterator early, while the iterator is suspended
+# at a yield of a qualified field inside its own loop over another iterator.
+# The refs of the field's qualification lie on top of the iterator's stack,
+# and the yield's unwind code pops them before it ends the inner loop. The
+# argument is how the loop is left. Before, a break or a return lost the
+# inner iterator's local, and an exit worked.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+
+def pair
+	[item item]
+
+iter j()
+{
+	J: str = "j"
+	yield J
+}
+
+iter i()
+{
+	P: pair = parse pair[ "a b" ]
+	for U: str in j() {
+		yield P.item
+	}
+}
+
+global How: str = argv->pop()
+
+str f()
+{
+	for T: item in i() {
+		if How == "return"
+			return $T
+		if How == "exit"
+			exit( 3 )
+		break
+	}
+	return "broke"
+}
+print( f(), "\n" )
+print( "done\n" )
+##### ARGS #####
+break
+##### EXP #####
+broke
+done
+##### EXIT #####
+0
+##### ARGS #####
+return
+##### EXP #####
+a
+done
+##### EXIT #####
+0
+##### ARGS #####
+exit
+##### EXP #####
+##### EXIT #####
+3

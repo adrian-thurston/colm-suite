@@ -576,6 +576,7 @@ EXTRA_DIST = \
 	uiter16.lm \
 	uiter17.lm \
 	uiter18.lm \
+	uiter19.lm \
 	uiterarg1.lm \
 	uiterarg2.lm \
 	uiterarg3.lm \

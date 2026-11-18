@@ -504,6 +504,8 @@ EXTRA_DIST = \
 	return8.lm \
 	return9.lm \
 	return10.lm \
+	return11.lm \
+	return12.lm \
 	rhsref1.lm \
 	rhsref2.lm \
 	rubyhere.lm \

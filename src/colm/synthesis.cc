@@ -3821,6 +3821,13 @@ void Compiler::compileRootBlock( )
 
 	block->compile( this, code );
 
+	/* A return ends the top-level code. */
+	for ( LongVect::Iter rj = returnJumps; rj.lte(); rj++ ) {
+		long distance = code.length() - *rj - 3;
+		code.setHalf( *rj+1, distance );
+	}
+	returnJumps.empty();
+
 	code.append( IN_FN );
 	code.append( FN_STOP );
 

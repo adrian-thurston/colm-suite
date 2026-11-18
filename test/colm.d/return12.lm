@@ -1,0 +1,21 @@
+# A return in the top-level code inside loops ends the loops and the code.
+# Before, it unwound the loops and went on with the loop body, and the loop
+# then advanced an iterator that was gone.
+iter i()
+{
+	S: str = "s"
+	yield S
+}
+
+L: list<str> = new list<str>()
+L->push_tail( "x" )
+
+for T: str in i() {
+	for X: str in L {
+		print( T, " ", X, "\n" )
+		return 1
+	}
+}
+print( "not reached\n" )
+##### EXP #####
+s x

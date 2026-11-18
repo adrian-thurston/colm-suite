@@ -1,0 +1,7 @@
+# A return in the top-level code ends it. Before, the code after the return
+# ran.
+print( "one\n" )
+return 1
+print( "two\n" )
+##### EXP #####
+one

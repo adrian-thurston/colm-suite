@@ -688,60 +688,23 @@ static int ref_names_child( program_t *prg, const ref_t *ref )
 	return 1;
 }
 
-static void downref_local_trees( program_t *prg, tree_t **sp,
-		execution_t *exec, struct local_info *locals, long locals_len )
+/* Releases the values a frame holds in its locals and arguments. Every way
+ * of leaving a frame does this, once the frame's loops are ended: the end of
+ * a loop, or the unwind code a return or an exit runs, ends its iterator. */
+static void release_locals( program_t *prg, tree_t **sp, tree_t **frame,
+		struct frame_info *fi )
 {
+	tree_t **call_args = (tree_t**)frame[FR_CA];
 	long i;
-	for ( i = locals_len-1; i >= 0; i-- ) {
-		if ( locals[i].type == LI_Tree ) {
-			debug( prg, REALM_BYTECODE, "local tree downref: %ld\n",
-					(long)locals[i].offset );
-
-			tree_t *tree = (tree_t*) vm_get_local( exec, (long)locals[i].offset );
+	for ( i = fi->locals_len-1; i >= 0; i-- ) {
+		if ( fi->locals[i].type == LI_Tree ) {
+			long o = fi->locals[i].offset;
+			debug( prg, REALM_BYTECODE, "local tree downref: %ld\n", o );
+			tree_t *tree = o >= FR_AA ? call_args[o - FR_AA] : frame[o];
 			colm_tree_downref( prg, sp, tree );
 		}
 	}
 }
-
-static void downref_locals( program_t *prg, tree_t ***psp,
-		execution_t *exec, struct local_info *locals, long locals_len )
-{
-	long i;
-	for ( i = locals_len-1; i >= 0; i-- ) {
-		switch ( locals[i].type ) {
-			case LI_Tree: {
-				debug( prg, REALM_BYTECODE, "local tree downref: %ld\n",
-						(long)locals[i].offset );
-				tree_t *tree = (tree_t*) vm_get_local( exec, (long)locals[i].offset );
-				colm_tree_downref( prg, *psp, tree );
-				break;
-			}
-			case LI_Iter: {
-				debug( prg, REALM_BYTECODE, "local iter downref: %ld\n",
-						(long)locals[i].offset );
-				tree_iter_t *iter = (tree_iter_t*) vm_get_plocal( exec, (long)locals[i].offset );
-				colm_tree_iter_destroy( prg, psp, iter );
-				break;
-			}
-			case LI_RevIter: {
-				debug( prg, REALM_BYTECODE, "local rev iter downref: %ld\n",
-						(long)locals[i].offset );
-				rev_tree_iter_t *riter = (rev_tree_iter_t*) vm_get_plocal( exec,
-						(long)locals[i].offset );
-				colm_rev_tree_iter_destroy( prg, psp, riter );
-				break;
-			}
-			case LI_UserIter: {
-				debug( prg, REALM_BYTECODE, "local user iter downref: %ld\n",
-						(long)locals[i].offset );
-				user_iter_t *uiter = (user_iter_t*) vm_get_local( exec, locals[i].offset );
-				colm_uiter_unwind( prg, psp, uiter );
-				break;
-			}
-		}
-	}
-}
-
 
 static tree_t *construct_arg0( program_t *prg, int argc, const char **argv, const int *argl )
 {
@@ -910,7 +873,7 @@ void colm_execute( program_t *prg, execution_t *exec, code_t *code )
 	/* Execution loop. */
 	sp = colm_execute_code( prg, exec, sp, code );
 
-	downref_locals( prg, &sp, exec, fi->locals, fi->locals_len );
+	release_locals( prg, sp, exec->frame_ptr, fi );
 	vm_popn( fi->frame_size );
 
 	vm_pop_ignore();
@@ -3272,7 +3235,7 @@ again:
 
 			if ( exec->frame_id >= 0 ) {
 				struct frame_info *fi = &prg->rtd->frame_info[exec->frame_id];
-				downref_local_trees( prg, sp, exec, fi->locals, fi->locals_len );
+				release_locals( prg, sp, exec->frame_ptr, fi );
 				debug( prg, REALM_BYTECODE, "RET: %d\n", fi->frame_size );
 
 				vm_popn( fi->frame_size );
@@ -4305,8 +4268,7 @@ again:
 			debug( prg, REALM_BYTECODE, "IN_UITER_DESTROY %hd\n", field );
 
 			/* The loop ended, or a break left it. colm_uiter_destroy pops
-			 * the iterator off the stack, so clear its local, which
-			 * downref_locals would otherwise unwind again. */
+			 * the iterator off the stack, so clear its local. */
 			user_iter_t *uiter = (user_iter_t*) vm_get_local(exec, field);
 			colm_uiter_destroy( prg, &sp, uiter );
 			vm_set_local( exec, field, 0 );
@@ -4329,7 +4291,7 @@ again:
 
 		case IN_RET: {
 			struct frame_info *fi = &prg->rtd->frame_info[exec->frame_id];
-			downref_local_trees( prg, sp, exec, fi->locals, fi->locals_len );
+			release_locals( prg, sp, exec->frame_ptr, fi );
 			vm_popn( fi->frame_size );
 
 			exec->frame_id = vm_pop_type(long);
@@ -5194,10 +5156,13 @@ again:
 					if ( unwind_len < 0 )
 						exit_now( prg );
 
-					/* We stop on the root, leaving the psuedo-call setup on the
-					 * stack. Note we exclude the local data. */
-					if ( exec->frame_id == prg->rtd->root_frame_id )
+					/* The root: end its loops, then stop, leaving the
+					 * pseudo-call setup and the locals to colm_execute. */
+					if ( exec->frame_id == prg->rtd->root_frame_id ) {
+						if ( unwind_len > 0 )
+							sp = colm_execute_code( prg, exec, sp, instr );
 						break;
+					}
 
 					struct frame_info *fi = &prg->rtd->frame_info[exec->frame_id];
 
@@ -5222,7 +5187,7 @@ again:
 						exec->rcode_unit_len = 0;
 					}
 
-					downref_locals( prg, &sp, exec, fi->locals, fi->locals_len );
+					release_locals( prg, sp, exec->frame_ptr, fi );
 					vm_popn( fi->frame_size );
 
 					if ( action ) {

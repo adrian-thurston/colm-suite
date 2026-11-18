@@ -3588,38 +3588,6 @@ void Compiler::findLocals( ObjectDef *localFrame, CodeBlock *block )
 				locals.append( LocalLoc( LT_Tree, depth, el->offset ) );
 			}
 		}
-
-		if ( el->useOffset() ) {
-			UniqueType *ut = el->typeRef->uniqueType;
-			if ( ut->typeId == TYPE_ITER ) {
-				int depth = el->scope->depth();
-				LocalType type = LT_Tree;
-				switch ( ut->iterDef->type ) {
-					case IterDef::Tree:
-					case IterDef::WithIgnore:
-					case IterDef::Child:
-					case IterDef::Repeat:
-					case IterDef::RevRepeat:
-						type = LT_Iter;
-						break;
-
-					case IterDef::RevListVal:
-					case IterDef::MapKey:
-						/* ? */
-						type = LT_Iter;
-						break;
-
-					case IterDef::RevChild:
-						type = LT_RevIter;
-						break;
-					case IterDef::User:
-						type = LT_UserIter;
-						break;
-				}
-
-				locals.append( LocalLoc( type, depth, (int)el->offset ) );
-			}
-		}
 	}
 }
 

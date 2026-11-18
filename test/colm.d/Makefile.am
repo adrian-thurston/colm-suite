@@ -152,6 +152,7 @@ EXTRA_DIST = \
 	exit20.lm \
 	exit21.lm \
 	exit22.lm \
+	exit23.lm \
 	export1.lm \
 	export2.lm \
 	export3.lm \

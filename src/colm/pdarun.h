@@ -162,9 +162,6 @@ struct prod_info
 
 /* Must match the LocalType enum. */
 #define LI_Tree 1
-#define LI_Iter 2
-#define LI_RevIter 3
-#define LI_UserIter 4
 
 struct local_info
 {

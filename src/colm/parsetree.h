@@ -160,10 +160,7 @@ enum BuiltinMachine
 /* Must match the LI defines in pdarun.h. */
 enum LocalType
 {
-	LT_Tree = 1,
-	LT_Iter,
-	LT_RevIter,
-	LT_UserIter
+	LT_Tree = 1
 };
 
 struct LocalLoc

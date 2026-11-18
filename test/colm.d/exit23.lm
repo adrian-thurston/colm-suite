@@ -1,0 +1,37 @@
+# An exit at the top level inside a loop over a list or a map ends the
+# loop's iterator as a list or map iterator. Before, the top-level code's
+# locals took it for a tree iterator, and the program aborted.
+How: str = argv->pop()
+
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+L->push_tail( "b" )
+
+M: map<str, str> = new map<str, str>()
+M->insert( "k", "v" )
+
+if How == "list" {
+	for X: str in L {
+		print( X, "\n" )
+		exit( 3 )
+	}
+}
+else {
+	for Y: str in M {
+		print( Y, "\n" )
+		exit( 3 )
+	}
+}
+print( "not reached\n" )
+##### ARGS #####
+list
+##### EXP #####
+a
+##### EXIT #####
+3
+##### ARGS #####
+map
+##### EXP #####
+v
+##### EXIT #####
+3

@@ -1,0 +1,30 @@
+# #683's program: an action pushes onto a global's list, and the program pops
+# it between sends.
+global K: list<str> = new list<str>()
+
+lex
+	ignore /[ \t]+/
+	literal `* `^ `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+def item
+	[`*]
+	{
+		K->push_tail( "g" )
+	}
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 `* `; NL]
+
+P: parser<start> = new parser<start>()
+send P "* ;"
+K->pop_tail()
+send P "\n"
+P->finish()
+##### COMP_ERR #####
+17:3: cannot change K, a global, in an action of a restartable parser: keep the data in a context

@@ -120,7 +120,9 @@ read through the same variable:
   out.
 - A list, map or struct that a parse's actions take out of their context
   into a global, or put into it from one, can be changed through the global.
-  That is for the companion rule on actions and globals, [#714].
+  In what a restartable parser runs, the companion rule, [#714], refuses
+  both: putting it into a global changes the global, and taking it out of
+  one is a take ([design](global-change-design.md)).
 - Trees go into and out of a context object freely, as values, but a copy
   of a tree shares the list, map, parser, stream or struct that an attribute
   of it, or of a tree below it, holds. So the program can change the

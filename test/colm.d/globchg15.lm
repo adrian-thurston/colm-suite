@@ -1,0 +1,27 @@
+# An assignment to a global in an action of a context's grammar: a context
+# makes no difference to what a restartable parser's actions can do with a
+# global.
+global G: int = 0
+
+context ctx
+	lex
+		token id /[a-z]+/
+		literal `;
+		ignore /[ \n]+/
+	end
+
+	def item
+		[id]
+		{
+			G = G + 1
+		}
+
+	def start
+		[item* `;]
+end
+
+C: ctx = new ctx()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "a b ;" eos
+##### COMP_ERR #####
+16:4: cannot change G, a global, in an action of a restartable parser: keep the data in a context

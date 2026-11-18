@@ -1,0 +1,20 @@
+# An assignment to a global in a preeof block.
+global G: int = 0
+
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+
+	preeof {
+		G = G + 1
+	}
+end
+
+def start
+	[id* `;]
+
+P: parser<start> = new parser<start>()
+send P "a b ;" eos
+##### COMP_ERR #####
+10:3: cannot change G, a global, in an action of a restartable parser: keep the data in a context

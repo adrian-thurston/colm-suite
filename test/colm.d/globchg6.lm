@@ -1,0 +1,27 @@
+# An assignment to a global in a function that an action calls.
+global G: int = 0
+
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+end
+
+void bump()
+{
+	G = G + 1
+}
+
+def item
+	[id]
+	{
+		bump()
+	}
+
+def start
+	[item* `;]
+
+P: parser<start> = new parser<start>()
+send P "a b ;" eos
+##### COMP_ERR #####
+12:2: cannot change G, a global, in bump, which an action of a restartable parser runs: keep the data in a context

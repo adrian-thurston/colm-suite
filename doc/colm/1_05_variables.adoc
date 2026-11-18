@@ -55,6 +55,9 @@ passes the caller's variable itself.
   the declaration.
 * It gets its value when the declaration runs, so put the declaration before
   the code that uses the variable.
+* The actions of a restartable parser, such as one the program sends to, and
+  the functions they call, can read it but not change it, as
+  xref:3_04_undo.adoc#restartable[globals in a restartable parser] explains.
 
 A variable declared with `export` in place of `global` can also be read by a
 C++ program that embeds the colm program, as

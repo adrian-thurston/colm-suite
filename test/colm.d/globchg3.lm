@@ -1,0 +1,32 @@
+# A parse whose second item calls a function is restartable: the function
+# pops the list that an action pushed onto, before the parser backs up.
+global K: list<str> = new list<str>()
+
+lex
+	ignore /[ \t]+/
+	literal `* `^ `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+def item
+	[`*]
+	{
+		K->push_tail( "g" )
+	}
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 `* `; NL]
+
+str take()
+{
+	K->pop_tail()
+	return ""
+}
+
+parse S: start[ "* ;" take() "\n" ]
+##### COMP_ERR #####
+17:3: cannot change K, a global, in an action of a restartable parser: keep the data in a context

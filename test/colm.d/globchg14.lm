@@ -1,0 +1,21 @@
+# A pull from stdin in a token action. Backing up gives the text back to
+# stdin, which the program can read from between sends.
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+
+	token at /'@'/
+	{
+		input->pull( 1 )
+		input->push( stdin->pull( 1 ) )
+	}
+end
+
+def start
+	[id* `;]
+
+P: parser<start> = new parser<start>()
+send P "a @ ;" eos
+##### COMP_ERR #####
+11:16: cannot change stdin, a global, in an action of a restartable parser: keep the data in a context

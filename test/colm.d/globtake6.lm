@@ -1,0 +1,31 @@
+# A loop over a global's list of trees whose attribute holds a list: each
+# value is a copy that shares the list.
+lex
+	literal `h
+end
+
+def holder
+	L: list<str>
+	[`h]
+
+global GL: list<holder> = new list<holder>()
+
+lex
+	ignore /[ \t]+/
+	literal `* `;
+end
+
+def item
+	[`*]
+	{
+		for V: holder in GL
+			V.L->push_tail( "x" )
+	}
+
+def start
+	[item* `;]
+
+P: parser<start> = new parser<start>()
+send P "* ;" eos
+##### COMP_ERR #####
+21:20: cannot take GL, a global, out in an action of a restartable parser: keep the data in a context

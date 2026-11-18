@@ -105,7 +105,9 @@ alone, and gets its input from sends, so a parse of the action's input is a
 A `global`, such as `HereEnd` in the example `lex_heredoc` in
 xref:3_01_lex.adoc#lexing[the lexing chapter], can also hold data that actions
 use, and it is undone in the same way. A context keeps the data with the
-grammar that uses it, and gives each parse its own.
+grammar that uses it, and gives each parse its own. The actions of a parser
+that the program sends to can only read a global:
+xref:3_04_undo.adoc#restartable[globals in a restartable parser] says why.
 
 == Reading and writing the data
 
@@ -254,8 +256,9 @@ program.
 
 So colm doesn't compile a change to a context object from outside its parse,
 except while the program sets the object up, as the next section describes.
-A global has no such guard: while a parse runs, change a global that its
-actions change only from its actions.
+A global has a guard of its own: where the program can run while a parser
+can back up, the parser's actions can't change a global, as the section after
+it describes.
 
 [[context-setup]]
 == Setting up a context object
@@ -323,6 +326,64 @@ its own, except for a parse that a parser's actions start, and a parser that
 they send to. Two parsers that the program sends to, given one object, change
 it under each other, and a list or a map can be corrupted, or the program can
 crash.
+
+[[restartable]]
+== Globals in a restartable parser
+
+A parser is restartable when the program can run code of its own while the
+parser can still back up over its actions:
+
+* A parser made with `new parser`. The program runs between the sends to it,
+  as xref:3_06_send.adoc#send[the send chapter] describes.
+* A `parse` with an item after the first that runs code: a call of a
+  function, a parse, a send to a parser, a parser's `+finish()+`, or a call
+  that changes what it is called on, such as `+L->pop_tail()+`. A parse sends
+  its items one at a time, and makes each item after it has sent the ones
+  before it.
+* A parse that an action of a restartable parser starts. Backing up over the
+  action backs up the parse too.
+
+Code that the program runs between sends could change a global that the
+parser's actions changed, and backing up over the actions would then work on
+data that isn't as they left it. So in what a restartable parser runs, its
+productions' actions, the token actions and `preeof` blocks of the lex blocks
+it scans with, and the functions and iterators they call, colm doesn't
+compile a change to a global. A change is an assignment to the global or to a
+field of a struct it holds, a write into a tree it holds, a call that changes
+a list, a map or a stream it holds, such as `push_tail` or `pull`, and a send
+to a parser it holds, or the parser's `+finish()+`. Colm stops with the error
+`cannot change G, a global, in an action of a restartable parser: keep the data in a context`.
+In a function `f` that such an action calls, the error says
+`in f, which an action of a restartable parser runs` in place of
+`in an action of a restartable parser`.
+
+Nor can that code take a list, map, struct, parser or stream out of a
+global, where it could be changed: put it into a variable, pass it to a
+function, return it, or test it, or take one out of what a call gives, such
+as the struct `find` gives from a map of structs. A copy of a tree shares the
+list, map, struct, parser or stream that an attribute of it, or of a tree
+below it, holds, so a tree of a type with such an attribute counts as one
+too: using it as a value, even to print or match it, takes it out. That code
+reads all of these in place, as `+L->length+` and, for such a tree `G`,
+`+G.L->length+` do, and as `+M->find( K )+` does when the map's values aren't
+any of them, or with a `for` loop over values that aren't. Colm stops with
+the error
+`cannot take L, a global, out in an action of a restartable parser: keep the data in a context`.
+For a field of a global, the error says `cannot take L out of R, a global,
+in` in place of `cannot take L, a global, out in`, and for what a call gives,
+`cannot take what find gives out of M, a global, in`.
+
+The actions can read globals, which the program can change between sends,
+and send to a stream that a global holds, since what goes to a stream isn't
+undone. The data they change goes in a context, as in the examples of this
+chapter. The program sets up the context's object before the parse, and
+reads it in place while the parser can back up.
+
+An action that a restartable parser runs can't change a global even where a
+parse that isn't restartable runs it too. A parse that isn't restartable,
+such as `+parse S: start[ stdin ]+`, runs nothing else while it can back up:
+its actions can change globals, and backing up undoes the changes, as it does
+a context's.
 
 == Rejecting a reduction with data
 

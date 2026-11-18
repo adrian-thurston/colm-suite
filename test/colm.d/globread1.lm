@@ -1,0 +1,83 @@
+# What the actions of a restartable parser can still do with globals, and
+# what those of a parse that isn't restartable can. P's actions read globals
+# in place: an int, a str, a list's length and values, and the str a map
+# gives. They send to a stream that a global holds. The program changes the
+# globals between sends, and P backs up from A1 to A2, so its actions run
+# again with the new values. The parse of gstart runs code only in its first
+# item, so it isn't restartable: its action changes a global, and backing up
+# from A1 to A2 undoes the change.
+global N: int = 1
+global S: str = "a"
+global L: list<str> = new list<str>()
+global M: map<str, str> = new map<str, str>()
+global Out: stream = stdout
+global G: int = 0
+
+lex
+	ignore /[ \t]+/
+	literal `* `+ `^ `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+def item
+	[`*]
+	{
+		print( "item: N ", N, ", S ", S, ", L ", L->length, ":" )
+		for V: str in L
+			print( " ", V )
+		print( ", M ", M->find( "k" ), "\n" )
+		send Out ["sent\n"]
+	}
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 item* `; NL]
+
+def gitem
+	[`+]
+	{
+		G = G + 1
+		print( "gitem: G ", G, "\n" )
+	}
+
+def gstart
+	[A1 gitem* `; `^ NL]
+|	[A2 `+ `; NL]
+
+void reset()
+{
+	G = 10
+}
+
+L->push_tail( "x" )
+M->insert( "k", "v" )
+
+P: parser<start> = new parser<start>()
+send P "* * "
+N = 2
+S = "b"
+L->push_tail( "y" )
+M->remove( "k" )
+M->insert( "k", "w" )
+send P ";\n"
+print( "P: ", P->finish() )
+
+parse T: gstart[ reset() "+ ;\n" ]
+print( "T: ", T )
+print( "G ", G, "\n" )
+##### EXP #####
+item: N 1, S a, L 1: x, M v
+sent
+item: N 2, S b, L 2: x y, M w
+sent
+item: N 2, S b, L 2: x y, M w
+sent
+item: N 2, S b, L 2: x y, M w
+sent
+P: * * ;
+gitem: G 11
+T: + ;
+G 10

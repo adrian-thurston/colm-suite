@@ -1,0 +1,26 @@
+# An assignment to a field of a struct that a global holds.
+struct rec
+	N: int
+end
+
+global R: rec = new rec()
+
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+	{
+		R->N = R->N + 1
+	}
+
+def start
+	[item* `;]
+
+P: parser<start> = new parser<start>()
+send P "a b ;" eos
+##### COMP_ERR #####
+17:3: cannot change R, a global, in an action of a restartable parser: keep the data in a context

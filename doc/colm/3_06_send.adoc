@@ -94,7 +94,10 @@ the parser has `depth`. `depth = 3;` is reduced by `+finish()+`, where the end
 of the input is the token after it.
 
 Backing up, which xref:3_02_parse.adoc#parsing[the parsing chapter] describes,
-can go back into the text of earlier sends.
+can go back into the text of earlier sends. So the program runs between sends
+while the parser can still back up over its actions. The actions can read
+globals, but not change them: they keep what they change in a context, as
+xref:3_04_undo.adoc#restartable[globals in a restartable parser] explains.
 
 `send` is an expression, whose value is the parser:
 `+Q: parser<program> = send P "a = 1;"+` sends the text, and makes `Q` the
@@ -261,7 +264,9 @@ stream after it, so the space after `one` is needed: without it, `one` and
 `+<<+` followed by items sends them to the variable named `+_+`:
 `+<< "text"+` is `+send _ "text"+`. `+<-+` is the same as `+<<+`. `+_+` has to
 be a variable that can be used where the `+<<+` is, such as a global, as in
-the next example, or a local. It can be a parser or a stream.
+the next example, or a local. It can be a parser or a stream. In the actions
+of a parser that the program sends to, a global `+_+` can only be a stream,
+as xref:3_04_undo.adoc#restartable[globals in a restartable parser] explains.
 
 A string with no closing quote runs to the end of the line, and takes the
 line break with it. As in a `send`, the items can go on over several lines,

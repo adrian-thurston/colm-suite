@@ -1,0 +1,22 @@
+# A finish of a parser that a global holds.
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+end
+
+def other
+	[id*]
+
+global O: parser<other> = new parser<other>()
+
+def start
+	[id* `;]
+	{
+		T: other = O->finish()
+	}
+
+P: parser<start> = new parser<start>()
+send P "a b ;" eos
+##### COMP_ERR #####
+16:14: cannot change O, a global, in an action of a restartable parser: keep the data in a context

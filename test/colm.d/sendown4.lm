@@ -4,66 +4,89 @@
 # its action: P undoes its parse, and while P runs the reverse code of its
 # action, Q backs up over its own action, which undoes Q's send to P. That
 # send came after P's action, so the undo finds nothing of P's to back up.
-lex
-	literal `a `c `x `y `p `q `m
+# The parsers are in a context, since a restartable parser's actions can't
+# send to a parser that a global holds. The action of drive sends to them
+# and finishes them, as the program would, and its token action makes P and
+# Q.
+context ctx
+	lex
+		literal `a `c `x `y `p `q `m
+	end
+
+	Once: bool
+	R: parser<ctx::rstart>
+	P: parser<ctx::pstart>
+	Q: parser<ctx::qstart>
+
+	def ritem
+		[`a]
+		{
+			print( "ritem\n" )
+			send P ["pp"]
+		}
+
+	def rstart
+		[ritem `c `x]
+	|	[`a `c `y]
+
+	def pitem
+		[`p]
+		{
+			print( "pitem\n" )
+			if ( !Once ) {
+				Once = true
+				send Q ["q"]
+			}
+		}
+
+	def mitem
+		[`m]
+
+	def pstart
+		[pitem* mitem*]
+
+	def qitem
+		[`q]
+		{
+			print( "qitem\n" )
+			send P ["m"]
+		}
+
+	def qstart
+		[qitem*]
+
+	lex
+		token go /'go'/
+		{
+			P = new parser<ctx::pstart>( this )
+			Q = new parser<ctx::qstart>( this )
+			input->push( make_token( typeid<go>, input->pull( match_length ) ) )
+		}
+	end
+
+	def drive
+		[go]
+		{
+			send R ["ac"]
+			print( "sending q\n" )
+			send Q ["q"]
+			print( "sending y\n" )
+			send R ["y"]
+			print( "after\n" )
+			RS: rstart = R->finish()
+			print( "R: ", RS, "\n" )
+			PS: pstart = P->finish()
+			print( "P: <", PS, ">\n" )
+			QS: qstart = Q->finish()
+			print( "Q: ", QS, "\n" )
+		}
 end
 
-def ritem
-	[`a]
-	{
-		print( "ritem\n" )
-		send P ["pp"]
-	}
-
-def rstart
-	[ritem `c `x]
-|	[`a `c `y]
-
-global Once: bool = false
-
-def pitem
-	[`p]
-	{
-		print( "pitem\n" )
-		if ( !Once ) {
-			Once = true
-			send Q ["q"]
-		}
-	}
-
-def mitem
-	[`m]
-
-def pstart
-	[pitem* mitem*]
-
-def qitem
-	[`q]
-	{
-		print( "qitem\n" )
-		send P ["m"]
-	}
-
-def qstart
-	[qitem*]
-
-global R: parser<rstart> = new parser<rstart>()
-global P: parser<pstart> = new parser<pstart>()
-global Q: parser<qstart> = new parser<qstart>()
+C: ctx = new ctx()
+C->R = new parser<ctx::rstart>( C )
 
 print( "before\n" )
-send R ["ac"]
-print( "sending q\n" )
-send Q ["q"]
-print( "sending y\n" )
-send R ["y"]
-print( "after\n" )
-RS: rstart = R->finish()
-print( "R: ", RS, "\n" )
-PS: pstart = P->finish()
-print( "P: <", PS, ">\n" )
-QS: qstart = Q->finish()
-print( "Q: ", QS, "\n" )
+parse D: ctx::drive( C )[ "go" ]
 ##### EXP #####
 before
 ritem

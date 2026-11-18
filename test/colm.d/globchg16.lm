@@ -1,0 +1,27 @@
+# #683's push form, with the pop as a parse's item: the second item pops the
+# list that an action pushed onto, before the parser backs up.
+global K: list<str> = new list<str>()
+
+lex
+	ignore /[ \t]+/
+	literal `* `^ `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+def item
+	[`*]
+	{
+		K->push_tail( "" )
+	}
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 `* `; NL]
+
+parse S: start[ "* ;" K->pop_tail() "\n" ]
+print( S, "\n" )
+##### COMP_ERR #####
+17:3: cannot change K, a global, in an action of a restartable parser: keep the data in a context

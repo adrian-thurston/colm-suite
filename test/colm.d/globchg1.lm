@@ -1,0 +1,34 @@
+# #687's program: an action sets an attribute of a global's tree, and the
+# program changes the global between sends.
+lex
+	token id /[a-z]+/
+	token number /[0-9]+/
+	literal `; `!
+	ignore /[ \n]+/
+end
+
+def holder
+	S: str
+	[id]
+
+global G: holder = cons holder [ "g" ]
+
+def item
+	[id number]
+
+def wrapper
+	[item]
+	{
+		G.S = "set"
+	}
+
+def start
+	[wrapper id `;]
+|	[item id `!]
+
+P: parser<start> = new parser<start>()
+send P "x 3 y "
+G = nil
+send P "!" eos
+##### COMP_ERR #####
+22:3: cannot change G, a global, in an action of a restartable parser: keep the data in a context

@@ -1004,6 +1004,24 @@ struct Compiler
 	void refFlow( bool *from, bool *to );
 	void checkRefCopies();
 
+	/* The block being compiled, if it is an action's, a preeof block's, a
+	 * function's or an iterator's. The types that restartable parsers
+	 * parse, and the count of the places compiled so far where other code
+	 * runs (endReachableSetups()), or a call changes what it is called on
+	 * (evaluateCall()). */
+	CodeBlock *curBlock;
+	LangElSet restartTypes;
+	long otherCodeRuns;
+
+	/* The tree types that an attribute of theirs, or of a tree below them,
+	 * can hold a list, map, parser, stream or struct in. */
+	LangElSet refTrees;
+	bool refTreesFound;
+	bool treeHoldsRef( LangEl *lel );
+
+	void checkRestartable();
+	void reportGlobalUses( CodeBlock *block, Function *func );
+
 	LexReducer *reducer;
 
 	PdaGraph *pdaGraph;

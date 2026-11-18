@@ -746,10 +746,14 @@ static code_t *pop_call_frame( program_t *prg, execution_t *exec, tree_t ***psp,
 
 /* Ends a user iterator that is suspended at a yield. From there, it runs the
  * unwind code of each frame, which ends the frame's loops, then releases the
- * frame's values and pops it, up to the iterator's own frame. Then it pops
- * that frame and the iterator. A call inside an expression has words of the
- * expression under it, and no unwind code: from there, the rest of the
- * iterator's frames are popped with it, and what their loops hold is lost. */
+ * frame's values and pops it, up to the iterator's own frame. Then it
+ * releases that frame's values, and pops it and the iterator.
+ *
+ * A call inside an expression has words of the expression under it, and no
+ * unwind code. The walk stops there, and the rest is popped with the
+ * iterator. What the loops there hold is lost, and so are the values of the
+ * frames above the iterator's own, from the one with the call down. The
+ * iterator's own frame is released all the same. */
 static void uiter_teardown( program_t *prg, execution_t *exec, tree_t ***psp,
 		user_iter_t *uiter )
 {
@@ -795,10 +799,10 @@ static void uiter_teardown( program_t *prg, execution_t *exec, tree_t ***psp,
 		instr = pop_call_frame( prg, exec, &sp, fi );
 	}
 
-	/* The iterator's own frame. It is the one IN_UITER_CREATE pushed after
-	 * the iterator. */
-	if ( exec->frame_ptr == iframe )
-		release_locals( prg, sp, iframe, &prg->rtd->frame_info[uiter->frame_id] );
+	/* The iterator's own frame, the one IN_UITER_CREATE pushed after the
+	 * iterator. Wherever the walk stopped, nothing under that point is
+	 * popped yet, so the frame is whole. */
+	release_locals( prg, sp, iframe, &prg->rtd->frame_info[uiter->frame_id] );
 
 	vm_popn( vm_ssize() - uiter->root_size );
 	vm_popn( sizeof(user_iter_t) / sizeof(word_t) );

@@ -4,7 +4,10 @@
 # far as it can be: the function's locals and the iterator's are released,
 # and the rest is popped with the iterator. A loop the iterator is in, under
 # the expression's words, loses its iterator's locals, which the LOST section
-# lists. Before, every local was lost.
+# lists. Before, every local was lost. With func, the expression is in a
+# function the iterator called, between the iterator and the one that
+# yielded. The walk stops in that function's frame, and the iterator's own
+# locals are still released.
 iter j()
 {
 	J: str = "j"
@@ -31,6 +34,20 @@ iter k()
 	}
 }
 
+int f()
+{
+	X: int = 1 + g()
+	return X
+}
+
+iter m()
+{
+	S1: str = "s1"
+	S2: str = "s2"
+	S3: str = "s3"
+	f()
+}
+
 Where: str = argv->pop()
 if Where == "iter" {
 	for T: str in i() {
@@ -38,8 +55,14 @@ if Where == "iter" {
 		break
 	}
 }
-else {
+if Where == "loop" {
 	for T: str in k() {
+		print( T, "\n" )
+		break
+	}
+}
+if Where == "func" {
+	for T: str in m() {
 		print( T, "\n" )
 		break
 	}
@@ -63,3 +86,11 @@ done
 ##### LOST #####
 lost trees: 1
 lost heads: 1
+##### ARGS #####
+func
+##### EXP #####
+l
+done
+##### EXIT #####
+0
+##### LOST #####

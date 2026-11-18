@@ -18,6 +18,10 @@ EXTRA_DIST = \
 	balance2.lm \
 	balance3.lm \
 	binary1.lm \
+	break1.lm \
+	break2.lm \
+	break3.lm \
+	break4.lm \
 	broken/travs2.lm \
 	btcross1.lm \
 	btloc1.lm \

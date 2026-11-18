@@ -312,7 +312,7 @@ struct LoadColm
 			break;
 		}
 		case statement::Break: {
-			stmt = LangStmt::cons( LangStmt::BreakType );
+			stmt = LangStmt::cons( Statement.BREAK().loc(), LangStmt::BreakType );
 			break;
 		}
 		case statement::Reject: {

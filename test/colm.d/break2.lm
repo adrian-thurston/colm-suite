@@ -1,0 +1,12 @@
+# A break in a function with no loop is a compile error. Before, it did
+# nothing.
+int f()
+{
+	print( "in f\n" )
+	break
+	print( "after break in f\n" )
+	return 1
+}
+print( f(), "\n" )
+##### COMP_ERR #####
+6:2: break outside a loop

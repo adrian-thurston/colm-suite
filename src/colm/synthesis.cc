@@ -3021,7 +3021,10 @@ void LangStmt::compileForIterBody( Compiler *pd,
 	pd->unwindCode.insertHalf( 0, objField->offset );
 	pd->unwindCode.insert( 0, objField->iterImpl->inUnwind );
 
-	/* Compile the contents. */
+	/* Compile the contents. Its breaks are its own. */
+	LongVect outerBreaks = pd->breakJumps;
+	pd->breakJumps.empty();
+
 	compileLoopBody( pd, code, stmtList );
 
 	pd->unwindCode.remove( 0, pd->unwindCode.length() - lcLen );
@@ -3040,7 +3043,7 @@ void LangStmt::compileForIterBody( Compiler *pd,
 		long distance = code.length() - *brk - 3;
 		code.setHalf( *brk+1, distance );
 	}
-	pd->breakJumps.empty();
+	pd->breakJumps = outerBreaks;
 
 	/* Destroy the iterator. */
 	code.append( objField->iterImpl->inDestroy );
@@ -3272,7 +3275,10 @@ void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 	code.append( jinstr );
 	code.appendHalf( 0 );
 
-	/* Compute the while block. */
+	/* Compute the while block. Its breaks are its own. */
+	LongVect outerBreaks = pd->breakJumps;
+	pd->breakJumps.empty();
+
 	compileLoopBody( pd, code, stmtList );
 
 	/* Jump back to the top to retest. */
@@ -3289,7 +3295,7 @@ void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 		long distance = code.length() - *brk - 3;
 		code.setHalf( *brk+1, distance );
 	}
-	pd->breakJumps.empty();
+	pd->breakJumps = outerBreaks;
 }
 
 void LangStmt::compile( Compiler *pd, CodeVect &code ) const
@@ -3467,6 +3473,10 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			break;
 		}
 		case BreakType: {
+			/* A break leaves the innermost loop of the code block. */
+			if ( pd->loopDepth == 0 )
+				error(loc) << "break outside a loop" << endp;
+
 			pd->breakJumps.append( code.length() );
 			code.append( IN_JMP );
 			code.appendHalf( 0 );

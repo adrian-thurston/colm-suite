@@ -36,7 +36,8 @@ a loop variable `V`, colm reports `cannot find name V in object`.
 == break
 
 `break` leaves the innermost `while` or `for`. There is no `continue`: put
-the rest of the body in an `if`.
+the rest of the body in an `if`. A `break` outside a loop is a compile error,
+`break outside a loop`.
 
 == return
 

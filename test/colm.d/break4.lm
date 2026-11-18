@@ -1,0 +1,18 @@
+# A break before an inner loop over a user iterator leaves its own loop.
+# Before, it jumped into the end of the inner loop, which popped arguments it
+# never pushed, and the program aborted.
+iter i( A: str )
+{
+	yield A
+}
+
+for T: str in i( "a" ) {
+	if T == "a"
+		break
+	for U: str in i( "b" )
+		print( U, "\n" )
+	print( "after inner\n" )
+}
+print( "done\n" )
+##### EXP #####
+done

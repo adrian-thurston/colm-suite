@@ -1,0 +1,17 @@
+# A break before an inner loop leaves its own loop. Before, the inner loop
+# took the break as its own, and the break jumped to the end of the inner
+# loop.
+I: int = 0
+while I < 3 {
+	I = I + 1
+	if I == 1
+		break
+	J: int = 0
+	while J < 1 {
+		J = J + 1
+	}
+	print( "after inner ", I, "\n" )
+}
+print( "done ", I, "\n" )
+##### EXP #####
+done 1

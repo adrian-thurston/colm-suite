@@ -1,0 +1,13 @@
+# A break outside a loop is a compile error. Before, it compiled, and at the
+# top level it jumped to the end of the next loop compiled after it.
+print( "a\n" )
+break
+print( "b\n" )
+I: int = 0
+while I < 2 {
+	print( "loop ", I, "\n" )
+	I = I + 1
+}
+print( "c\n" )
+##### COMP_ERR #####
+4:1: break outside a loop

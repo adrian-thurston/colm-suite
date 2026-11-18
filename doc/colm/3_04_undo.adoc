@@ -369,8 +369,9 @@ reads all of these in place, as `+L->length+` and, for such a tree `G`,
 any of them, or with a `for` loop over values that aren't. Colm stops with
 the error
 `cannot take L, a global, out in an action of a restartable parser: keep the data in a context`.
-For what a call gives, the error says `cannot take what find gives out of M,
-a global, in` in place of `cannot take L, a global, out in`.
+For a field of a global, the error says `cannot take L out of R, a global,
+in` in place of `cannot take L, a global, out in`, and for what a call gives,
+`cannot take what find gives out of M, a global, in`.
 
 The actions can read globals, which the program can change between sends,
 and send to a stream that a global holds, since what goes to a stream isn't

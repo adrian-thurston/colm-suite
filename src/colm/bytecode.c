@@ -4133,7 +4133,11 @@ again:
 
 			struct_t *el = colm_list_get( prg, list, gen_id, field );
 
+			/* The value pushed is a reference of its own, when it is a tree,
+			 * as the value a pop gives is. */
 			value_t val = colm_struct_get_field( el, value_t, 0 );
+			if ( list->generic_info->value_type == TYPE_TREE )
+				colm_tree_upref( prg, (tree_t*) val );
 			vm_push_value( val );
 			break;
 		}

@@ -102,7 +102,7 @@ parameter and a tree's child hold only trees.
 | A stream's `tree` | `declareStreamField()` | `IN_GET_COLLECT_STRING` |
 | `stdin`, `stdout`, `stderr`, a name given with `-D` | `addStdin()`, `addStdout()`, `addStderr()`, `addDefineArgs()` | `IN_GET_CONST`, in every get slot |
 | `error` | `addError()` | `IN_GET_ERROR`, in `inGetR`, `inGetWC` and `inGetWV` |
-| A list's `head`, `tail`, `top` | `initListFieldVal()` | `IN_GET_VLIST_MEM_R`, which takes no reference to a tree it reads, so a `list<str>`'s is released once too often ([#466]) |
+| A list's `head`, `tail`, `top` | `initListFieldVal()` | `IN_GET_VLIST_MEM_R`, which takes a reference to a tree it reads ([#466]) |
 | A parser's `tree`, `error` | `initParserField()` | `IN_GET_PARSER_MEM_R` |
 | `this`, `input` | `addThis()`, `addInput()` | `IN_LOAD_CONTEXT_R`, `_WC`, `_WV` and `IN_LOAD_INPUT_R`, `_WC`, `_WV`, in the tree and value get slots |
 

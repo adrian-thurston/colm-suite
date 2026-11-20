@@ -287,6 +287,7 @@ EXTRA_DIST = \
 	listhead3.lm \
 	listhead4.lm \
 	listhead5.lm \
+	listhead6.lm \
 	listmsg1.lm \
 	listpop1.lm \
 	listpop2.lm \

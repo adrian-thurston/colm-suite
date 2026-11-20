@@ -1,0 +1,16 @@
+#
+# Reading a list<str>'s head, tail or top gives a reference of its own, as a
+# pop does, so the value is released once. On main the program printed its
+# output and then aborted on an assertion at exit (#466).
+#
+
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+L->push_tail( "b" )
+print( L->head, " ", L->tail, " ", L->top, "\n" )
+X: str = L->tail
+L->pop_tail()
+print( X, " ", L->length, "\n" )
+##### EXP #####
+a b a
+b 1

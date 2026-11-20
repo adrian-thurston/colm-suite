@@ -11,6 +11,7 @@ EXTRA_DIST = \
 	actlong1.lm \
 	argv1.lm \
 	argv2.lm \
+	attrval1.lm \
 	backtrack1.lm \
 	backtrack2.lm \
 	backtrack3.lm \

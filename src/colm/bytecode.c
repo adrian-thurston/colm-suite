@@ -1845,6 +1845,34 @@ again:
 			colm_tree_set_field( prg, obj, field, pointer );
 			break;
 		}
+		case IN_SET_FIELD_VAL_WV: {
+			short field;
+			read_half( field );
+
+			debug( prg, REALM_BYTECODE, "IN_SET_FIELD_VAL_WV %d\n", field );
+
+			tree_t *obj = vm_pop_tree();
+			value_t value = vm_pop_value();
+			if ( obj == 0 )
+				runtime_error( prg, "setting an attribute of a nil tree" );
+			colm_tree_downref( prg, sp, obj );
+
+			/* Make it into a pointer, as IN_SET_FIELD_VAL_WC does. Save the
+			 * old pointer, then set the field. */
+			tree_t *pointer = colm_construct_pointer( prg, value );
+			colm_tree_upref( prg, pointer );
+
+			tree_t *prev = colm_tree_get_field( obj, field );
+			colm_tree_set_field( prg, obj, field, pointer );
+
+			/* The old value is a pointer tree too, so the reverse is the one
+			 * a tree attribute's set has. */
+			rcode_code( exec, IN_SET_FIELD_TREE_BKT );
+			rcode_half( exec, field );
+			rcode_word( exec, (word_t)prev );
+			rcode_unit_term( exec );
+			break;
+		}
 		case IN_VAL_TO_POINTER: {
 			debug( prg, REALM_BYTECODE, "IN_VAL_TO_POINTER\n" );
 

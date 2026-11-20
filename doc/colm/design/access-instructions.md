@@ -83,11 +83,12 @@ away.
 | Field | `inGetValR` | `inGetValWC` | `inGetValWV` | `inSetValWC` | `inSetValWV`, undo |
 | --- | --- | --- | --- | --- | --- |
 | A local, a value parameter | `IN_GET_LOCAL_VAL_R` | `IN_GET_LOCAL_VAL_R` | `IN_GET_LOCAL_VAL_R` | `IN_SET_LOCAL_VAL_WC` | none |
-| A tree's attribute | `IN_GET_FIELD_VAL_R` | none | none | `IN_SET_FIELD_VAL_WC` | `IN_HALT` ([#537]) |
+| A tree's attribute | `IN_GET_FIELD_VAL_R` | none | none | `IN_SET_FIELD_VAL_WC` | `IN_SET_FIELD_VAL_WV`, `IN_SET_FIELD_TREE_BKT` ([#537]) |
 | A struct's field, a global, a context's variable | `IN_GET_STRUCT_VAL_R` | `IN_GET_STRUCT_VAL_R` | `IN_GET_STRUCT_VAL_R` | `IN_SET_STRUCT_VAL_WC` | `IN_SET_STRUCT_VAL_WV`, `IN_SET_STRUCT_VAL_BKT` |
 
-A tree holds a value attribute as a pointer tree (`colm_construct_pointer()`).
-A `ref<T>` parameter and a tree's child hold only trees.
+A tree holds a value attribute as a pointer tree (`colm_construct_pointer()`),
+so setting one is undone as setting a tree attribute is. A `ref<T>`
+parameter and a tree's child hold only trees.
 
 ## Built-in fields that are only read
 

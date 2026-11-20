@@ -1,0 +1,88 @@
+#
+# In a production's action, setting an int, bool, struct or list attribute
+# of a global's tree or of a context's variable's tree, and setting one of a
+# global's tree in a function the action calls, stays when the parse keeps
+# the reduction of item. When the parser backs up over the action, the old
+# values come back. "keep" ends the input with ";", "back" with "!". On main
+# each set stopped the program with IN_HALT (#537).
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	literal `; `!
+	ignore /[ \n]+/
+end
+
+struct box
+	V: int
+end
+
+def holder
+	N: int
+	B: bool
+	X: box
+	L: list<int>
+	M: int
+	[id]
+
+global G: holder = cons holder [ "g" ]
+global Run: str = argv->pop()
+
+void setm( V: int )
+{
+	G.M = V
+}
+
+context ctx
+	C: holder
+
+	def item
+		[id num]
+		{
+			G.N = 3
+			G.B = true
+			G.X = new box()
+			G.X->V = 4
+			G.L = new list<int>()
+			G.L->push_tail( 5 )
+			setm( 6 )
+			C.N = 7
+		}
+
+	def start
+		[item id `;]
+	|	[id num id `!]
+end
+
+Ctx: ctx = new ctx()
+Ctx->C = cons holder [ "c" ]
+
+In: str = "y 3 u ;"
+if Run == 'back'
+	In = "y 3 u !"
+parse S: ctx::start( Ctx )[ In ]
+print( "S [S]\n" )
+print( "G ", G.N, " ", G.B, " ", G.M, " C ", Ctx->C.N, "\n" )
+if ( G.X )
+	print( "X ", G.X->V, "\n" )
+else
+	print( "X nil\n" )
+if ( G.L )
+	print( "L ", G.L->length, "\n" )
+else
+	print( "L nil\n" )
+##### ARGS #####
+keep
+##### EXP #####
+S y 3 u ;
+G 3 1 6 C 7
+X 4
+L 1
+##### ARGS #####
+back
+##### EXP #####
+S y 3 u !
+G 0 0 0 C 0
+X nil
+L nil

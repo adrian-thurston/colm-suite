@@ -4010,7 +4010,7 @@ void ObjectField::initField()
 			//inGetValWC = IN_GET_FIELD_VAL_WC;
 			//inGetValWV;
 			inSetValWC = IN_SET_FIELD_VAL_WC;
-			//inSetValWV;
+			inSetValWV = IN_SET_FIELD_VAL_WV;
 			break;
 
 		case GenericElementType:

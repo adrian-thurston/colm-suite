@@ -1,39 +1,79 @@
-# A send in the body of a for loop over a context's list runs a parser's
-# action that pushes onto the list. The push stops the program. The host
-# sends standard error to standard output.
+# A send in the body of a for loop over a context's list or map runs a
+# parser's action that changes it: a push or a pop, or an insert, a set or a
+# remove. The change stops the program. The host sends standard error to
+# standard output.
 context ctx
+	Mode: str
 	L: list<str>
+	M: map<str, str>
 
 	lex
 		ignore /[ \t\n]+/
 		literal `*
 	end
 
-	def item
+	# The first item gives the list the value a loop over it visits.
+	def first
 		[`*]
 		{
 			L->push_tail( "x" )
 		}
 
+	# Each item after it makes the change Mode names.
+	def item
+		[`*]
+		{
+			if ( Mode == "push_tail" )
+				L->push_tail( "x" )
+			elsif ( Mode == "push_head" )
+				L->push_head( "x" )
+			elsif ( Mode == "pop_head" )
+				L->pop_head()
+			elsif ( Mode == "pop_tail" )
+				L->pop_tail()
+			elsif ( Mode == "insert" )
+				M->insert( "d", "4" )
+			elsif ( Mode == "set" )
+				M->set( "d", "4" )
+			elsif ( Mode == "remove" )
+				M->remove( "a" )
+		}
+
 	def start
-		[item*]
+		[first item*]
 end
 
 C: ctx = new ctx()
+C->Mode = argv->pop()
 C->L = new list<str>()
+C->M = new map<str, str>()
+C->M->insert( "a", "1" )
+C->M->insert( "b", "2" )
+C->M->insert( "c", "3" )
 P: parser<ctx::start> = new parser<ctx::start>( C )
 
-# The first item reduces when the second comes.
+# The first item reduces when the second comes, before the loop. The second
+# reduces when the loop sends the third.
 send P "* * "
 I: int = 0
-for V: str in C->L {
-	print( "v [V]\n" )
-	I = I + 1
-	if ( I < 5 )
-		send P "* "
+if ( C->Mode == "insert" || C->Mode == "set" || C->Mode == "remove" ) {
+	for V: str in C->M {
+		print( "v [V]\n" )
+		I = I + 1
+		if ( I < 5 )
+			send P "* "
+	}
+}
+else {
+	for V: str in C->L {
+		print( "v [V]\n" )
+		I = I + 1
+		if ( I < 5 )
+			send P "* "
+	}
 }
 print( P->finish(), "\n" )
-print( "after: [C->L->length]\n" )
+print( "after: L [C->L->length], M [C->M->length]\n" )
 ##### HOST #####
 
 #include <colm/colm.h>
@@ -53,8 +93,52 @@ int main( int argc, const char **argv )
 	printf( "host: exit status %d\n", status );
 	return status;
 }
+##### ARGS #####
+push_tail
 ##### EXP #####
 v x
 fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+push_head
+##### EXP #####
+v x
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+pop_head
+##### EXP #####
+v x
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+pop_tail
+##### EXP #####
+v x
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+insert
+##### EXP #####
+v 1
+fatal: changing a map a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+set
+##### EXP #####
+v 1
+fatal: changing a map a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+remove
+##### EXP #####
+v 1
+fatal: changing a map a loop is over
 ##### EXIT #####
 1

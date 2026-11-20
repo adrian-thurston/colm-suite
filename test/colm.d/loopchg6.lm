@@ -24,6 +24,10 @@ context ctx
 				L->push_tail( "x" )
 			elsif ( Mode == "pop" )
 				L->pop_head()
+			elsif ( Mode == "push_head" )
+				L->push_head( "x" )
+			elsif ( Mode == "pop_tail" )
+				L->pop_tail()
 			elsif ( Mode == "insert" )
 				M->insert( "x", "9" )
 			elsif ( Mode == "insert_present" )
@@ -57,7 +61,7 @@ print( "before\n" )
 # that backing up takes out.
 I: int = 0
 Sent: bool = false
-if ( C->Mode == "push" || C->Mode == "pop" ) {
+if ( C->Mode == "push" || C->Mode == "pop" || C->Mode == "push_head" || C->Mode == "pop_tail" ) {
 	for V: str in C->L {
 		print( "v [V]\n" )
 		if ( !Sent && I == C->L->length - 1 ) {
@@ -113,6 +117,24 @@ pop
 ##### EXP #####
 before
 v b
+fatal: backing up over a change to a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+push_head
+##### EXP #####
+before
+v x
+v a
+v b
+fatal: backing up over a change to a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+pop_tail
+##### EXP #####
+before
+v a
 fatal: backing up over a change to a list a loop is over
 ##### EXIT #####
 1

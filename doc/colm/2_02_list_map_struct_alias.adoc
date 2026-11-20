@@ -109,8 +109,17 @@ are.
   change an end, pop it and push the new value. A struct held at an end is a
   pointer, so `L->head->F = 1` sets its field.
 
-A list can't change inside a `for` over it: that is a compile error,
-`reference active, cannot write to object`.
+A list can't change inside a `for` over it. A push or a pop in the loop's
+body, on the local variable the loop is over, is a compile error,
+`reference active, cannot write to object`. Any other push or pop while the
+loop runs stops the program: one through another variable that holds the
+list, in a function the body calls, on a global or a struct's field that the
+loop is over, or in the actions of a parser that the body sends to. It
+prints `fatal: changing a list a loop is over` and exits with status 1, as
+xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]
+says. A parser backing up over an action's push or pop while a loop is over
+the list stops the program too, with
+`fatal: backing up over a change to a list a loop is over`.
 
 The variable of a `for` over a list takes each value as an assignment to it
 would. Its type is `T`, or `any` when `T` is a tree type, or a tree type
@@ -186,7 +195,12 @@ Int keys go from low to high, negative ones first. Str keys go by length
 first, then byte by byte, as xref:1_02_expressions.adoc#operators[the
 expressions chapter] says.
 
-A map can't change inside a `for` over it.
+A map can't change inside a `for` over it, or over `map_keys( M )`, in the
+same way. An `insert`, a `set` or a `remove` there stops the program with
+`fatal: changing a map a loop is over`, even one that would leave the map as
+it was, such as an `insert` of a key the map has. A parser backing up over
+an action's change to the map while a loop is over it stops the program with
+`fatal: backing up over a change to a map a loop is over`.
 
 The variable of a `for` over a map takes the values as in a loop over a
 list. Any other type is a compile error, `loop variable V must have the

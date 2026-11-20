@@ -239,6 +239,37 @@ static void pop_check( program_t *prg, list_t *list )
 		runtime_error( prg, "pop from an empty list" );
 }
 
+/* The count of the for loops over the list or the map that a loop's
+ * iterator is over. */
+static long *loop_count( program_t *prg, generic_iter_t *iter )
+{
+	struct generic_info *gi = &prg->rtd->generic_info[iter->generic_id];
+	if ( gi->type == GEN_MAP )
+		return &((map_t*)iter->container)->loops;
+	return &((list_t*)iter->container)->loops;
+}
+
+/* A change to a list or a map that a for loop is over stops the program,
+ * since the loop would go on from an element the change took out, and may
+ * have freed. The undo of a change stops the same way. */
+static void list_change_check( program_t *prg, list_t *list, int undo )
+{
+	if ( list->loops > 0 ) {
+		runtime_error( prg, undo ?
+				"backing up over a change to a list a loop is over" :
+				"changing a list a loop is over" );
+	}
+}
+
+static void map_change_check( program_t *prg, map_t *map, int undo )
+{
+	if ( map->loops > 0 ) {
+		runtime_error( prg, undo ?
+				"backing up over a change to a map a loop is over" :
+				"changing a map a loop is over" );
+	}
+}
+
 /* Takes a struct off the program's heap list, the inverse of
  * colm_struct_add(). Only colm_clear_heap(), at exit, frees what is on it. */
 static void heap_unlink( program_t *prg, struct colm_struct *s )
@@ -2856,6 +2887,10 @@ again:
 
 			colm_init_list_iter( (generic_iter_t*)mem, stack_root, arg_size,
 				root_size, &root_ref, generic_id );
+
+			/* While the loop runs, a change to what it is over stops the
+			 * program. */
+			*loop_count( prg, (generic_iter_t*)mem ) += 1;
 			break;
 		}
 		case IN_GEN_ITER_UNWIND:
@@ -2867,6 +2902,10 @@ again:
 
 			debug( prg, REALM_BYTECODE, "IN_LIST_ITER_DESTROY %d\n", iter->yield_size );
 
+			/* colm_list_iter_destroy() ends an iterator once, setting its type
+			 * to 0, so the count goes down once too. */
+			if ( (int)iter->type != 0 )
+				*loop_count( prg, iter ) -= 1;
 			colm_list_iter_destroy( prg, &sp, iter );
 			break;
 		}
@@ -4730,6 +4769,7 @@ again:
 				map_t *map = vm_pop_map();
 				if ( map == 0 )
 					runtime_error( prg, "insert into a nil map" );
+				map_change_check( prg, map, 0 );
 				struct_t *value = vm_pop_struct();
 				struct_t *key = vm_pop_struct();
 
@@ -4756,6 +4796,7 @@ again:
 				map_t *map = vm_pop_map();
 				if ( map == 0 )
 					runtime_error( prg, "insert into a nil map" );
+				map_change_check( prg, map, 0 );
 				struct_t *value = vm_pop_struct();
 				struct_t *key = vm_pop_struct();
 
@@ -4798,6 +4839,7 @@ again:
 				/* The element is in the map as the insert left it. Nothing
 				 * else holds it once it is out. */
 				if ( inserted ) {
+					map_change_check( prg, map, 1 );
 					colm_map_detach( prg, map, map_el );
 					el_free( prg, sp, colm_generic_el_container( prg, map_el,
 							map->generic_info - prg->rtd->generic_info ) );
@@ -4813,6 +4855,7 @@ again:
 				map_t *map = vm_pop_map();
 				if ( map == 0 )
 					runtime_error( prg, "remove from a nil map" );
+				map_change_check( prg, map, 0 );
 				tree_t *key = vm_pop_tree();
 
 				map_el_t *map_el = colm_vmap_remove( prg, map, key );
@@ -4842,6 +4885,7 @@ again:
 				map_t *map = vm_pop_map();
 				if ( map == 0 )
 					runtime_error( prg, "remove from a nil map" );
+				map_change_check( prg, map, 0 );
 				tree_t *key = vm_pop_tree();
 
 				map_el_t *map_el = colm_vmap_remove( prg, map, key );
@@ -4886,6 +4930,7 @@ again:
 				/* The map doesn't have the key: it is as the remove left it.
 				 * The element goes back on the heap list. */
 				if ( map_el != 0 ) {
+					map_change_check( prg, map, 1 );
 					colm_map_insert( prg, map, map_el );
 					colm_struct_add( prg, colm_generic_el_container( prg, map_el,
 							map->generic_info - prg->rtd->generic_info ) );
@@ -4923,6 +4968,7 @@ again:
 				map_t *map = vm_pop_map();
 				if ( map == 0 )
 					runtime_error( prg, "set in a nil map" );
+				map_change_check( prg, map, 0 );
 				struct_t *value = vm_pop_struct();
 				struct_t *key = vm_pop_struct();
 
@@ -4978,6 +5024,7 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_VMAP_SET_BKT %d\n", (int)inserted );
 
 				map_t *map = vm_pop_map();
+				map_change_check( prg, map, 1 );
 				map_el_t *map_el = (map_el_t*)wmap_el;
 
 				/* The element is in the map as the set left it. One it added
@@ -5023,6 +5070,7 @@ again:
 				list_t *list = vm_pop_list();
 				if ( list == 0 )
 					runtime_error( prg, "push to a nil list" );
+				list_change_check( prg, list, 0 );
 				value_t value = vm_pop_value();
 
 				colm_vlist_append( prg, list, value );
@@ -5039,6 +5087,7 @@ again:
 				list_t *list = vm_pop_list();
 				if ( list == 0 )
 					runtime_error( prg, "push to a nil list" );
+				list_change_check( prg, list, 0 );
 				value_t value = vm_pop_value();
 
 				colm_vlist_append( prg, list, value );
@@ -5057,6 +5106,7 @@ again:
 				/* The pushed value is at that end: the list is as the push
 				 * left it. Its element goes. */
 				list_t *list = vm_pop_list();
+				list_change_check( prg, list, 1 );
 				list_el_t *list_el = colm_list_detach_tail( list );
 				el_free( prg, sp, colm_generic_el_container( prg, list_el,
 						list->generic_info - prg->rtd->generic_info ) );
@@ -5071,6 +5121,7 @@ again:
 				list_t *list = vm_pop_list();
 				if ( list == 0 )
 					runtime_error( prg, "push to a nil list" );
+				list_change_check( prg, list, 0 );
 				value_t value = vm_pop_value();
 
 				colm_vlist_prepend( prg, list, value );
@@ -5087,6 +5138,7 @@ again:
 				list_t *list = vm_pop_list();
 				if ( list == 0 )
 					runtime_error( prg, "push to a nil list" );
+				list_change_check( prg, list, 0 );
 				value_t value = vm_pop_value();
 
 				colm_vlist_prepend( prg, list, value );
@@ -5105,6 +5157,7 @@ again:
 				/* The pushed value is at that end: the list is as the push
 				 * left it. Its element goes. */
 				list_t *list = vm_pop_list();
+				list_change_check( prg, list, 1 );
 				list_el_t *list_el = colm_list_detach_head( list );
 				el_free( prg, sp, colm_generic_el_container( prg, list_el,
 						list->generic_info - prg->rtd->generic_info ) );
@@ -5118,6 +5171,7 @@ again:
 
 				list_t *list = vm_pop_list();
 				pop_check( prg, list );
+				list_change_check( prg, list, 0 );
 
 				/* The value comes off with a reference of its own, and the
 				 * element goes. */
@@ -5135,6 +5189,7 @@ again:
 
 				list_t *list = vm_pop_list();
 				pop_check( prg, list );
+				list_change_check( prg, list, 0 );
 
 				/* As in the _WC form, but the reverse code holds the element,
 				 * with its own reference to the value, and it leaves the heap
@@ -5161,6 +5216,7 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_VLIST_POP_HEAD_BKT\n" );
 
 				list_t *list = vm_pop_list();
+				list_change_check( prg, list, 1 );
 
 				/* The element the pop took off goes back, with its value. */
 				struct colm_struct *el = (struct colm_struct*)wel;
@@ -5177,6 +5233,7 @@ again:
 
 				list_t *list = vm_pop_list();
 				pop_check( prg, list );
+				list_change_check( prg, list, 0 );
 
 				/* The value comes off with a reference of its own, and the
 				 * element goes. */
@@ -5194,6 +5251,7 @@ again:
 
 				list_t *list = vm_pop_list();
 				pop_check( prg, list );
+				list_change_check( prg, list, 0 );
 
 				/* As in the _WC form, but the reverse code holds the element,
 				 * with its own reference to the value, and it leaves the heap
@@ -5220,6 +5278,7 @@ again:
 				debug( prg, REALM_BYTECODE, "FN_VLIST_POP_TAIL_BKT\n" );
 
 				list_t *list = vm_pop_list();
+				list_change_check( prg, list, 1 );
 
 				/* The element the pop took off goes back, with its value. */
 				struct colm_struct *el = (struct colm_struct*)wel;

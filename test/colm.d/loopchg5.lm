@@ -1,0 +1,60 @@
+# A send in the body of a for loop over a context's list runs a parser's
+# action that pushes onto the list. The push stops the program. The host
+# sends standard error to standard output.
+context ctx
+	L: list<str>
+
+	lex
+		ignore /[ \t\n]+/
+		literal `*
+	end
+
+	def item
+		[`*]
+		{
+			L->push_tail( "x" )
+		}
+
+	def start
+		[item*]
+end
+
+C: ctx = new ctx()
+C->L = new list<str>()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+
+# The first item reduces when the second comes.
+send P "* * "
+I: int = 0
+for V: str in C->L {
+	print( "v [V]\n" )
+	I = I + 1
+	if ( I < 5 )
+		send P "* "
+}
+print( P->finish(), "\n" )
+print( "after: [C->L->length]\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### EXP #####
+v x
+fatal: changing a list a loop is over
+##### EXIT #####
+1

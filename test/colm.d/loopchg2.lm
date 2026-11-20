@@ -1,0 +1,120 @@
+# An insert, a set or a remove on a map that a for loop is over, through
+# another variable that holds the map, stops the program, even one that
+# leaves the map as it was. A loop over map_keys stops the same way. The host
+# sends standard error to standard output. With no change, an insert after
+# the loop goes ahead.
+M: map<str, str> = new map<str, str>()
+M->insert( "a", "1" )
+M->insert( "b", "2" )
+M->insert( "c", "3" )
+M2: map<str, str> = M
+A: str = argv->pop()
+if ( A == "keys_remove" ) {
+	for K: str in map_keys( M ) {
+		print( "k [K]\n" )
+		M2->remove( "a" )
+	}
+}
+else {
+	# The change comes once, so that on a colm without the stop the loop
+	# ends.
+	Done: bool = false
+	for V: str in M {
+		print( "v [V]\n" )
+		if ( !Done ) {
+			Done = true
+			if ( A == "insert" )
+				M2->insert( "d", "4" )
+			elsif ( A == "insert_present" )
+				M2->insert( "a", "4" )
+			elsif ( A == "set" )
+				M2->set( "d", "4" )
+			elsif ( A == "set_present" )
+				M2->set( "b", "4" )
+			elsif ( A == "remove" )
+				M2->remove( "a" )
+			elsif ( A == "remove_absent" )
+				M2->remove( "d" )
+		}
+	}
+}
+M2->insert( "e", "5" )
+print( "after: [M->length]\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+insert
+##### EXP #####
+v 1
+fatal: changing a map a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+insert_present
+##### EXP #####
+v 1
+fatal: changing a map a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+set
+##### EXP #####
+v 1
+fatal: changing a map a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+set_present
+##### EXP #####
+v 1
+fatal: changing a map a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+remove
+##### EXP #####
+v 1
+fatal: changing a map a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+remove_absent
+##### EXP #####
+v 1
+fatal: changing a map a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+keys_remove
+##### EXP #####
+k a
+fatal: changing a map a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+none
+##### EXP #####
+v 1
+v 2
+v 3
+after: 4
+host: exit status 0
+##### EXIT #####
+0

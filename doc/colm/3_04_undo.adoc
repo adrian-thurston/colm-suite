@@ -320,6 +320,10 @@ take such a list, map, struct or parser out, where it could be changed: put it
 into a variable, pass it to a function, return it, or test it, or take one out
 of what a call gives, such as the struct `find` gives from a map of structs.
 Colm stops with the error `cannot take L out of C, a context object`.
+While a `for` loop is over such a list or map, a send that makes the
+parser's actions change it, or makes the parser back up over a change to
+it, stops the program, as
+xref:2_02_list_map_struct_alias.adoc#lists[the lists section] says.
 
 Colm can't tell whether two parsers are given the same object. Give each parser
 its own, except for a parse that a parser's actions start, and a parser that

@@ -1,0 +1,122 @@
+# Changes the compiler doesn't see stop the program when a for loop is over
+# the list or the map: a function the body calls (#684's program, pop2), the
+# body's own change to a global or to a struct's field that the loop is over,
+# and the same in a loop over rev_list_iter. The host sends standard error to
+# standard output.
+global L: list<str> = new list<str>()
+global M: map<str, str> = new map<str, str>()
+
+struct S
+	SL: list<str>
+end
+
+void pop2()
+{
+	if ( L->length > 0 )
+		X: str = L->pop()
+	if ( L->length > 0 )
+		Y: str = L->pop()
+}
+
+void remove_a()
+{
+	M->remove( "a" )
+}
+
+L->push_tail( "a" )
+L->push_tail( "b" )
+L->push_tail( "c" )
+L->push_tail( "d" )
+M->insert( "a", "1" )
+M->insert( "b", "2" )
+T: S = new S()
+T->SL = new list<str>()
+T->SL->push_tail( "a" )
+T->SL->push_tail( "b" )
+
+A: str = argv->pop()
+if ( A == "pop2" ) {
+	for V: str in L {
+		print( "visit [V], L [L->length]\n" )
+		pop2()
+	}
+}
+elsif ( A == "rev" ) {
+	for V: str in rev_list_iter( L ) {
+		print( "visit [V]\n" )
+		X: str = L->pop_tail()
+	}
+}
+elsif ( A == "global" ) {
+	for V: str in L {
+		print( "visit [V]\n" )
+		L->push_head( "x" )
+	}
+}
+elsif ( A == "field" ) {
+	for V: str in T->SL {
+		print( "visit [V]\n" )
+		T->SL->pop_head()
+	}
+}
+elsif ( A == "map" ) {
+	for V: str in M {
+		print( "visit [V]\n" )
+		remove_a()
+	}
+}
+print( "after: L [L->length], M [M->length], SL [T->SL->length]\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+pop2
+##### EXP #####
+visit a, L 4
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+rev
+##### EXP #####
+visit d
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+global
+##### EXP #####
+visit a
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+field
+##### EXP #####
+visit a
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+map
+##### EXP #####
+visit 1
+fatal: changing a map a loop is over
+##### EXIT #####
+1

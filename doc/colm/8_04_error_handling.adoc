@@ -207,6 +207,10 @@ Some mistakes stop the program where they happen:
 * any other use of a nil list or map, such as a push, an `insert` or a read
   of its `length`, as the lists section and
   xref:2_02_list_map_struct_alias.adoc#maps[the maps section] describe;
+* changing a list or a map that a `for` loop is over, such as a push through
+  another variable or in a function the loop's body calls, or a parser
+  backing up over a change to it then, as the lists section and the maps
+  section describe;
 * reading or setting a field of a nil struct, as
   xref:2_02_list_map_struct_alias.adoc#structs[the structs section] describes;
 * a `for` loop over a nil tree, as

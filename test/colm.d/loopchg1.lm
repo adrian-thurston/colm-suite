@@ -1,0 +1,105 @@
+# A push or a pop on a list that a for loop is over, through another variable
+# that holds the list, stops the program. The host sends standard error to
+# standard output, so the message is in the output, after what the program
+# printed before it. The stop ends the host too: it never gets back from
+# colm_run_program. With no change, a push after the loop goes ahead.
+L: list<str> = new list<str>()
+L->push_tail( "a" )
+L->push_tail( "b" )
+L->push_tail( "c" )
+L2: list<str> = L
+A: str = argv->pop()
+
+# The change comes once, so that on a colm without the stop the loop ends.
+Done: bool = false
+for V: str in L {
+	print( "v [V]\n" )
+	if ( !Done ) {
+		Done = true
+		if ( A == "push_head" )
+			L2->push_head( "x" )
+		elsif ( A == "push_tail" )
+			L2->push_tail( "x" )
+		elsif ( A == "push" )
+			L2->push( "x" )
+		elsif ( A == "pop_head" )
+			L2->pop_head()
+		elsif ( A == "pop_tail" )
+			L2->pop_tail()
+		elsif ( A == "pop" )
+			L2->pop()
+	}
+}
+L2->push_tail( "d" )
+print( "after: [L->length]\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+push_head
+##### EXP #####
+v a
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+push_tail
+##### EXP #####
+v a
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+push
+##### EXP #####
+v a
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+pop_head
+##### EXP #####
+v a
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+pop_tail
+##### EXP #####
+v a
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+pop
+##### EXP #####
+v a
+fatal: changing a list a loop is over
+##### EXIT #####
+1
+##### ARGS #####
+none
+##### EXP #####
+v a
+v b
+v c
+after: 4
+host: exit status 0
+##### EXIT #####
+0

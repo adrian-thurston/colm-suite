@@ -178,6 +178,9 @@ typedef struct colm_generic_iter
 	long yield_size;
 	long root_size;
 	long generic_id;
+
+	/* The list or the map the loop is over. */
+	struct colm_struct *container;
 } generic_iter_t;
 
 /* This must overlay tree iter because some of the same bytecodes are used. */

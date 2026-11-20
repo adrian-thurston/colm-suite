@@ -42,9 +42,10 @@ loads, then the set back to the old value. When the parse commits, the
 
 A load for writing splits the tree it loads: a tree that something else
 shares (`refs` above 1) is copied, and the copy stored back where the tree
-was (`split_tree()`). What shared the tree keeps it as it was. A write into
-a tree that wasn't split fails `colm_tree_set_field()`'s assertion that the
-tree isn't shared.
+was (`split_tree()`). What shared the tree keeps it as it was. Without the
+split, an attribute's set fails `colm_tree_set_field()`'s assertion that
+the tree isn't shared, and a child's or a token's data's set changes the
+tree for everything that shares it.
 
 ## Roots
 

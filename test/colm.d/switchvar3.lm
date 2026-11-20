@@ -1,0 +1,118 @@
+#
+# In a production's action, a write to a child or attribute named on its own
+# in a case of a switch on a local isn't undone, as a write to the local's
+# tree isn't. "keep" ends the input with ";", which keeps the reduction of
+# wrapper. "back" ends it with "!", which makes the parser back up over it.
+# The second argument picks the write. On main the write recorded reverse
+# code without the load in front of it, so backing up over it aborted or
+# segfaulted (#693). Each switch is in its own if branch because a case's
+# names aren't found inside an if within the case (#491).
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	literal `; `!
+	ignore /[ \n]+/
+end
+
+def pair
+	[L: id R: num]
+
+def wrap
+	WT: id
+	[P: pair]
+|	[num]
+
+global B: str = argv->pop()
+global K: str = argv->pop()
+global C: pair = parse pair[ "c 9" ]
+
+def item
+	[id num]
+
+def wrapper
+	[I: item]
+	{
+		W: wrap = parse wrap[ "l 2" ]
+		if K == 'child' {
+			switch W
+			case [pair]
+				P = C
+		}
+		elsif K == 'lhs' {
+			switch lhs
+			case [item]
+				I = parse item[ "w 7" ]
+		}
+		elsif K == 'data' {
+			switch W
+			case [pair]
+				P.L.data = 'z'
+		}
+		elsif K == 'attr' {
+			switch W
+			case [pair]
+				WT = make_token( typeid<id>, 'q' )
+		}
+		print( 'W: ', W, ' <', W.WT, '>\n' )
+	}
+
+def start
+	[wrapper id `;]
+|	[item id `!]
+
+print( B, ' ', K, '\n' )
+In: str = "y 3 u ;"
+if B == 'back'
+	In = "y 3 u !"
+parse S: start[ In ]
+print( 'S: ', S, '\n' )
+##### ARGS #####
+keep child
+##### EXP #####
+keep child
+W: c 9 <NIL>
+S: y 3 u ;
+##### ARGS #####
+keep lhs
+##### EXP #####
+keep lhs
+W: l 2 <NIL>
+S: w 7u ;
+##### ARGS #####
+keep data
+##### EXP #####
+keep data
+W: z 2 <NIL>
+S: y 3 u ;
+##### ARGS #####
+keep attr
+##### EXP #####
+keep attr
+W: l 2 <q>
+S: y 3 u ;
+##### ARGS #####
+back child
+##### EXP #####
+back child
+W: c 9 <NIL>
+S: y 3 u !
+##### ARGS #####
+back lhs
+##### EXP #####
+back lhs
+W: l 2 <NIL>
+S: y 3 u !
+##### ARGS #####
+back data
+##### EXP #####
+back data
+W: z 2 <NIL>
+S: y 3 u !
+##### ARGS #####
+back attr
+##### EXP #####
+back attr
+W: l 2 <q>
+S: y 3 u !

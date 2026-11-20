@@ -1,0 +1,35 @@
+#
+# A change to a global through a child named on its own in a switch case, in
+# an action of a restartable parser, is refused as a change to the global
+# is. On main colm segfaulted compiling the switch (#692).
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	ignore /[ \n]+/
+end
+
+def pair
+	[L: id R: num]
+
+def wrap
+	[P: pair]
+|	[num]
+
+global G: wrap = parse wrap[ "x 1" ]
+global C: pair = parse pair[ "c 9" ]
+
+def item
+	[id num]
+	{
+		switch G
+		case [pair]
+			P = C
+	}
+
+Pr: parser<item> = new parser<item>()
+send Pr "y 3" eos
+print( G, "\n" )
+##### COMP_ERR #####
+28:4: cannot change G, a global, in an action of a restartable parser: keep the data in a context

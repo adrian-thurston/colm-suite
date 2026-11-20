@@ -1,0 +1,44 @@
+#
+# A switch on a global: a pattern case and a production name case, with the
+# case's child and attributes named on their own, read and set. The global's
+# tree is shared with its parse, so the sets copy it first. On main colm
+# segfaulted compiling any switch on a global (#692).
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	ignore /[ \n]+/
+end
+
+def pair
+	[L: id R: num]
+
+def wrap
+	T: id
+	N: int
+	[P: pair] :Pair
+|	[num] :Num
+
+global G: wrap = parse wrap[ "x 1" ]
+global C: pair = parse pair[ "c 9" ]
+
+switch G
+case [num]
+	print( "num\n" )
+case [pair]
+	print( "pair [P]\n" )
+
+switch G
+case Num
+	print( "Num\n" )
+case Pair {
+	T = make_token( typeid<id>, "q" )
+	N = 5
+	P = C
+}
+
+print( "[G] <[G.T]> ", G.N, "\n" )
+##### EXP #####
+pair x 1
+c 9 <q> 5

@@ -2369,9 +2369,11 @@ struct LoadColm
 
 	LangStmt *walkCaseClause( case_clause CaseClause, var_ref VarRef )
 	{
-		pushScope();
-
+		/* The switch's variable is named in the scope around the switch. In
+		 * the case's own scope it would be a child of itself. */
 		LangVarRef *varRef = walkVarRef( VarRef );
+
+		pushScope();
 
 		scopeTop->caseClauseVarRef = varRef;
 

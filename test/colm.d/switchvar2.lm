@@ -1,0 +1,67 @@
+#
+# A switch on a context's variable in a production's action, with the case's
+# child and attribute named on their own, read and set. "keep" ends the input
+# with ";", which keeps the reduction of item, and the sets stay. "back" ends
+# it with "!", which makes the parser back up over the action and undo them.
+# On main colm segfaulted compiling the switch (#692).
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	literal `; `!
+	ignore /[ \n]+/
+end
+
+def pair
+	[L: id R: num]
+
+def wrap
+	T: id
+	[P: pair]
+|	[num]
+
+global B: str = argv->pop()
+
+context ctx
+	H: wrap
+	C: pair
+
+	def item
+		[id num]
+		{
+			switch H
+			case [pair] {
+				print( "P [P]\n" )
+				T = make_token( typeid<id>, "q" )
+				P = C
+			}
+		}
+
+	def start
+		[item id `;]
+	|	[id num id `!]
+end
+
+Ctx: ctx = new ctx()
+Ctx->H = parse wrap[ "x 1" ]
+Ctx->C = parse pair[ "c 9" ]
+
+In: str = "y 3 u ;"
+if B == 'back'
+	In = "y 3 u !"
+parse S: ctx::start( Ctx )[ In ]
+print( "S [S]\n" )
+print( "H [Ctx->H] <[Ctx->H.T]>\n" )
+##### ARGS #####
+keep
+##### EXP #####
+P x 1
+S y 3 u ;
+H c 9 <q>
+##### ARGS #####
+back
+##### EXP #####
+P x 1
+S y 3 u !
+H x 1 <NIL>

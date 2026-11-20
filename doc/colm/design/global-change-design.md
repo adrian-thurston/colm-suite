@@ -17,7 +17,9 @@ reverse code or the runtime changes.
   comes from its revert compile (`revertOn`), the code that actions run.
 - `LangVarRef::noteGlobalUse()` keeps a `GlobalUse` in the block's
   `globalUses` when the reference starts at a global
-  (`LangVarRef::isGlobalRef()`, which makes `loadObj()`'s choice). These are
+  (`LangVarRef::isGlobalRef()`, which makes `loadObj()`'s choice). A child
+  named on its own in a switch case starts where the switch's variable
+  does, and the use names the global that variable starts at. These are
   the places [#706]'s checks are made:
   - a change: in `assignValue()`; in `evaluateCall()`, for a call on what a
     global holds that changes it (the `change` that `checkContextChange()`

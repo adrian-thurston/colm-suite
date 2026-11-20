@@ -718,7 +718,14 @@ bool LangVarRef::isGlobalRef( Compiler *pd ) const
 {
 	if ( isNspaceQual() )
 		return true;
-	return !isInbuiltObject() && !isLocalRef() && !isProdRef( pd ) && !isStructRef();
+
+	/* A child named on its own in a case starts where the switch's
+	 * variable does. */
+	const LangVarRef *var = caseVar( pd );
+	if ( var != 0 )
+		return var->isGlobalRef( pd );
+
+	return !isInbuiltObject() && !isLocalRef() && !isStructRef();
 }
 
 /* In revert code, a change to what a global holds, or a value taken out of
@@ -731,10 +738,16 @@ void LangVarRef::noteGlobalUse( Compiler *pd, GlobalUse::Kind kind,
 	if ( !pd->revertOn || pd->curBlock == 0 || !isGlobalRef( pd ) )
 		return;
 
+	/* A child named on its own in a case is a child of the global the
+	 * switch's variable starts at. */
+	const LangVarRef *root = this;
+	for ( const LangVarRef *var = caseVar( pd ); var != 0; var = var->caseVar( pd ) )
+		root = var;
+
 	GlobalUse use;
 	use.kind = kind;
 	use.loc = qual->length() > 0 ? qual->data[0].loc : loc;
-	use.global = qual->length() > 0 ? qual->data[0].data : name;
+	use.global = root->qual->length() > 0 ? root->qual->data[0].data : root->name;
 	use.what = what;
 	pd->curBlock->globalUses.append( use );
 }
@@ -3013,8 +3026,10 @@ void LangVarRef::assignValue( Compiler *pd, CodeVect &code,
 	if ( !castAssignment( pd, code, objUT, lookup.iterSearchUT, exprUT ) )
 		error(loc) << "type mismatch in assignment" << endp;
 	
-	/* Decide if we need to revert the assignment. */
-	bool revert = lookup.lastPtrInQual >= 0 || !isLocalRef();
+	/* Decide if we need to revert the assignment: as loadObj() loads the
+	 * object, which for a child named on its own in a case is through the
+	 * switch's variable. */
+	bool revert = lookup.lastPtrInQual >= 0 || !isLocalRoot( pd );
 
 	/* Load the object and generate the field setting code. */
 	loadObj( pd, code, lookup.lastPtrInQual, true );

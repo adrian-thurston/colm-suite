@@ -55,12 +55,14 @@ tree isn't shared.
 | A context's variable, in the context's code | `IN_LOAD_CONTEXT_R` | `IN_LOAD_CONTEXT_WC` | `IN_LOAD_CONTEXT_WV`, `IN_LOAD_CONTEXT_BKT` |
 | `this`, `input` | their own slots, below | the same | the same |
 | What a pointer points to: `S->F`, `P->tree`, `L->head->F` | the pointer's read slot | the same: a pointer is only read | `IN_PTR_ACCESS_WV`, `IN_PTR_ACCESS_BKT` at the last pointer, then each field after it takes its `WV` slot |
-| A child or attribute named on its own in a `switch` case | through the switch's variable | the same | undone when the name on its own isn't a local, so under a switch on a local the set records its undo with no load in front of it, and backing up over it aborts or segfaults ([#693]) |
+| A child or attribute named on its own in a `switch` case | through the switch's variable | the same | as the switch's variable's ([#693]) |
 
 For the last row, `loadObj()` puts the switch's variable in front of the
-name. The variable is named in the case's own scope (`walkCaseClause()`,
-`loadfinal.cc`), where a switch on a global or a context's variable finds
-the variable as a child of itself, and colm recurses until it crashes
+name. `LangVarRef::caseVar()` finds that variable, and the write is undone
+(`isLocalRoot()`, in `assignValue()`) and changes a global
+(`isGlobalRef()`, for [#714]'s check) when the variable's would. The
+variable is named in the scope around the switch (`walkCaseClause()`,
+`loadfinal.cc`), so a switch on a global or a context's variable compiles
 ([#692]).
 
 ## Fields: tree slots
@@ -168,7 +170,8 @@ These are never emitted:
 - [#480]: a switch on a qualified variable can't name the case's children
   on their own.
 - [#491]: a case's children can't be named on their own inside a block in
-  the case.
+  the case. A switch inside the case is such a block, so a switch on a
+  case's child gives `cannot find name`.
 - [#727]: a case's child named on its own can't be yielded.
 - A function called on a case's attribute, as `Lst->push_tail( 4 )`, gives
   `cannot resolve qualification Lst`: `lookupMethodObj()` has no case

@@ -2771,7 +2771,9 @@ struct LangVarRef
 	bool isInbuiltObject() const;
 	bool isLocalRef() const;
 	bool isProdRef( Compiler *pd ) const;
+	const LangVarRef *caseVar( Compiler *pd ) const;
 	void qualifyProdRef( Compiler *pd );
+	bool isLocalRoot( Compiler *pd ) const;
 	bool isStructRef() const;
 	void loadQualification( Compiler *pd, CodeVect &code, NameScope *rootScope, 
 			int lastPtrInQual, bool forWriting, bool revert ) const;

@@ -220,6 +220,7 @@ EXTRA_DIST = \
 	globchg14.lm \
 	globchg15.lm \
 	globchg16.lm \
+	globchg17.lm \
 	globread1.lm \
 	globread2.lm \
 	globtake1.lm \
@@ -567,6 +568,9 @@ EXTRA_DIST = \
 	superid.lm \
 	switch1.lm \
 	switch2.lm \
+	switchvar1.lm \
+	switchvar2.lm \
+	switchvar3.lm \
 	tags1.lm \
 	tags2.lm \
 	tags3.lm \

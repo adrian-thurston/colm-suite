@@ -626,6 +626,16 @@ static tree_t *get_local_split( program_t *prg, execution_t *exec, long field )
 	return split;
 }
 
+/* Gives the tree in a struct's field, or a global, ready to write: copied
+ * first if it is shared, as get_local_split does for a local. */
+static tree_t *get_struct_split( program_t *prg, struct_t *obj, long field )
+{
+	tree_t *val = colm_struct_get_field( obj, tree_t*, field );
+	tree_t *split = split_tree( prg, val );
+	colm_struct_set_field( obj, tree_t*, field, split );
+	return split;
+}
+
 /* Reads the child table that follows a RHS_VAL instruction: a count, then a
  * production number and a child position for each production that has the
  * child. Gives the child's position in the production of obj, or -1 if that
@@ -1891,13 +1901,12 @@ again:
 
 			debug( prg, REALM_BYTECODE, "IN_GET_STRUCT_WC %d\n", field );
 
-			tree_t *obj = vm_pop_tree();
+			struct_t *obj = vm_pop_struct();
 			if ( obj == 0 )
 				runtime_error( prg, "reading a field of a nil struct" );
-			tree_t *val = colm_struct_get_field( obj, tree_t*, field );
-			colm_tree_upref( prg, val );
-			vm_push_tree( val );
-
+			tree_t *split = get_struct_split( prg, obj, field );
+			colm_tree_upref( prg, split );
+			vm_push_tree( split );
 			break;
 		}
 		case IN_GET_STRUCT_WV: {
@@ -1906,12 +1915,12 @@ again:
 
 			debug( prg, REALM_BYTECODE, "IN_GET_STRUCT_WV\n" );
 
-			tree_t *obj = vm_pop_tree();
+			struct_t *obj = vm_pop_struct();
 			if ( obj == 0 )
 				runtime_error( prg, "reading a field of a nil struct" );
-			tree_t *val = colm_struct_get_field( obj, tree_t*, field );
-			colm_tree_upref( prg, val );
-			vm_push_tree( val );
+			tree_t *split = get_struct_split( prg, obj, field );
+			colm_tree_upref( prg, split );
+			vm_push_tree( split );
 
 			/* Set up the reverse instruction. */
 			rcode_code( exec, IN_GET_STRUCT_BKT );
@@ -1924,11 +1933,12 @@ again:
 
 			debug( prg, REALM_BYTECODE, "IN_GET_STRUCT_BKT %hd\n", field );
 
-			/* The object is a struct, as in IN_GET_STRUCT_WV. */
-			tree_t *obj = vm_pop_tree();
-			tree_t *val = colm_struct_get_field( obj, tree_t*, field );
-			colm_tree_upref( prg, val );
-			vm_push_tree( val );
+			/* The object is a struct, as in IN_GET_STRUCT_WV. The tree is
+			 * split again, as IN_GET_FIELD_TREE_BKT splits an attribute. */
+			struct_t *obj = vm_pop_struct();
+			tree_t *split = get_struct_split( prg, obj, field );
+			colm_tree_upref( prg, split );
+			vm_push_tree( split );
 			break;
 		}
 		case IN_SET_STRUCT_WC: {

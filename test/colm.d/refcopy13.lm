@@ -26,11 +26,8 @@ void middle( Y: ref<assign> ) { show( Y ) }
 void push( X: ref<assign> ) { X.L->push_tail( "pushed" ) }
 void change( X: ref<str> ) { X = "changed" print( "change ", X, "\n" ) }
 
-# The list goes in while the tree is in a local: setting an attribute of a
-# global's tree that is shared aborts (#628).
-T: assign = parse assign[ "g = 1" ]
-T.L = new list<str>()
-global G: assign = T
+global G: assign = parse assign[ "g = 1" ]
+G.L = new list<str>()
 global GS: str = "gs"
 S: s = new s()
 S->T = parse assign[ "t = 2" ]

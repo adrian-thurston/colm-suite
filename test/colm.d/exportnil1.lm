@@ -36,10 +36,8 @@ export pair failed()
 	return parse pair[ "9 9" ]
 }
 
-# T is set on a local: setting an attribute of an exported global aborts.
-parse Q: pair[ "x 1" ]
-Q.T = Q.L
-P = Q
+P = parse pair[ "x 1" ]
+P.T = P.L
 O = parse outer[ "7" ]
 Is = parse items[ "a 1 b" ]
 print( "before\n" )

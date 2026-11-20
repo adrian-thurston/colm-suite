@@ -71,7 +71,7 @@ the variable as a child of itself, and colm recurses until it crashes
 | A `ref<T>` parameter (`ParamRefType`) | `IN_GET_LOCAL_REF_R` | `IN_GET_LOCAL_REF_WC`, splits (`split_ref()`) | none | `IN_SET_LOCAL_REF_WC`, splits | none |
 | A tree's attribute (`UserFieldType`) | `IN_GET_FIELD_TREE_R` | `IN_GET_FIELD_TREE_WC`, splits (`get_field_split()`) | `IN_GET_FIELD_TREE_WV`, `IN_GET_FIELD_TREE_BKT`, both split | `IN_SET_FIELD_TREE_WC` | `IN_SET_FIELD_TREE_WV`, `IN_SET_FIELD_TREE_BKT` |
 | A tree's child (`RhsNameType`) | `IN_GET_RHS_VAL_R` | `IN_GET_RHS_VAL_WC`, splits (`get_rhs_el_split()`) | `IN_GET_RHS_VAL_WV`, `IN_GET_RHS_VAL_BKT`, both split | `IN_SET_RHS_VAL_WC` | `IN_SET_RHS_VAL_WV`, `IN_SET_RHS_VAL_BKT` |
-| A struct's field, a global, a context's variable (`StructFieldType`) | `IN_GET_STRUCT_R` | `IN_GET_STRUCT_WC`, doesn't split ([#628]) | `IN_GET_STRUCT_WV`, `IN_GET_STRUCT_BKT`, neither splits ([#628]) | `IN_SET_STRUCT_WC` | `IN_SET_STRUCT_WV`, `IN_SET_STRUCT_BKT` |
+| A struct's field, a global, a context's variable (`StructFieldType`) | `IN_GET_STRUCT_R` | `IN_GET_STRUCT_WC`, splits (`get_struct_split()`, [#628]) | `IN_GET_STRUCT_WV`, `IN_GET_STRUCT_BKT`, both split ([#628]) | `IN_SET_STRUCT_WC` | `IN_SET_STRUCT_WV`, `IN_SET_STRUCT_BKT` |
 | A list or map element's links, a map element's key (`GenericElementType`, `GenericDependentType`) | as a struct's field | | | | |
 | A token's `data` (`InbuiltFieldType`, `makeDataEl()`) | `IN_GET_TOKEN_DATA_R` | none | none | `IN_SET_TOKEN_DATA_WC` | `IN_SET_TOKEN_DATA_WV`, `IN_SET_TOKEN_DATA_BKT` |
 

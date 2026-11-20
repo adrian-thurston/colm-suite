@@ -561,6 +561,8 @@ EXTRA_DIST = \
 	structmsg1.lm \
 	structnil1.lm \
 	structnil2.lm \
+	structsplit1.lm \
+	structsplit2.lm \
 	superid.lm \
 	switch1.lm \
 	switch2.lm \

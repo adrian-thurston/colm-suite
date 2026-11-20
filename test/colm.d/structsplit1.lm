@@ -1,0 +1,55 @@
+#
+# Setting an attribute of a tree that an exported global, a global or a
+# struct's field holds copies the tree first when something else shares it,
+# as it does for a local. What shared the tree keeps the old attribute. The
+# argument picks the variable. On main each run aborted in
+# colm_tree_set_field() (#628).
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	ignore /[ \n]+/
+end
+
+def pair
+	T: id
+	[L: id R: num]
+
+struct holder
+	P: pair
+end
+
+export E: pair
+global G: pair = construct pair "g 1"
+global A: str = argv->pop()
+
+if A == 'export' {
+	E = parse pair[ "e 1" ]
+	E.T = E.L
+	print( "export <[E.T]>\n" )
+}
+elsif A == 'global' {
+	QG: pair = G
+	G.T = G.L
+	print( "global <[G.T]> <[QG.T]>\n" )
+}
+else {
+	H: holder = new holder()
+	H->P = construct pair "s 1"
+	QS: pair = H->P
+	H->P.T = H->P.L
+	print( "struct <[H->P.T]> <[QS.T]>\n" )
+}
+##### ARGS #####
+export
+##### EXP #####
+export <e >
+##### ARGS #####
+global
+##### EXP #####
+global <g > <NIL>
+##### ARGS #####
+struct
+##### EXP #####
+struct <s > <NIL>

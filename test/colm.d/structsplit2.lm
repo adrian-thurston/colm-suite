@@ -1,0 +1,75 @@
+#
+# In a production's action, setting an attribute of a tree that a global, a
+# struct's field or a context's variable holds copies the tree first when
+# something else shares it. What shared the tree keeps the old attribute.
+# "keep" ends the input with ";", which keeps the reduction of item. "back"
+# ends it with "!", which makes the parser back up over the action and put
+# the old attribute back. On main each run aborted in colm_tree_set_field()
+# (#628).
+#
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	literal `; `!
+	ignore /[ \n]+/
+end
+
+def pair
+	T: id
+	[L: id R: num]
+
+struct holder
+	P: pair
+end
+
+global G: pair = parse pair[ "g 1" ]
+global H: holder = new holder()
+global B: str = argv->pop()
+
+context ctx
+	C: pair
+
+	def item
+		[id num]
+		{
+			G.T = G.L
+			H->P.T = H->P.L
+			C.T = C.L
+		}
+
+	def start
+		[item id `;]
+	|	[id num id `!]
+end
+
+H->P = parse pair[ "h 2" ]
+Ctx: ctx = new ctx()
+Ctx->C = parse pair[ "c 3" ]
+
+QG: pair = G
+QH: pair = H->P
+QC: pair = Ctx->C
+
+In: str = "y 3 u ;"
+if B == 'back'
+	In = "y 3 u !"
+parse S: ctx::start( Ctx )[ In ]
+print( "S [S]\n" )
+print( "G <[G.T]> <[QG.T]>\n" )
+print( "H <[H->P.T]> <[QH.T]>\n" )
+print( "C <[Ctx->C.T]> <[QC.T]>\n" )
+##### ARGS #####
+keep
+##### EXP #####
+S y 3 u ;
+G <g > <NIL>
+H <h > <NIL>
+C <c > <NIL>
+##### ARGS #####
+back
+##### EXP #####
+S y 3 u !
+G <NIL> <NIL>
+H <NIL> <NIL>
+C <NIL> <NIL>

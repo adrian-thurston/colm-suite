@@ -1,0 +1,25 @@
+#
+# A function that writes through a ref<T> parameter can't be given a token's
+# data: the data has no slot a ref can refer to, so it is a copy, which the
+# function may only read. On main the write went to the token's first
+# attribute.
+#
+
+lex
+	token id
+		A: str
+		/[a-z]+/
+	ignore /[ \n]+/
+end
+
+void set( S: ref<str> )
+{
+	S = "zz"
+}
+
+T: id = make_token( typeid<id>, "abc" )
+T.A = "attr"
+set( T.data )
+print( "[T] [T.A]\n" )
+##### COMP_ERR #####
+22:1: set can write through ref parameter S, so arg 1 must be a local, or an attribute or child of one

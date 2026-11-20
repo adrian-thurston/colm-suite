@@ -1,0 +1,23 @@
+#
+# A token's data has no slot a ref can refer to, so an iterator can't yield
+# it. On main the yield gave the token's first attribute, and the program
+# stopped with "joining a nil str".
+#
+
+lex
+	token id
+		A: str
+		/[a-z]+/
+	ignore /[ \n]+/
+end
+
+iter each( T: ref<id> )
+{
+	yield T.data
+}
+
+T: id = make_token( typeid<id>, "abc" )
+for X: str in each( T )
+	print( "yield [X]\n" )
+##### COMP_ERR #####
+16:10: can only take references of locals or attributes accessed via a local

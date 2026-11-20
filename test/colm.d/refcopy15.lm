@@ -1,0 +1,43 @@
+#
+# A token's data and file, and match_text in a token action, have no slot a
+# ref can refer to, so given to a ref<T> parameter each is a copy, which the
+# function reads, and a loop over a token's data walks a copy. On main the
+# ref referred to the token's first attribute, or to a slot of the token
+# action's frame, where show( match_text ) aborted, and the loop walked the
+# attribute.
+#
+
+lex
+	token id
+		A: str
+		/[a-z]+/
+	token word /[A-Z]+/
+		{
+			show( match_text )
+			input->push( make_token( typeid<word>, input->pull( match_length ) ) )
+		}
+	ignore /[ \n]+/
+end
+
+def start
+	[id word]
+
+void show( S: ref<str> )
+{
+	print( "show <[S]>\n" )
+}
+
+parse P: start[ "abc DEF" ]
+T: id = make_token( typeid<id>, "tok" )
+T.A = "attr"
+show( T.data )
+show( T.file )
+for X: str in T.data
+	print( "loop <[X]>\n" )
+print( "[P]\n" )
+##### EXP #####
+show <DEF>
+show <tok>
+show <NIL>
+loop <tok>
+abc DEF

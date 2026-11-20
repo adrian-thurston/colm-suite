@@ -132,7 +132,7 @@ child of one, walks a copy that can't be written ([#711]).
 | An attribute or child of one of those, with no pointer on the way | the attribute or child: `IN_REF_FROM_QUAL_REF` or `IN_RHS_REF_FROM_QUAL_REF`, after `loadQualificationRefs()` |
 | A child named on its own in a case | the same, once `qualifyProdRef()` puts the switch's variable in front |
 | A global, a struct's field, a context's variable, an attribute or child of one, anything through a pointer | a copy the function may only read, which `checkRefCopies()` checks ([#711]) |
-| A token's `data` or `file`, `match_text` | the slot at the field's offset, which is the token's first attribute, or for `match_text` a slot of the token action's frame: the function reads and writes the wrong value, and a loop over one, or a yield of one, reaches it too. Not filed |
+| A token's `data` or `file`, `match_text` | the same kind of copy: `canTakeRef()` refuses a built-in field, so a loop over one walks a copy too, and yielding one is refused |
 | A literal or another expression | a copy the function may change |
 
 ## Refused at compile time

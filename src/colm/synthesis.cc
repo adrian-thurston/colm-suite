@@ -1097,6 +1097,11 @@ bool LangVarRef::canTakeRef( Compiler *pd, VarRefLookup &lookup ) const
 {
 	bool canTake = false;
 
+	/* A token's data and file, and match_text, have no slot a ref can
+	 * refer to. They are given as copies. */
+	if ( lookup.objField->type == ObjectField::InbuiltFieldType )
+		return false;
+
 	/* If the var is not a local, it must be an attribute accessed
 	 * via a local and attributes. */
 	if ( lookup.inObject->type == ObjectDef::FrameType )

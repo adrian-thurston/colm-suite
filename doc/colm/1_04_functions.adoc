@@ -20,7 +20,8 @@ parameter or a loop variable, or an attribute or child reached through one,
 with no struct or other pointer on the way. Anything else is a copy:
 
 * A global, a field of a struct, a context's variable, or an attribute or child
-  of one, is a copy the function may only read. If the function can write
+  of one, is a copy the function may only read, and so is a token's `data` or
+  `file`, or `match_text` in a token action. If the function can write
   through the parameter, the call is a compile error: `set can write through
   ref parameter X, so arg 1 must be a local, or an attribute or child of one`.
   A function writes through a parameter by assigning it, by setting an

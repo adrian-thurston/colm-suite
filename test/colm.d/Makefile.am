@@ -502,6 +502,9 @@ EXTRA_DIST = \
 	refcopy12.lm \
 	refcopy13.lm \
 	refcopy14.lm \
+	refcopy15.lm \
+	refcopy16.lm \
+	refcopy17.lm \
 	refnil1.lm \
 	refnilchild1.lm \
 	refnilchild2.lm \

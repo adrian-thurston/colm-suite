@@ -1,7 +1,8 @@
 #
 # Reading a list<str>'s head, tail or top gives a reference of its own, as a
-# pop does, so the value is released once. On main the program printed its
-# output and then aborted on an assertion at exit (#466).
+# pop does, so the value is released once. On main the first print released
+# the tree that head and top share once too often, and the program aborted
+# there on an assertion (#466).
 #
 
 L: list<str> = new list<str>()

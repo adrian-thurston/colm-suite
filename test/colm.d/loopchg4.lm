@@ -1,8 +1,8 @@
 # Every way of leaving a for loop over a list or a map ends it, so a change
 # after it goes ahead: the end of the loop, break, return, the end of a user
 # iterator that loops over the list, by break and by return, nested loops over
-# the same list, a loop in two frames at once, and a loop run again in a while.
-# The last loop is left by exit.
+# the same list, a loop in four frames at once, and a loop run again in a
+# while. The last loop is left by exit.
 global L: list<str> = new list<str>()
 global M: map<str, str> = new map<str, str>()
 L->push_tail( "a" )
@@ -79,7 +79,7 @@ for K: str in map_keys( M ) {
 M->insert( "c", "3" )
 print( "map: [M->length]\n" )
 
-# recursion: loops over L in two frames at once
+# recursion: loops over L in four frames at once
 int r( N: int )
 {
 	for V: str in L {

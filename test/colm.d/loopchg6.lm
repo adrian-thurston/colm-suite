@@ -57,8 +57,8 @@ P: parser<ctx::start> = new parser<ctx::start>( C )
 send P "* ;"
 print( "before\n" )
 
-# The send comes at the last value: after an action's push or insert, the one
-# that backing up takes out.
+# The send comes at the last value: in the push and insert runs, the one that
+# backing up takes out. In the push_head run, that one is the first value.
 I: int = 0
 Sent: bool = false
 if ( C->Mode == "push" || C->Mode == "pop" || C->Mode == "push_head" || C->Mode == "pop_tail" ) {

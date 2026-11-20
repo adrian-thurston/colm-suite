@@ -42,6 +42,7 @@ void colm_init_list_iter( generic_iter_t *list_iter, tree_t **stack_root,
 	list_iter->ref.next = 0;
 	list_iter->arg_size = arg_size;
 	list_iter->generic_id = generic_id;
+	list_iter->container = *((struct colm_struct**)root_ref->kid);
 }
 
 void colm_list_iter_destroy( program_t *prg, tree_t ***psp, generic_iter_t *iter )
@@ -67,7 +68,7 @@ tree_t *colm_list_iter_advance( program_t *prg, tree_t ***psp, generic_iter_t *i
 
 	if ( iter->ref.kid == 0 ) {
 		/* kid_t is zero, start from the root. */
-		list_t *list = *((list_t**)iter->root_ref.kid);
+		list_t *list = (list_t*)iter->container;
 		iter->ref.kid = (kid_t*)list->head;
 		iter->ref.next = 0;
 
@@ -98,7 +99,7 @@ tree_t *colm_rev_list_iter_advance( program_t *prg, tree_t ***psp, generic_iter_
 
 	if ( iter->ref.kid == 0 ) {
 		/* kid_t is zero, start from the root. */
-		list_t *list = *((list_t**)iter->root_ref.kid);
+		list_t *list = (list_t*)iter->container;
 		iter->ref.kid = (kid_t*)list->tail;
 		iter->ref.next = 0;
 
@@ -129,7 +130,7 @@ tree_t *colm_map_iter_advance( program_t *prg, tree_t ***psp, generic_iter_t *it
 
 	if ( iter->ref.kid == 0 ) {
 		/* kid_t is zero, start from the root. */
-		map_t *map = *((map_t**)iter->root_ref.kid);
+		map_t *map = (map_t*)iter->container;
 		iter->ref.kid = (kid_t*)map->head;
 		iter->ref.next = 0;
 

@@ -93,6 +93,9 @@ typedef struct colm_list
 	list_el_t *head, *tail;
 	long list_len;
 	struct generic_info *generic_info;
+
+	/* The for loops over the list that are running. */
+	long loops;
 } list_t;
 
 typedef struct colm_map_el
@@ -116,6 +119,9 @@ typedef struct colm_map
 	struct colm_map_el *head, *tail, *root;
 	long tree_size;
 	struct generic_info *generic_info;
+
+	/* The for loops over the map that are running. */
+	long loops;
 } map_t;
 
 struct colm_struct *colm_struct_new_size( struct colm_program *prg, int size );

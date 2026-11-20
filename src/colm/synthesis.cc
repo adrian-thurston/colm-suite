@@ -328,7 +328,15 @@ long sizeOfField( UniqueType *fieldUT )
 	case TYPE_ITER:
 		/* Select on the iterator type. */
 		switch ( fieldUT->iterDef->type ) {
+			/* A for that names no iterator is a tree loop until it is
+			 * compiled, after the frame is placed, and may turn out to be
+			 * over a list or a map. So its slot must hold either iterator. */
 			case IterDef::Tree:
+				size = sizeof(tree_iter_t) > sizeof(generic_iter_t) ?
+						sizeof(tree_iter_t) : sizeof(generic_iter_t);
+				size /= sizeof(word_t);
+				break;
+
 			case IterDef::WithIgnore:
 			case IterDef::Child:
 			case IterDef::Repeat:

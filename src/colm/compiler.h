@@ -923,10 +923,15 @@ struct Compiler
 	CodeVect unwindCode;
 
 	/* The term a statement evaluates with nothing of its own on the stack,
-	 * and whether the call or parse being compiled has words under it that
-	 * an exit can't unwind. */
+	 * and whether the call or parse being compiled has words of an
+	 * expression under it. Its unwind code pops them first (IN_POP_EXPR),
+	 * and an exit there ends the process. */
 	LangTerm *stmtTerm;
 	bool noUnwind;
+
+	/* The innermost for loop of the code being compiled, or 0 outside any
+	 * loop. The words of an expression lie on what its iterator left. */
+	ObjectField *unwindLoop;
 
 	/* The variables of the code block being compiled whose context objects
 	 * are being set up: each was given a new object, and hasn't yet been used

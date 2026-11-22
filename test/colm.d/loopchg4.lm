@@ -2,7 +2,22 @@
 # after it goes ahead: the end of the loop, break, return, the end of a user
 # iterator that loops over the list, by break and by return, nested loops over
 # the same list, a loop in four frames at once, and a loop run again in a
-# while. The last loop is left by exit.
+# while. Then a user iterator ended while it is suspended in a function it
+# called from inside its loop over the list or the map: inside an expression,
+# in an if's test, in an assignment, and in a function between the loop and
+# the iterator, or given a qualified ref argument. The last loop is left by
+# exit.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+
+def pair
+	[item item]
+
 global L: list<str> = new list<str>()
 global M: map<str, str> = new map<str, str>()
 L->push_tail( "a" )
@@ -103,6 +118,78 @@ while ( I < 3 ) {
 L->push_tail( "i" )
 print( "while: [L->length]\n" )
 
+# a user iterator ended at a call inside an expression, from inside its
+# loop over the list or the map
+int fy( S: str )
+{
+	yield S
+	return 0
+}
+
+iter itcond()
+{
+	for V: str in L {
+		if ( fy( V ) == 0 ) {
+			print( "zero\n" )
+		}
+	}
+}
+for X: str in itcond() {
+	break
+}
+L->push_tail( "j" )
+print( "uiter cond: [L->length]\n" )
+
+iter itmap()
+{
+	for V: str in M {
+		J: int = 1 + fy( V )
+	}
+}
+for X: str in itmap() {
+	break
+}
+M->insert( "d", "4" )
+print( "uiter map: [M->length]\n" )
+
+int floop()
+{
+	for V: str in L {
+		J: int = 1 + fy( V )
+	}
+	return 0
+}
+
+iter itfunc()
+{
+	floop()
+}
+for X: str in itfunc() {
+	break
+}
+L->push_tail( "k" )
+print( "uiter func: [L->length]\n" )
+
+# ... at a call given a qualified ref argument, as a statement
+int fyref( R: ref<item>, S: str )
+{
+	yield S
+	return 0
+}
+
+iter itref()
+{
+	P: pair = parse pair[ "a b" ]
+	for V: str in L {
+		fyref( P.item, V )
+	}
+}
+for X: str in itref() {
+	break
+}
+L->push_tail( "l" )
+print( "uiter ref: [L->length]\n" )
+
 # exit from inside a loop
 for V: str in L {
 	if ( V == "c" )
@@ -117,3 +204,7 @@ uiter return: 7
 map: 3
 recursion: 8
 while: 9
+uiter cond: 10
+uiter map: 4
+uiter func: 11
+uiter ref: 12

@@ -321,6 +321,7 @@ Compiler::Compiler( )
 	curFunction(0),
 	stmtTerm(0),
 	noUnwind(false),
+	unwindLoop(0),
 	loopDepth(0),
 	stmtListDepth(0),
 	setupStoreVar(0),

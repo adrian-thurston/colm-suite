@@ -25,8 +25,9 @@ says what, and leaves how to them.
    local, a parameter, a return value, a global, a list's value, a map's key
    or value, a value the VM holds part way through an expression, a def or a
    token attribute of a tree, and the references the runtime keeps for the
-   program, such as a parser's to its context and its input, and those to
-   `stdin`, `stdout`, `stderr` and `argv`.
+   program, such as a parser's to its context and its input, an input's to
+   each stream pushed or sent into it, a `for` loop's to the list or map it
+   is over, and those to `stdin`, `stdout`, `stderr` and `argv`.
 3. A strong reference goes when its place is overwritten, when its local or
    parameter goes out of scope, however its function or action is left (a
    return, a reject or exit), when its element leaves its list or map, or
@@ -79,21 +80,34 @@ says what, and leaves how to them.
     rejects, at compile time, a struct type that can reach itself through
     strong references alone. Every strong reference counts: struct fields, a
     list's values, a map's keys and values, the runtime's own, such as a
-    parser's to its context, and those that trees hold. A struct that can
-    hold a tree (an `any` can be any tree) reaches every struct type that an
-    attribute of that tree, or of a tree that can be below it, can hold. A
-    weak reference on a path breaks it. Each cycle of types needs a weak
-    reference in it: one elsewhere among the same types isn't enough.
+    parser's to its context, and those that trees hold. An `any` can be
+    assigned to a variable of any tree type, so a place that holds a tree,
+    `str` included, can hold a tree of any type: a struct that can hold a
+    tree reaches every struct type that an attribute of a tree, or a
+    `make_token` argument, can hold. A weak reference on a path breaks it.
+    Each cycle of types needs a weak reference in it: one elsewhere among
+    the same types isn't enough.
 
     This rejects a struct type that holds its own type through a strong
     field, as a singly linked list does, or through a list, as a node with a
-    `list` of its children does. In this repository that is
-    `doc/colm/code/struct_route.lm` (`Next: stop`), and `lang_object` in
-    `grammar/c++/c++.lm` and `test/colm.d/lookup1.lm`, which change when the
-    check lands.
+    `list` of its children does, a context that holds a parser of its own,
+    which holds the context, and a tree whose attribute holds a `list<str>`.
+    In this repository that is `doc/colm/code/struct_route.lm`
+    (`Next: stop`), `lang_object` in `grammar/c++/c++.lm` and `lookup1.lm`,
+    `foo` in `pointer1.lm`, the parser a context's field holds in
+    `accumbt2.lm`, `ctxset1.lm`, `ntrejbt5.lm`, `sendown1.lm` to
+    `sendown4.lm`, `undofrag2.lm` and `undofrag3.lm`, and the attribute in
+    `globread2.lm` and `refcopy13.lm`, all in `test/colm.d`, which change
+    when the check lands.
 15. Apart from what 14 rejects, and a program that names something `weak`,
     the keyword a weak reference is declared with ([#670]), a program that
-    compiles today still compiles, and prints the same output.
+    compiles today still compiles, and prints the same output, but for one
+    change: a stream is closed when it is freed (1), as `close()` closes it,
+    not when the program ends. A stream the program drops without closing it,
+    by giving its variable another value or by leaving the variable's scope,
+    is written out there, and a write that fails stops the program there.
+    `stdin`, `stdout` and `stderr` are held until exit, and the streams
+    still open at exit are closed in the order they were opened, as today.
 
 ## Seeing lost structs
 
@@ -116,6 +130,12 @@ clean:
   and a weak attribute reads nil once its target is freed.
 - A parent and child, the child linked back by a weak reference, are freed in
   full: no lost structs.
+- A stream the program drops without closing it is closed at the drop: a
+  file reads back what was sent to it, and a stream on `/dev/full` stops
+  the program there.
+- An input reads a stream pushed into it after the statement that opened
+  the stream has ended, and a `for` loop goes on over a list that a
+  function it calls has replaced.
 - Backing up keeps a struct that an undone action dropped, frees one that
   only the undone action held, and gives a weak reference back its old
   target, or nil.

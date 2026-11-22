@@ -747,13 +747,16 @@ static void release_locals( program_t *prg, tree_t **sp, tree_t **frame,
 	}
 }
 
-/* Moves past the unwind code at instr: its length, then the code. */
+/* Moves past the unwind code at instr: its length, then the code. A negative
+ * length, at a call or parse with words of an expression under it, has code
+ * too, as long as the length's absolute value. */
 static code_t *skip_unwind( code_t *instr )
 {
 	short unwind_len;
 	read_half( unwind_len );
-	if ( unwind_len > 0 )
-		instr += unwind_len;
+	if ( unwind_len < 0 )
+		unwind_len = -unwind_len;
+	instr += unwind_len;
 	return instr;
 }
 
@@ -787,14 +790,14 @@ static code_t *pop_call_frame( program_t *prg, execution_t *exec, tree_t ***psp,
 
 /* Ends a user iterator that is suspended at a yield. From there, it runs the
  * unwind code of each frame, which ends the frame's loops, then releases the
- * frame's values and pops it, up to the iterator's own frame. Then it
- * releases that frame's values, and pops it and the iterator.
+ * frame's values and pops it, up to the iterator's own frame, where the walk
+ * always ends. Then it releases that frame's values, and pops it and the
+ * iterator.
  *
- * A call inside an expression has words of the expression under it, and no
- * unwind code. The walk stops there, and the rest is popped with the
- * iterator. What the loops there hold is lost, and so are the values of the
- * frames above the iterator's own, from the one with the call down. The
- * iterator's own frame is released all the same. */
+ * A call inside an expression has words of the expression under it. Its
+ * unwind code first pops them (IN_POP_EXPR), then ends the frame's loops as
+ * at any other call. Only the trees those words hold are lost: nothing
+ * records which words they are. */
 static void uiter_teardown( program_t *prg, execution_t *exec, tree_t ***psp,
 		user_iter_t *uiter )
 {
@@ -826,10 +829,8 @@ static void uiter_teardown( program_t *prg, execution_t *exec, tree_t ***psp,
 	while ( true ) {
 		short unwind_len;
 		read_half( unwind_len );
-		if ( unwind_len < 0 )
-			break;
 
-		if ( unwind_len > 0 )
+		if ( unwind_len != 0 )
 			sp = colm_execute_code( prg, exec, sp, instr );
 
 		if ( exec->frame_ptr == iframe )
@@ -841,8 +842,7 @@ static void uiter_teardown( program_t *prg, execution_t *exec, tree_t ***psp,
 	}
 
 	/* The iterator's own frame, the one IN_UITER_CREATE pushed after the
-	 * iterator. Wherever the walk stopped, nothing under that point is
-	 * popped yet, so the frame is whole. */
+	 * iterator, where the walk ends. */
 	release_locals( prg, sp, iframe, &prg->rtd->frame_info[uiter->frame_id] );
 
 	vm_popn( vm_ssize() - uiter->root_size );
@@ -2262,6 +2262,73 @@ again:
 			vm_pop_tree();
 			break;
 		}
+		case IN_POP_EXPR: {
+			half_t loop;
+			short field;
+			read_half( loop );
+			read_half( field );
+
+			debug( prg, REALM_BYTECODE, "IN_POP_EXPR %hd %hd\n", loop, field );
+
+			/* At the start of a call's unwind code, the words that the
+			 * expression around the call pushed. Nothing records what they
+			 * are, so any tree among them is lost. They lie on what the
+			 * innermost loop of the frame left: its iterator is at field,
+			 * and loop is the instruction that ends it. The stack's height
+			 * at the start of a loop's body is the iterator's root_size and
+			 * yield_size. With no loop, they lie on the frame's locals,
+			 * which end at frame_ptr - frame_size. */
+			void *mem = vm_get_plocal( exec, field );
+			long height = -1;
+			switch ( loop ) {
+				case IN_TRITER_UNWIND: {
+					tree_iter_t *iter = mem;
+					height = iter->root_size + iter->yield_size;
+					break;
+				}
+				case IN_REV_TRITER_UNWIND: {
+					rev_tree_iter_t *iter = mem;
+					height = iter->root_size + iter->yield_size;
+					break;
+				}
+				case IN_GEN_ITER_UNWIND: {
+					generic_iter_t *iter = mem;
+					height = iter->root_size + iter->yield_size;
+					break;
+				}
+				case IN_UITER_UNWIND: {
+					/* The local holds a pointer to the iterator. */
+					user_iter_t *uiter = *(user_iter_t**) mem;
+					height = uiter->root_size + uiter->yield_size;
+					break;
+				}
+				case 0:
+					break;
+				default:
+					assert( false );
+			}
+
+			if ( loop != 0 ) {
+				assert( vm_ssize() >= height );
+				vm_popn( vm_ssize() - height );
+			}
+			else {
+				/* In the iterator's own frame, exec->frame_id is the loop's. */
+				long frame_id = exec->frame_id;
+				if ( exec->iframe_ptr != 0 && exec->frame_ptr == exec->iframe_ptr ) {
+					user_iter_t *uiter = (user_iter_t*) vm_plocal_iframe( IFR_AA );
+					frame_id = uiter->frame_id;
+				}
+
+				/* Word by word: the expression's words may have started a new
+				 * stack block, and a pop crosses back. */
+				struct frame_info *fi = &prg->rtd->frame_info[frame_id];
+				tree_t **base = exec->frame_ptr - fi->frame_size;
+				while ( vm_ptop() != base )
+					vm_pop_value();
+			}
+			break;
+		}
 		case IN_POP_N_WORDS: {
 			short n;
 			read_half( n );
@@ -3460,10 +3527,7 @@ again:
 			else {
 				/* Skip the unwind code. It is for an exit in a parser action
 				 * (see FN_EXIT). */
-				short unwind_len;
-				read_half( unwind_len );
-				if ( unwind_len > 0 )
-					instr += unwind_len;
+				instr = skip_unwind( instr );
 
 				if ( exec->WV ) {
 					rcode_unit_start( exec );
@@ -4500,15 +4564,7 @@ again:
 			}
 
 			/* Might be some unwind code. */
-			{
-				short unwind_len;
-				read_half( unwind_len );
-				if ( unwind_len > 0 ) {
-					instr += unwind_len;
-					debug( prg, REALM_BYTECODE,
-							"skipping unwind code length: %hd\n", unwind_len );
-				}
-			}
+			instr = skip_unwind( instr );
 				
 			break;
 		}
@@ -5340,8 +5396,8 @@ again:
 			}
 			case FN_EXIT: {
 				/* The unwind code follows the exit call (exception, see
-				 * synthesis). -1 in place of its length means the stack
-				 * can't be unwound from here (see exit_now). */
+				 * synthesis). A negative length means words of an
+				 * expression lie under the call or parse (see exit_now). */
 				short unwind_len;
 				read_half( unwind_len );
 
@@ -5360,8 +5416,9 @@ again:
 					exit_now( prg );
 
 				while ( true ) {
-					/* The call or parse we are in sits on words the stack
-					 * can't be unwound past. */
+					/* The call or parse we are in sits on words of an
+					 * expression. Its unwind code pops them, but what they
+					 * hold can't be released, so the exit ends the process. */
 					if ( unwind_len < 0 )
 						exit_now( prg );
 

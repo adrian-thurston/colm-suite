@@ -50,8 +50,9 @@ xref:3_04_undo.adoc#context[The context chapter] covers contexts. The
 context is all `new` takes. A parser gets its input from what is sent to
 it, so colm doesn't compile `+new parser<T>( input )+`, or a `new parser`
 of a type outside a context given any argument. Between two sends, and after
-them, the program reads the context object but can't change it, as
-xref:3_04_undo.adoc#context-setup[setting up a context object] explains.
+them, the program reads the context object but can't change it, or give it to
+another parser, as xref:3_04_undo.adoc#context-setup[setting up a context
+object] explains.
 
 == Sending input piece by piece
 

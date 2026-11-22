@@ -335,6 +335,19 @@ static void colm_parser_set_context( program_t *prg, tree_t **sp, parser_t *pars
 	parser->pda_run->context = val;
 }
 
+/* The slot past a context object's fields, which is set while a parser holds
+ * the object. A parser holds it from when it is given it: a parser made with
+ * new to the end of the program, a parse outside any action to its end, and
+ * a parse in an action for good, since backing up over the action backs it
+ * up too. Two parsers given one object would change it under each other, and
+ * backing up over an action of either would then work on data that isn't as
+ * the action left it. */
+static value_t *context_hold( program_t *prg, struct_t *context )
+{
+	long size = prg->rtd->sel_info[context->id - prg->rtd->num_lang_els].size;
+	return colm_struct_get_addr( context, value_t*, size - 1 );
+}
+
 /* The context that a context variable is used through: the context of the
  * parse whose action runs. Id is the id of the variable's context struct, which
  * the parse's context must have, or 0 for this, which is the parse's context,
@@ -1419,6 +1432,9 @@ again:
 		}
 
 		case IN_SET_PARSER_CONTEXT: {
+			uchar given_to;
+			read_byte( given_to );
+
 			debug( prg, REALM_BYTECODE, "IN_SET_PARSER_CONTEXT\n" );
 
 			struct_t *strct = vm_pop_struct();
@@ -1427,8 +1443,37 @@ again:
 			if ( strct == 0 )
 				runtime_error( prg, "giving a parser a nil context" );
 
+			/* A parse that an action starts, given the context of the parser
+			 * the action belongs to, runs inside the action and is backed up
+			 * with it, so it can share the object, unless an item after its
+			 * first runs code between its sends. Any other parser holds the
+			 * object it is given, and no two can hold one. */
+			if ( given_to != CONTEXT_TO_PARSE || exec->parser == 0 ||
+					exec->parser->pda_run->context != strct )
+			{
+				value_t *hold = context_hold( prg, strct );
+				if ( *hold != 0 ) {
+					runtime_error( prg, "giving a parser a context "
+							"that another parser holds" );
+				}
+				*hold = 1;
+			}
+
 			colm_parser_set_context( prg, sp, parser, strct );
 
+			vm_push_parser( parser );
+			break;
+		}
+
+		case IN_RELEASE_PARSER_CONTEXT: {
+			debug( prg, REALM_BYTECODE, "IN_RELEASE_PARSER_CONTEXT\n" );
+
+			/* A parse that has ended outside any action can't back up any
+			 * more, and lets its context go. In an action, backing up over
+			 * the action can still back the parse up, so it keeps holding. */
+			parser_t *parser = vm_pop_parser();
+			if ( exec->parser == 0 )
+				*context_hold( prg, parser->pda_run->context ) = 0;
 			vm_push_parser( parser );
 			break;
 		}

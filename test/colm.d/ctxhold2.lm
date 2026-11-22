@@ -1,0 +1,47 @@
+# The map form of #718's program. The second parser's action would remove
+# what the first's inserted, and the first's undo of the insert would then
+# take the element out a second time, leaving the map's length at -1. Giving
+# the object to the second parser stops the program.
+context ctx
+	M: map<str, str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `; `-
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			M->insert( "d", "4" )
+		}
+
+	def popper
+		[`-]
+		{
+			M->remove( "d" )
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+C: ctx = new ctx()
+C->M = new map<str, str>()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+print( "before\n" )
+Q: parser<ctx::popper> = new parser<ctx::popper>( C )
+send P "* ;"
+send Q "-" eos
+send P "\n"
+print( P->finish(), "\n" )
+print( "M ", C->M->length, "\n" )
+##### EXP #####
+before
+##### EXIT #####
+1

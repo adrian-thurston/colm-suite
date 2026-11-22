@@ -95,10 +95,10 @@ says what, and leaves how to them.
     In this repository that is `doc/colm/code/struct_route.lm`
     (`Next: stop`), `lang_object` in `grammar/c++/c++.lm` and `lookup1.lm`,
     `foo` in `pointer1.lm`, the parser a context's field holds in
-    `accumbt2.lm`, `ctxset1.lm`, `ntrejbt5.lm`, `sendown1.lm` to
-    `sendown4.lm`, `undofrag2.lm` and `undofrag3.lm`, and the attribute in
-    `globread2.lm` and `refcopy13.lm`, all in `test/colm.d`, which change
-    when the check lands.
+    `accumbt2.lm`, `ctxset1.lm`, `ntrejbt5.lm`, `undofrag2.lm` and
+    `undofrag3.lm`, the attribute in `globread2.lm` and `refcopy13.lm`, and
+    the parser a def's attribute holds in `sendown1.lm` to `sendown4.lm`,
+    all in `test/colm.d`, which change when the check lands.
 15. Apart from what 14 rejects, a program that compiles today still
     compiles, and prints the same output, but for one change: a stream is
     closed when it is freed (1), as `close()` closes it, not when the

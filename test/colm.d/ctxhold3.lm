@@ -1,0 +1,46 @@
+# A parser that the context holds, given the same object, and sent to by the
+# actions of the parse. The parse's actions would send to it, pop the list
+# its action pushed onto, and send again, which would make it back up over
+# the push onto the empty list. It holds the object, so giving the object to
+# the parse stops the program.
+context ctx
+	L: list<str>
+	Inner: parser<ctx::inner>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `; `a `b `c
+		token NL /'\n'/
+	end
+
+	def I1 []
+	def I2 []
+
+	def iitem
+		[`*]
+		{
+			L->push_tail( "x" )
+		}
+
+	def inner
+		[I1 iitem* `; `^ NL]
+	|	[I2 `* `; NL]
+
+	def s1 [`a] { send Inner "* ;" }
+	def s2 [`b] { L->pop_tail() }
+	def s3 [`c] { send Inner "\n" }
+
+	def start
+		[s1 s2 s3]
+end
+
+C: ctx = new ctx()
+C->L = new list<str>()
+C->Inner = new parser<ctx::inner>( C )
+print( "before\n" )
+parse S: ctx::start( C )[ "a b c" ]
+print( S, "\n" )
+##### EXP #####
+before
+##### EXIT #####
+1

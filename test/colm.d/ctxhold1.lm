@@ -1,0 +1,48 @@
+# Two parsers given one object: the second's action would pop what the
+# first's pushed, between the first's sends, and the first would then back
+# up over its push onto the empty list. A parser holds the object it is
+# given, so giving it to the second stops the program. This is #718's
+# program.
+context ctx
+	L: list<str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `; `-
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			L->push_tail( "x" )
+		}
+
+	def popper
+		[`-]
+		{
+			L->pop_tail()
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+C: ctx = new ctx()
+C->L = new list<str>()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+print( "before\n" )
+Q: parser<ctx::popper> = new parser<ctx::popper>( C )
+send P "* ;"
+send Q "-" eos
+send P "\n"
+print( P->finish(), "\n" )
+print( "after\n" )
+##### EXP #####
+before
+##### EXIT #####
+1

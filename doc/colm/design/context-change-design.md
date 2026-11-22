@@ -1,8 +1,10 @@
 # Changing a context object from outside its parse: design
 
 How the compiler meets the [requirements](context-change-requirements.md).
-The checks run in `src/colm/synthesis.cc` as code is generated. Nothing in
-the bytecode, the reverse code or the runtime changes.
+The checks run in `src/colm/synthesis.cc` as code is generated, but for one,
+that a parser holds its context object, which runs with the program
+([One parser per object](#one-parser-per-object)). The reverse code doesn't
+change.
 
 ## Contexts and context references
 
@@ -99,6 +101,49 @@ stream, input or non-context struct must be a `new` term, `nil`, or a name
 read through the same variable:
 `only a new object, nil or what C holds can go into C as it is set up`.
 
+## One parser per object
+
+Two parsers given one object change it under each other ([#718]), and no
+check of the code can see which object a reference holds. So requirement 8
+is checked when the program runs:
+
+- A context object has one slot more than its fields, which is set while a
+  parser holds it. `makeRuntimeData()` (`pdabuild.cc`) adds the slot to the
+  size of a context in `sel_info`, and `context_hold()` (`bytecode.c`) finds
+  it, last.
+- `IN_SET_PARSER_CONTEXT` takes a byte, what the context is given to:
+  `CONTEXT_TO_NEW_PARSER` from `evaluateNew()`, `CONTEXT_TO_PARSE` from
+  `evaluateParse()`, or `CONTEXT_TO_RESTART_PARSE`, which `evaluateParse()`
+  writes over it where an item after the first runs other code, as it puts
+  the type in `restartTypes`.
+- When the slot is set, `IN_SET_PARSER_CONTEXT` stops the program:
+  `giving a parser a context that another parser holds`. Otherwise it sets
+  the slot. A `CONTEXT_TO_PARSE` in an action (`exec->parser`), given the
+  context of the parser the action belongs to, does neither: the parse runs
+  inside the action, and is backed up with it.
+- `IN_RELEASE_PARSER_CONTEXT`, after a parse's last fragment, clears the slot
+  when the parse ran outside any action (`exec->parser` is nil). In an
+  action, the parse keeps holding the object: backing up over the action can
+  back it up. A parser made with `new` holds its object to the end of the
+  program: text sent to it after its end parses again, and backs up
+  ([#439]).
+
+Not taken:
+
+- A compile-time rule that a parser is given only an object being set up,
+  through the variable it was made in. It refuses more than sharing: an
+  object set up in a function and returned, two parses one after the other,
+  a parameter, `this` through a function, and a nil variable.
+- A parser that owns its context, made with it: a language change.
+- Sharing with a parser whose actions never change their context: it needs
+  a pass over what each parser runs, for a reader of another parse's data.
+- The manual's old exceptions, a parser that a parse's actions send to, and
+  any parse they start: the first crashes the same way (`ctxhold3`), and so
+  does the second when an item of it after the first runs code (`ctxhold4`).
+
+This is the one check that runs with the program. The maintainer chose it
+for [#718] over the compile-time rule above, which refuses too much.
+
 ## Choices
 
 - A compile-time check, not a stop at run time: the maintainer's brief.
@@ -115,9 +160,9 @@ read through the same variable:
 
 ## Limits
 
-- Two parsers that the program drives, given one object, change it under
-  each other ([#718]). Only a parser that owns its context could rule that
-  out.
+- A parser given the object it is held in, as in
+  `C->Inner = new parser<ctx::inner>( C )`, can't be run: the program can't
+  send to it after the setup, and no other parser can be given the object.
 - A list, map or struct that a parse's actions take out of their context
   into a global, or put into it from one, can be changed through the global.
   In what a restartable parser runs, the companion rule, [#714], refuses
@@ -139,9 +184,16 @@ compile errors, one each, and say in their first lines what they show.
 form. The review of #717 added `ctxchg15`–`ctxchg18`: a call later in a new
 parser's statement, a function the object goes through into one, a while
 loop's condition, and a yield. Most include `ctxrule.lmi`, a context to
-change.
+change. `ctxhold1`–`ctxhold5` give one object to a second parser, which stops
+the program: [#718]'s program and its map form, a parser the context holds,
+a parse an action starts with an item that pops the list, and in `ctxhold5`
+a parse between two sends, a parse in a function, a new parser given `this`,
+and a parse after a finished parser. `ctxholdmsg1` shows the message.
+`ctxhold6` runs what still shares: two parses one after the other, and a
+parse a token action starts, given `this`.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
+[#439]: https://github.com/adrian-thurston/colm-suite/issues/439
 [#550]: https://github.com/adrian-thurston/colm-suite/issues/550
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706
 [#714]: https://github.com/adrian-thurston/colm-suite/issues/714

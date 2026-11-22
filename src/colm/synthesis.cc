@@ -1922,6 +1922,7 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 				checkParserContext( fieldInitArgs->data[i], argUT,
 						newUT->generic->elUt->langEl );
 				code.append( IN_SET_PARSER_CONTEXT );
+				code.append( CONTEXT_TO_NEW_PARSER );
 				contextGiven = true;
 			}
 			else {
@@ -2176,6 +2177,7 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 	 * First load the context into the parser.
 	 */
 	bool contextGiven = false;
+	long givenToPos = -1;
 	if ( context ) {
 		for ( int i = 0; i < fieldInitArgs->length(); i++ ) {
 			/* Eval what we are initializing with. */
@@ -2188,6 +2190,8 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 				checkParserContext( fieldInitArgs->data[i], argUT,
 						targetUT->langEl );
 				code.append( IN_SET_PARSER_CONTEXT );
+				givenToPos = code.length();
+				code.append( CONTEXT_TO_PARSE );
 				contextGiven = true;
 			}
 			else {
@@ -2244,8 +2248,11 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 				 * parser can back up over what was sent before it. */
 				long runs = pd->otherCodeRuns;
 				UniqueType *ut = item->expr->evaluate( pd, code );
-				if ( item.ptr != parserText->list->head && pd->otherCodeRuns != runs )
+				if ( item.ptr != parserText->list->head && pd->otherCodeRuns != runs ) {
 					pd->restartTypes.insert( targetUT->langEl );
+					if ( givenToPos >= 0 )
+						code.data[givenToPos] = CONTEXT_TO_RESTART_PARSE;
+				}
 
 				if ( ut->typeId == TYPE_VOID ) {
 					/* Clear it away if return type is void. */
@@ -2295,6 +2302,10 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 		code.append( IN_SEND_EOF_W );
 		parseFrag( pd, code, stopId );
 	}
+
+	/* The parse is over: outside an action, it lets its context go. */
+	if ( contextGiven )
+		code.append( IN_RELEASE_PARSER_CONTEXT );
 
 	if ( parserText->reduce ) {
 		code.append( IN_REDUCE_COMMIT );

@@ -99,6 +99,13 @@ EXTRA_DIST = \
 	ctxgram5.lm \
 	ctxgram6.lm \
 	ctxgram7.lm \
+	ctxhold1.lm \
+	ctxhold2.lm \
+	ctxhold3.lm \
+	ctxhold4.lm \
+	ctxhold5.lm \
+	ctxhold6.lm \
+	ctxholdmsg1.lm \
 	ctxset1.lm \
 	ctxtake1.lm \
 	ctxtake2.lm \

@@ -1,0 +1,49 @@
+# A parse that a token action starts, given the action's context, with an
+# item after the first that runs code. The item would pop what the inner
+# parse's action pushed, and the item after it would make the inner parse
+# back up over the push onto the empty list. Only a parse with no such item
+# can be given the context the action's parse holds: giving it to this one
+# stops the program.
+context ctx
+	L: list<str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def I1 []
+	def I2 []
+
+	def iitem
+		[`*]
+		{
+			L->push_tail( "" )
+		}
+
+	def inner
+		[I1 iitem* `; `^ NL]
+	|	[I2 `* `; NL]
+
+	lex
+		token go /'go'/
+		{
+			parse X: ctx::inner( this )[ "* ;" L->pop_tail() "\n" ]
+			input->push( make_token( typeid<go>, input->pull( match_length ) ) )
+		}
+	end
+
+	def start
+		[go]
+end
+
+C: ctx = new ctx()
+C->L = new list<str>()
+print( "before\n" )
+parse S: ctx::start( C )[ "go" ]
+print( S, "\n" )
+##### EXP #####
+before
+##### EXIT #####
+1

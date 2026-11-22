@@ -91,8 +91,9 @@ says what, and leaves how to them.
     `doc/colm/code/struct_route.lm` (`Next: stop`), and `lang_object` in
     `grammar/c++/c++.lm` and `test/colm.d/lookup1.lm`, which change when the
     check lands.
-15. Apart from what 14 rejects, a program that compiles today still
-    compiles, and prints the same output.
+15. Apart from what 14 rejects, and a program that names something `weak`,
+    the keyword a weak reference is declared with ([#670]), a program that
+    compiles today still compiles, and prints the same output.
 
 ## Seeing lost structs
 

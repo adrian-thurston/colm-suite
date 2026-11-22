@@ -138,11 +138,13 @@ On main (d864f64e), the check rejects these, with:
 
 It lands with weak references, or after them, in an issue of its own: a
 program it rejects has no other way to be fixed. On main (d864f64e) it
-rejects 14 programs that compile, each of which then needs a weak place on
+rejects 15 programs that compile, each of which then needs a weak place on
 each of its cycles, as item 14 of the requirements lists:
 
 - `doc/colm/code/struct_route.lm`;
 - `lang_object` in `grammar/c++/c++.lm` and `test/colm.d/lookup1.lm`;
+- `foo` in `test/colm.d/pointer1.lm`, whose field `Start` holds a tree,
+  and whose def `start` holds a `foo` in its attribute `Foo`;
 - the parser a context's field holds in `test/colm.d/accumbt2.lm`,
   `ctxset1.lm`, `ntrejbt5.lm`, `sendown1.lm` to `sendown4.lm`,
   `undofrag2.lm` and `undofrag3.lm`: the field is made weak, and the

@@ -652,6 +652,7 @@ EXTRA_DIST = \
 	weak8.lm \
 	weak9.lm \
 	weak10.lm \
+	weak11.lm \
 	while1.lm \
 	xmlac.lm \
 	yield1.lm \

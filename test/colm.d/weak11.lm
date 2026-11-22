@@ -1,0 +1,24 @@
+# A send, a send_tree and a prints go through a weak reference to a parser or
+# a stream as through a strong one: they send to its target.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def start
+	[id*]
+
+P: parser<start> = new parser<start>()
+W: weak<parser<start>> = P
+send W "a b c"
+send_tree W [ " d" ]
+W->finish()
+print( "parser ", W->tree, "\n" )
+
+S: weak<stream> = stdout
+send S "send to a stream\n"
+prints( S, "prints to a stream\n" )
+##### EXP #####
+parser a b c d
+send to a stream
+prints to a stream

@@ -362,7 +362,8 @@ UniqueType *LangVarRef::lookup( Compiler *pd ) const
 	if ( elUT->typeId == TYPE_ITER )
 		elUT = el->typeRef->searchUniqueType;
 
-	return elUT;
+	/* A weak reference is read as its target, so a send goes to it. */
+	return elUT->readType();
 }
 
 VarRefLookup LangVarRef::lookupMethod( Compiler *pd ) const

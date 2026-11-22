@@ -403,6 +403,7 @@ EXTRA_DIST = \
 	noctx3.lm \
 	noctx4.lm \
 	noctx5.lm \
+	noctx6.lm \
 	nsref1.lm \
 	ntignbt1.lm \
 	ntignbt2.lm \

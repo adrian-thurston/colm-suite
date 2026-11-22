@@ -140,6 +140,10 @@ is checked when the program runs:
   back the parse up, so it names the action's owner instead, which holds
   what it held. A parser made with `new` holds to the end of the program:
   text sent to it after its end parses again, and backs up ([#439]).
+- A parse can be given one context. A second one, which would replace the
+  first and leave it held, is a compile error in `evaluateParse()`:
+  `parse command requires just context and input`, as `new parser` already
+  refuses one.
 
 Not taken:
 
@@ -214,7 +218,7 @@ of another context: for each item, after the outer parse has ended, and
 after backing up. `ctxhold9` stops a parse given an object that a new
 parser without a context holds for its action's parse, and one in an item
 of a parse that holds for itself, and runs the parses after that one has
-ended.
+ended. `noctx6` is a parse given two contexts.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439

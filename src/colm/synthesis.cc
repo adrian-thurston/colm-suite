@@ -2194,6 +2194,16 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 			else if ( argUT->typeId == TYPE_STRUCT && targetUT->langEl->contextIn != 0 ) {
 				checkParserContext( fieldInitArgs->data[i], argUT,
 						targetUT->langEl );
+
+				/* One context, as new parser takes: a second would replace
+				 * the first, which would stay held. */
+				if ( contextGiven ) {
+					const FieldInit *arg = fieldInitArgs->data[i];
+					const InputLoc &argLoc = arg->expr->type == LangExpr::TermType ?
+							arg->expr->term->loc : arg->expr->loc;
+					error(argLoc) << "parse command requires just context and input" << endp;
+				}
+
 				code.append( IN_SET_PARSER_CONTEXT );
 				contextGiven = true;
 			}

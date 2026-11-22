@@ -355,7 +355,9 @@ Any other parser gets an object of its own, as a parser that the context holds
 does in `+C->Inner = new parser<ctx::inner>( new ctx() )+`, and so does a
 parser that an action makes with `new`. Two parses one after the other can
 still be given one object, as it is: the first lets it go when it ends, and
-the second sees what the first's actions left in it.
+the second sees what the first's actions left in it. A parse is given one
+context: colm doesn't compile a second, with the error
+`parse command requires just context and input`.
 
 [[restartable]]
 == Globals in a restartable parser

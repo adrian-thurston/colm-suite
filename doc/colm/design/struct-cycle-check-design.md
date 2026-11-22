@@ -104,13 +104,17 @@ any tree type: the tree before it can hold any tree.
 
 ## Where it runs
 
-`Compiler::checkStrongCycles()` runs at the end of
-`Compiler::compileByteCode()`, after `checkRestartable()`, since it needs
-the `make_token` arguments, known once all the code is compiled.
+`Compiler::checkStrongCycles()` is the last thing `Compiler::compile()`
+does, after `parsePatterns()`. It needs the `make_token` arguments, known
+once `compileByteCode()` has compiled all the code:
 `LangTerm::evaluateMakeToken()` keeps each one's type and location as it
-compiles it. The check runs only when no error came before it, so a program
-refused for another reason prints what it prints now. It reports each
-error with `error()`, then exits with status 1 once all are out.
+compiles it. The passes after `compileByteCode()` refuse programs of their
+own: `collectParserEls()` a pattern whose type isn't a def, `makeParser()`
+a grammar `parse_stop` can't use, and `parsePatterns()` a pattern or a
+constructor that doesn't parse. The check comes after all of them, and
+runs only when no error came before it, so a program refused for another
+reason prints what it prints now. It reports each error with `error()`,
+then exits with status 1 once all are out.
 
 ## Examples
 
@@ -178,7 +182,9 @@ and one through a map's key; a context holding its own parser; a struct
 with a `str` field that a def's attribute holds; a def whose attribute is a
 `list<str>`; a struct that a `make_token` argument puts into a token; and a
 program with two cycles, giving two errors in their anchors' order. Each
-compiles and runs once a place on each of its cycles is weak.
+compiles and runs once a place on each of its cycles is weak. A program
+with a cycle and a pattern that doesn't parse gives the pattern's error,
+as it does now.
 
 [#663]: https://github.com/adrian-thurston/colm-suite/issues/663
 [#667]: https://github.com/adrian-thurston/colm-suite/issues/667

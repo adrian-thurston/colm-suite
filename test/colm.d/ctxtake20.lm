@@ -1,0 +1,46 @@
+# A tree that a cons makes at setup doesn't go into the context either, if
+# its type can hold a list: a context object gets such a tree only from its
+# parse's actions. ctxtake10's program, setting the tree up with a cons.
+lex
+	literal `h
+end
+
+def holder
+	L: list<str>
+	[`h]
+
+context ctx
+	T: holder
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			if ( !T ) {
+				T = cons holder [ "h" ]
+				T.L = new list<str>()
+			}
+			T.L->push_tail( "x" )
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+C: ctx = new ctx()
+C->T = cons holder [ "h" ]
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+40:8: only nil or what C holds can go into C as it is set up: a holder can hold a list, map, parser, stream or struct

@@ -116,6 +116,11 @@ EXTRA_DIST = \
 	ctxtake13.lm \
 	ctxtake14.lm \
 	ctxtake15.lm \
+	ctxtake16.lm \
+	ctxtake17.lm \
+	ctxtake18.lm \
+	ctxtake19.lm \
+	ctxtake20.lm \
 	ctxthis1.lm \
 	ctxthis2.lm \
 	ctxthis3.lm \
@@ -610,6 +615,7 @@ EXTRA_DIST = \
 	treesend3.lm \
 	treesend4.lm \
 	treesend5.lm \
+	treesend6.lm \
 	typeref1.lm \
 	typeref2.lm \
 	typeref3.lm \

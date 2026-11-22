@@ -205,6 +205,10 @@ parser keeps or backs up over its actions. `treesend5` runs a `send_tree`, a
 text, and a token action's push onto `input`, in a program that has such a
 tree type. `attrval1`'s context holds a tree of a type with no list or
 struct, which it can set up with a `cons`.
+The review of #749 added `ctxtake16`–`ctxtake20`, on `ctxtake10`'s program:
+matching such a tree, taking its text with `$`, a tree loop over it, a held
+parser's tree of such a type, and a `cons` at setup. It also added
+`treesend6`, a `push_ignore`.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439

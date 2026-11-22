@@ -167,7 +167,9 @@ for [#718] over the compile-time rule above, which refuses too much.
 
 ## Choices
 
-- A compile-time check, not a stop at run time: the maintainer's brief.
+- [#706]'s checks are at compile time, not a stop at run time: the
+  maintainer's brief. [#718]'s is the one exception
+  ([One parser per object](#one-parser-per-object)).
 - Setup windows, not first values or an init block in the context: existing
   setup compiles unchanged, and no syntax is added.
 - References out are refused, not left to the program: one assignment would

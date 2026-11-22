@@ -660,6 +660,19 @@ bool Compiler::treeHoldsRef( LangEl *lel )
 	return refTreeSoFar( this, lel );
 }
 
+/* The article a message puts before a type's name: an any, an item, a
+ * holder. */
+static const char *article( const String &name )
+{
+	char c = name.length() > 0 ? name.data[0] : 0;
+	switch ( c ) {
+		case 'a': case 'e': case 'i': case 'o': case 'u':
+		case 'A': case 'E': case 'I': case 'O': case 'U':
+			return "an";
+	}
+	return "a";
+}
+
 /* A tree whose attributes, or a tree's below it, can hold what ctxHeldRef()
  * counts: a copy of the tree shares it. */
 static bool sharesRef( Compiler *pd, UniqueType *ut )
@@ -697,9 +710,9 @@ static void checkTreeIntoParse( Compiler *pd, LangExpr *expr, UniqueType *ut,
 	/* An expression that is a single term has its location in the term. */
 	const InputLoc &loc = expr->type == LangExpr::TermType ?
 			expr->term->loc : expr->loc;
-	error( loc ) << "cannot " << what << " a " << ut->langEl->xmlTag <<
-			", which can hold a list, map, parser, stream or struct" << where <<
-			": " << instead << endp;
+	error( loc ) << "cannot " << what << " " << article( ut->langEl->xmlTag ) <<
+			" " << ut->langEl->xmlTag << ", which can hold a list, map, parser, "
+			"stream or struct" << where << ": " << instead << endp;
 }
 
 /* Outside its parse's actions, a context object is changed only while it is
@@ -823,8 +836,9 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 	if ( sharesRef( pd, ut ) && !fresh && !through ) {
 		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
 		error(loc) << "only nil or what " << var->name << " holds can go into " <<
-				var->name << " as it is set up: a " << ut->langEl->xmlTag <<
-				" can hold a list, map, parser, stream or struct" << endp;
+				var->name << " as it is set up: " << article( ut->langEl->xmlTag ) <<
+				" " << ut->langEl->xmlTag << " can hold a list, map, parser, "
+				"stream or struct" << endp;
 	}
 
 	if ( ctxHeldRef( ut ) && !fresh && !through ) {

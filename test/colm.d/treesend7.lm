@@ -1,0 +1,43 @@
+# #729's program with the tree sent as an any, which counts once any type
+# can hold a list. The message says "an any".
+lex
+	literal `h
+end
+
+def holder
+	L: list<str>
+	[`h]
+
+lex
+	ignore /[ \t]+/
+	literal `* `^ `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+# A1 is tried first: the action runs, then the parser backs up to A2.
+def item
+	[holder]
+	{
+		r1.L->push_tail( "x" )
+	}
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 holder `; NL]
+
+parse H: holder[ "h" ]
+H.L = new list<str>()
+P: parser<start> = new parser<start>()
+A: any = H
+send_tree P [A]
+send P " ;"
+print( "length ", H.L->length, "\n" )
+H.L->pop_tail()
+send P "\n"
+P->finish()
+print( "done\n" )
+##### COMP_ERR #####
+35:14: cannot send_tree an any, which can hold a list, map, parser, stream or struct: send its text

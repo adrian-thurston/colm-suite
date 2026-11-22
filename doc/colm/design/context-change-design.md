@@ -208,7 +208,9 @@ struct, which it can set up with a `cons`.
 The review of #749 added `ctxtake16`–`ctxtake20`, on `ctxtake10`'s program:
 matching such a tree, taking its text with `$`, a tree loop over it, a held
 parser's tree of such a type, and a `cons` at setup. It also added
-`treesend6`, a `push_ignore`.
+`treesend6`, a `push_ignore`. In `treesend7`, which sends an `any`, and
+`ctxtake21`, which sets up a type named `item`, the message puts `an`
+before the type's name (`article()`).
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439

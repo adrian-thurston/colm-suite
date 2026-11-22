@@ -1,0 +1,164 @@
+# Leaving a loop over a user iterator early, while the iterator is suspended
+# in a function that yielded, called inside an expression or given a
+# qualified ref argument. The words of the expression, or the argument's
+# qualifier refs, lie under that function's frame. The teardown pops them,
+# and ends what is under them as at any other call: the loops of the frame
+# with the call, and each frame between it and the iterator. Each run's call
+# is in a function the iterator calls, which has a local of its own, F. In
+# local, the call is an operand of a +. In ref, it is a statement, given
+# P.item. In tree, rtree and uloop, it is inside a loop over a tree, over the
+# reverse of a tree's children, and over another user iterator. Before, the
+# teardown stopped at the call, and the locals of that function and of its
+# loops were lost. In temp, the call is the right operand of a +, and the
+# left operand, "s", is a tree the expression holds under the call. Nothing
+# records it, so it is still lost, as the LOST section lists; F isn't.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+
+def pair
+	[item item]
+
+iter j()
+{
+	J: str = "j"
+	yield J
+}
+
+int g()
+{
+	L: str = "l"
+	yield L
+	return 1
+}
+
+int gref( R: ref<item> )
+{
+	L: str = "l"
+	yield L
+	return 1
+}
+
+str gs()
+{
+	L: str = "l"
+	yield L
+	return "g"
+}
+
+int ftemp()
+{
+	F: str = "f"
+	S: str = "s" + gs()
+	return 1
+}
+
+int flocal()
+{
+	F: str = "f"
+	X: int = 1 + g()
+	return X
+}
+
+int fref()
+{
+	F: str = "f"
+	P: pair = parse pair[ "a b" ]
+	gref( P.item )
+	return 1
+}
+
+int ftree()
+{
+	F: str = "f"
+	P: pair = parse pair[ "a b" ]
+	for I: item in P {
+		X: int = 1 + g()
+	}
+	return 1
+}
+
+int frtree()
+{
+	F: str = "f"
+	P: pair = parse pair[ "a b" ]
+	for I: item in rev_child( P ) {
+		X: int = 1 + g()
+	}
+	return 1
+}
+
+int fuloop()
+{
+	F: str = "f"
+	for U: str in j() {
+		X: int = 1 + g()
+	}
+	return 1
+}
+
+iter i( Where: str )
+{
+	S: str = "s"
+	if Where == "local"
+		flocal()
+	if Where == "ref"
+		fref()
+	if Where == "tree"
+		ftree()
+	if Where == "rtree"
+		frtree()
+	if Where == "uloop"
+		fuloop()
+	if Where == "temp"
+		ftemp()
+}
+
+Where: str = argv->pop()
+for T: str in i( Where ) {
+	print( T, "\n" )
+	break
+}
+print( "done\n" )
+##### ARGS #####
+local
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+ref
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+tree
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+rtree
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+uloop
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+temp
+##### EXP #####
+l
+done
+##### LOST #####
+lost trees: 1
+lost heads: 1

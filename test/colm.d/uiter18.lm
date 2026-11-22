@@ -1,13 +1,12 @@
 # Leaving a loop over a user iterator early, while the iterator is in a
 # function that it called inside an expression and that yielded. The words of
-# the expression lie under the function's frame, so the iterator is ended as
-# far as it can be: the function's locals and the iterator's are released,
-# and the rest is popped with the iterator. A loop the iterator is in, under
-# the expression's words, loses its iterator's locals, which the LOST section
-# lists. Before, only the iterator's own locals were released. With func, the
-# expression is in a function the iterator called, between the iterator and
-# the one that yielded. The walk stops in that function's frame, and the
-# iterator's own locals are still released.
+# the expression lie under the function's frame. The teardown pops them, and
+# ends what is under them as at any other call. In iter, that is the
+# iterator's own frame. In loop, it is also the iterator's loop over j, whose
+# iterator's locals are released. With func, the expression is in a function
+# f between the iterator and the one that yielded, and f's frame is ended
+# before the iterator's. Before, the teardown stopped at the call, and loop
+# lost j's locals, which the LOST section listed.
 iter j()
 {
 	J: str = "j"
@@ -84,8 +83,6 @@ done
 ##### EXIT #####
 0
 ##### LOST #####
-lost trees: 1
-lost heads: 1
 ##### ARGS #####
 func
 ##### EXP #####

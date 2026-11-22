@@ -1444,12 +1444,29 @@ void LangVarRef::resetActiveRefs( Compiler *pd, VarRefLookup &lookup,
 /* After a call, or a parse, which runs parser actions: the length of the code
  * that unwinds this frame on an exit below, then the code. FN_EXIT runs it,
  * the return or the parse skips it. Where words the expression around the
- * call or parse pushed lie under it, -1 stands in for both, and an exit there
- * ends the process. */
+ * call or parse pushed lie under it, the length is negative, and the code
+ * begins with IN_POP_EXPR, which pops them down to what the innermost loop's
+ * iterator left, or to the frame's locals. The teardown of a user iterator
+ * suspended under the call runs it. An exit there ends the process, since
+ * what those words hold can't be released. */
 static void appendUnwindCode( Compiler *pd, CodeVect &code )
 {
-	if ( pd->noUnwind )
-		code.appendHalf( (half_t) -1 );
+	if ( pd->noUnwind ) {
+		CodeVect pop;
+		pop.append( IN_POP_EXPR );
+		if ( pd->unwindLoop != 0 ) {
+			pop.appendHalf( pd->unwindLoop->iterImpl->inUnwind );
+			pop.appendHalf( pd->unwindLoop->offset );
+		}
+		else {
+			pop.appendHalf( 0 );
+			pop.appendHalf( 0 );
+		}
+		code.appendHalf( (half_t) -( pop.length() + pd->unwindCode.length() + 1 ) );
+		code.append( pop );
+		code.append( pd->unwindCode );
+		code.append( IN_DONE );
+	}
 	else if ( pd->unwindCode.length() == 0 )
 		code.appendHalf( 0 );
 	else {
@@ -3190,12 +3207,16 @@ void LangStmt::compileForIterBody( Compiler *pd,
 	code.append( IN_JMP_FALSE_VAL );
 	code.appendHalf( 0 );
 
-	/* Compile the contents. Its breaks are its own. */
+	/* Compile the contents. Its breaks are its own. In it, the words of an
+	 * expression lie on what this loop's iterator left. */
 	LongVect outerBreaks = pd->breakJumps;
 	pd->breakJumps.empty();
+	ObjectField *outerLoop = pd->unwindLoop;
+	pd->unwindLoop = objField;
 
 	compileLoopBody( pd, code, stmtList );
 
+	pd->unwindLoop = outerLoop;
 	pd->unwindCode.remove( 0, pd->unwindCode.length() - lcLen );
 
 	/* Jump back to the top to retest. */
@@ -3751,18 +3772,21 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 
 void CodeBlock::compile( Compiler *pd, CodeVect &code ) const
 {
-	/* A code block's setups are its own. */
+	/* A code block's setups and loops are its own. */
 	Vector<Compiler::SetupWindow> outer = pd->setupWindows;
 	int outerLoopDepth = pd->loopDepth, outerListDepth = pd->stmtListDepth;
+	ObjectField *outerLoop = pd->unwindLoop;
 	pd->setupWindows.empty();
 	pd->loopDepth = 0;
 	pd->stmtListDepth = 0;
+	pd->unwindLoop = 0;
 
 	compileStmtList( pd, code, stmtList );
 
 	pd->setupWindows = outer;
 	pd->loopDepth = outerLoopDepth;
 	pd->stmtListDepth = outerListDepth;
+	pd->unwindLoop = outerLoop;
 }
 
 void Compiler::findLocals( ObjectDef *localFrame, CodeBlock *block )

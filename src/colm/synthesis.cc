@@ -453,6 +453,11 @@ UniqueType *LangVarRef::loadField( Compiler *pd, CodeVect &code,
 		/* Gets of locals and fields require offsets. Fake vars like token
 		 * data and lhs don't require it. */
 		code.appendHalf( el->offset );
+
+		/* An attribute's instruction takes the id of the object of the
+		 * type that declares it, and checks the tree has that object. */
+		if ( el->type == ObjectField::UserFieldType )
+			code.appendHalf( inObject->id );
 	}
 	else if ( el->isRhsGet() ) {
 		/* Need to place the array computing the val. */
@@ -513,6 +518,7 @@ long LangVarRef::loadQualificationRefs( Compiler *pd, CodeVect &code,
 				code.append( IN_REF_FROM_QUAL_REF );
 				code.appendHalf( 0 );
 				code.appendHalf( el->offset );
+				code.appendHalf( searchScope->owningObj->id );
 			}
 		}
 		else if ( el->iterImpl != 0 ) {
@@ -1059,8 +1065,11 @@ void LangVarRef::setField( Compiler *pd, CodeVect &code,
 	}
 
 	/* Maybe write out an offset. */
-	if ( el->useOffset() )
+	if ( el->useOffset() ) {
 		code.appendHalf( el->offset );
+		if ( el->type == ObjectField::UserFieldType )
+			code.appendHalf( inObject->id );
+	}
 	else if ( el->isRhsGet() ) {
 		/* Need to place the array computing the val. */
 		code.append( el->rhsVal.length() );
@@ -1195,6 +1204,7 @@ ObjectField *LangVarRef::evaluateRef( Compiler *pd, CodeVect &code, long pushCou
 			code.append( IN_REF_FROM_QUAL_REF );
 			code.appendHalf( pushCount );
 			code.appendHalf( lookup.objField->offset );
+			code.appendHalf( lookup.inObject->id );
 		}
 	}
 	else if ( lookup.objField->iterImpl != 0 ) {

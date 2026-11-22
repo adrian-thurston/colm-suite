@@ -1,0 +1,225 @@
+# An any can be assigned to a variable of any tree type, unchecked, so a
+# variable of one def can hold a tree of another. Reading or setting an
+# attribute through such a variable stops the program: the tree keeps other
+# attributes in the slots, or has fewer. A struct read this way was one of
+# another type, and setting its fields wrote past its end. The host sends
+# standard error to standard output, so the message is in the output. The
+# argument picks the access. The "act" ones set an attribute of a global in
+# a production's action, which the parser could undo. With "same", each
+# variable holds a tree of its own type, and the accesses work.
+
+struct small
+	N: int
+end
+
+struct big
+	A: int
+	B: int
+	C: int
+	D: int
+end
+
+lex
+	token id /[a-z]+/
+	literal `;
+	ignore /[ \n]+/
+end
+
+def d1
+	S: small
+	[id]
+
+def d2
+	G: big
+	[id]
+
+def d4
+	L: id
+	[id]
+
+def d3
+	N: int
+	X: id
+	Z: d4
+	[id]
+
+global K: str = argv->pop()
+global W: d3
+
+def item
+	[id `;]
+	{
+		if ( K == "actint" || K == "same" )
+			W.N = 3
+		if ( K == "acttree" || K == "same" )
+			W.X = r1
+		if ( K == "actinside" || K == "same" )
+			W.X.data = "w"
+	}
+
+void set_ref( R: ref<id> )
+{
+	R = parse id[ "r" ]
+}
+
+print( "before\n" )
+
+T: d1 = parse d1[ "x" ]
+T.S = new small()
+A2: any = T
+A3: any = T
+if ( K == "same" ) {
+	A2 = parse d2[ "y" ]
+	A3 = parse d3[ "z" ]
+}
+U: d2 = A2
+V: d3 = A3
+W = A3
+
+if ( K == "struct" ) {
+	G: big = U.G
+	G->D = 42
+	print( "G->D is [G->D]\n" )
+}
+elsif ( K == "int" )
+	print( V.N, "\n" )
+elsif ( K == "setint" )
+	V.N = 3
+elsif ( K == "tree" )
+	print( V.X, "\n" )
+elsif ( K == "settree" )
+	V.X = parse id[ "q" ]
+elsif ( K == "inside" )
+	V.X.data = "p"
+elsif ( K == "ref" )
+	set_ref( V.X )
+elsif ( K == "refdeep" )
+	set_ref( V.Z.L )
+elsif ( K == "actint" || K == "acttree" || K == "actinside" ) {
+	parse I: item[ "z ;" ]
+	print( "parsed\n" )
+}
+elsif ( K == "same" ) {
+	U.G = new big()
+	G: big = U.G
+	G->D = 42
+	V.N = 3
+	V.X = parse id[ "q" ]
+	V.X.data = "p"
+	print( "G->D is [G->D] V.N is [V.N] V.X is [V.X]\n" )
+	set_ref( V.X )
+	V.Z = parse d4[ "w" ]
+	set_ref( V.Z.L )
+	print( "V.X is [V.X] V.Z.L is [V.Z.L]\n" )
+	parse I: item[ "z ;" ]
+	print( "W.N is ", W.N, " W.X is ", W.X.data, "\n" )
+}
+
+print( "after\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+struct
+##### EXP #####
+before
+fatal: reading an attribute of a tree of another type
+##### EXIT #####
+1
+##### ARGS #####
+int
+##### EXP #####
+before
+fatal: reading an attribute of a tree of another type
+##### EXIT #####
+1
+##### ARGS #####
+setint
+##### EXP #####
+before
+fatal: setting an attribute of a tree of another type
+##### EXIT #####
+1
+##### ARGS #####
+tree
+##### EXP #####
+before
+fatal: reading an attribute of a tree of another type
+##### EXIT #####
+1
+##### ARGS #####
+settree
+##### EXP #####
+before
+fatal: setting an attribute of a tree of another type
+##### EXIT #####
+1
+##### ARGS #####
+inside
+##### EXP #####
+before
+fatal: reading an attribute of a tree of another type
+##### EXIT #####
+1
+##### ARGS #####
+ref
+##### EXP #####
+before
+fatal: reading an attribute of a tree of another type
+##### EXIT #####
+1
+##### ARGS #####
+refdeep
+##### EXP #####
+before
+fatal: reading an attribute of a tree of another type
+##### EXIT #####
+1
+##### ARGS #####
+actint
+##### EXP #####
+before
+fatal: setting an attribute of a tree of another type
+##### EXIT #####
+1
+##### ARGS #####
+acttree
+##### EXP #####
+before
+fatal: setting an attribute of a tree of another type
+##### EXIT #####
+1
+##### ARGS #####
+actinside
+##### EXP #####
+before
+fatal: reading an attribute of a tree of another type
+##### EXIT #####
+1
+##### ARGS #####
+same
+##### EXP #####
+before
+G->D is 42 V.N is 3 V.X is p
+V.X is r V.Z.L is r
+W.N is 3 W.X is w
+after
+host: exit status 0
+##### EXIT #####
+0

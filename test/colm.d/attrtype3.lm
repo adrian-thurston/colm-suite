@@ -1,0 +1,66 @@
+# A struct read out of a tree's attribute through a tree of another type,
+# from an any, came out as a struct of another type. Set as its own field,
+# it made a p hold itself through a field declared q: a cycle the struct
+# cycle check's design (struct-cycle-check-design.md) has no edge for. The
+# read now stops the program. The host sends standard error to standard
+# output, so the message is in the output.
+
+struct q
+	M: int
+end
+
+struct p
+	N: int
+	V: q
+end
+
+lex
+	ignore /[ \n]+/
+	token x /'x'/
+end
+
+def d1
+	A: p
+	[x]
+
+def d2
+	B: q
+	[x]
+
+print( "before\n" )
+T: d1 = parse d1[ "x" ]
+P: p = new p()
+P->N = 7
+T.A = P
+
+Any: any = T
+D2: d2 = Any
+Q: q = D2.B
+print "Q->M is [Q->M]\n"
+P->V = Q
+P->V->M = 9
+print "P->N is [P->N]\n"
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### EXP #####
+before
+fatal: reading an attribute of a tree of another type
+##### EXIT #####
+1

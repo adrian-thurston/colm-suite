@@ -189,6 +189,17 @@ static void runtime_error( program_t *prg, const char *msg )
 	fatal( "%s\n", msg );
 }
 
+/* An attribute is read and set through a tree of the type that declares it,
+ * which the instruction names by the id of the type's object. A tree of
+ * another type, which an any can put in a variable of the type, keeps other
+ * attributes in the slots, or has fewer. A def and its terminal duplicate
+ * (_T_) share their object, so a tree of either has the def's attributes. */
+static void check_attr_type( program_t *prg, tree_t *obj, half_t obj_id, const char *msg )
+{
+	if ( prg->rtd->lel_info[obj->id].object_type_id != (long)obj_id )
+		runtime_error( prg, msg );
+}
+
 /* A read or write on a stream that the system refuses stops the program, with
  * "could not read NAME: REASON" or "could not write NAME: REASON". stream.c
  * calls it right after the call that failed, with that call's errno: the C
@@ -1689,13 +1700,16 @@ again:
 		}
 		case IN_GET_FIELD_TREE_R: {
 			short field;
+			half_t obj_id;
 			read_half( field );
+			read_half( obj_id );
 
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_TREE_R %d\n", field );
 
 			tree_t *obj = vm_pop_tree();
 			if ( obj == 0 )
 				runtime_error( prg, "reading an attribute of a nil tree" );
+			check_attr_type( prg, obj, obj_id, "reading an attribute of a tree of another type" );
 			colm_tree_downref( prg, sp, obj );
 
 			tree_t *val = colm_tree_get_field( obj, field );
@@ -1705,13 +1719,16 @@ again:
 		}
 		case IN_GET_FIELD_TREE_WC: {
 			short field;
+			half_t obj_id;
 			read_half( field );
+			read_half( obj_id );
 
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_TREE_WC %d\n", field );
 
 			tree_t *obj = vm_pop_tree();
 			if ( obj == 0 )
 				runtime_error( prg, "reading an attribute of a nil tree" );
+			check_attr_type( prg, obj, obj_id, "reading an attribute of a tree of another type" );
 			colm_tree_downref( prg, sp, obj );
 
 			tree_t *split = get_field_split( prg, obj, field );
@@ -1721,13 +1738,16 @@ again:
 		}
 		case IN_GET_FIELD_TREE_WV: {
 			short field;
+			half_t obj_id;
 			read_half( field );
+			read_half( obj_id );
 
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_TREE_WV\n" );
 
 			tree_t *obj = vm_pop_tree();
 			if ( obj == 0 )
 				runtime_error( prg, "reading an attribute of a nil tree" );
+			check_attr_type( prg, obj, obj_id, "reading an attribute of a tree of another type" );
 			colm_tree_downref( prg, sp, obj );
 
 			tree_t *split = get_field_split( prg, obj, field );
@@ -1755,7 +1775,9 @@ again:
 		}
 		case IN_SET_FIELD_TREE_WC: {
 			short field;
+			half_t obj_id;
 			read_half( field );
+			read_half( obj_id );
 
 			debug( prg, REALM_BYTECODE, "IN_SET_FIELD_TREE_WC %d\n", field );
 
@@ -1763,6 +1785,7 @@ again:
 			tree_t *val = vm_pop_tree();
 			if ( obj == 0 )
 				runtime_error( prg, "setting an attribute of a nil tree" );
+			check_attr_type( prg, obj, obj_id, "setting an attribute of a tree of another type" );
 			colm_tree_downref( prg, sp, obj );
 
 			/* Downref the old value. */
@@ -1774,7 +1797,9 @@ again:
 		}
 		case IN_SET_FIELD_TREE_WV: {
 			short field;
+			half_t obj_id;
 			read_half( field );
+			read_half( obj_id );
 
 			debug( prg, REALM_BYTECODE, "IN_SET_FIELD_TREE_WV %d\n", field );
 
@@ -1782,6 +1807,7 @@ again:
 			tree_t *val = vm_pop_tree();
 			if ( obj == 0 )
 				runtime_error( prg, "setting an attribute of a nil tree" );
+			check_attr_type( prg, obj, obj_id, "setting an attribute of a tree of another type" );
 			colm_tree_downref( prg, sp, obj );
 
 			/* Save the old value, then set the field. */
@@ -1837,13 +1863,16 @@ again:
 		}
 		case IN_GET_FIELD_VAL_R: {
 			short field;
+			half_t obj_id;
 			read_half( field );
+			read_half( obj_id );
 
 			debug( prg, REALM_BYTECODE, "IN_GET_FIELD_VAL_R %d\n", field );
 
 			tree_t *obj = vm_pop_tree();
 			if ( obj == 0 )
 				runtime_error( prg, "reading an attribute of a nil tree" );
+			check_attr_type( prg, obj, obj_id, "reading an attribute of a tree of another type" );
 			colm_tree_downref( prg, sp, obj );
 
 			tree_t *pointer = colm_tree_get_field( obj, field );
@@ -1855,7 +1884,9 @@ again:
 		}
 		case IN_SET_FIELD_VAL_WC: {
 			short field;
+			half_t obj_id;
 			read_half( field );
+			read_half( obj_id );
 
 			debug( prg, REALM_BYTECODE, "IN_SET_FIELD_VAL_WC %d\n", field );
 
@@ -1863,6 +1894,7 @@ again:
 			value_t value = vm_pop_value();
 			if ( obj == 0 )
 				runtime_error( prg, "setting an attribute of a nil tree" );
+			check_attr_type( prg, obj, obj_id, "setting an attribute of a tree of another type" );
 			colm_tree_downref( prg, sp, obj );
 
 			/* Downref the old value. */
@@ -1878,7 +1910,9 @@ again:
 		}
 		case IN_SET_FIELD_VAL_WV: {
 			short field;
+			half_t obj_id;
 			read_half( field );
+			read_half( obj_id );
 
 			debug( prg, REALM_BYTECODE, "IN_SET_FIELD_VAL_WV %d\n", field );
 
@@ -1886,6 +1920,7 @@ again:
 			value_t value = vm_pop_value();
 			if ( obj == 0 )
 				runtime_error( prg, "setting an attribute of a nil tree" );
+			check_attr_type( prg, obj, obj_id, "setting an attribute of a tree of another type" );
 			colm_tree_downref( prg, sp, obj );
 
 			/* Make it into a pointer, as IN_SET_FIELD_VAL_WC does. Save the
@@ -3963,6 +3998,8 @@ again:
 			short int field;
 			read_half( back );
 			read_half( field );
+			half_t obj_id;
+			read_half( obj_id );
 
 			debug( prg, REALM_BYTECODE, "IN_REF_FROM_QUAL_REF\n" );
 
@@ -3974,6 +4011,7 @@ again:
 				runtime_error( prg, "reading an attribute of a nil tree" );
 
 			tree_t *obj = ref->kid->tree;
+			check_attr_type( prg, obj, obj_id, "reading an attribute of a tree of another type" );
 			kid_t *attr_kid = get_field_kid( obj, field );
 
 			vm_contiguous( 2 );

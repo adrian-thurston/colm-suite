@@ -77,13 +77,21 @@ a `list<str>`, which are one type, and the two variables are one list.
 `!X` is true when `X` is nil, and `X == nil` is an error. An `int` or `bool`
 is never nil. A `str` or a tree can be set back to nil: `S = nil`.
 
+[[any]]
 == any
 
 Any tree can be assigned to an `any` variable, and a `list<any>` can hold
 trees of different types. An `any` can be assigned to a variable of any tree
-type. Colm doesn't check that the tree has that type. A token variable given a
-def or an `il` this way holds a tree with no text of its own, and reading its
-`data`, `file`, `line`, `col` or `pos` stops the program, as
+type. Colm doesn't check that the tree has that type. Nor does it check an
+`any` set through a `ref<any>` parameter or the variable of a `for C: any`
+loop, which puts the tree in the variable or the child behind it.
+
+A token variable given a def or an `il` this way holds a tree with no text of
+its own, and reading its `data`, `file`, `line`, `col` or `pos` stops the
+program. Any variable given a tree of another type holds a tree without the
+attributes of its own type, and reading or setting one of them stops the
+program too, printing `fatal: reading an attribute of a tree of another type`
+for a read, and the same with `setting` in place of `reading` for a set, as
 xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]
 says.
 

@@ -1,0 +1,82 @@
+# A ref<any> parameter and the variable of a for loop over any take an any
+# unchecked, so a function given a d can leave an id in the caller's d
+# variable, and a loop can leave one where a d child was. Setting an
+# attribute through the typed variable then stops the program, rather than
+# segfaulting. The host sends standard error to standard output, so the
+# message is in the output. The argument picks the way in.
+
+lex
+	token id /[a-z]+/
+	token num /[0-9]+/
+	ignore /[ \n]+/
+end
+
+def d
+	I: int
+	[num]
+
+def s
+	[Dd: d]
+
+void setany( X: ref<any> )
+{
+	A: any = parse id[ "abc" ]
+	X = A
+}
+
+K: str = argv->pop()
+print( "before\n" )
+
+if ( K == "ref" ) {
+	D: d = parse d[ "1" ]
+	setany( D )
+	print( "D=", D, "\n" )
+	D.I = 9
+	print( "D.I=", D.I, "\n" )
+}
+elsif ( K == "loop" ) {
+	S: s = parse s[ "1" ]
+	for C: any in child( S ) {
+		A: any = parse id[ "abc" ]
+		C = A
+	}
+	print( "S=", S, "\n" )
+	S.Dd.I = 9
+}
+
+print( "after\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+#include <unistd.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	dup2( 1, 2 );
+
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+ref
+##### EXP #####
+before
+D=abc
+fatal: setting an attribute of a tree of another type
+##### EXIT #####
+1
+##### ARGS #####
+loop
+##### EXP #####
+before
+S=abc
+fatal: setting an attribute of a tree of another type
+##### EXIT #####
+1

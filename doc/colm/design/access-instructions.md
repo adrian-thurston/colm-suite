@@ -81,6 +81,16 @@ variable is named in the scope around the switch (`walkCaseClause()`,
 No program names an element's links or key: [#699] took the element forms
 away.
 
+Every instruction that reads or sets a tree's attribute, as a tree or as a
+value, and `IN_REF_FROM_QUAL_REF`, which takes a reference to one, is given
+the id of the object of the type that declares the attribute, after the
+attribute's offset. It stops the program when the tree's type has another
+object (`lel_info`'s `object_type_id`): a tree of another type, which an
+`any` can put in a variable of the type, keeps other attributes in the
+slots, or has fewer ([#745]). The undos, and `IN_SET_FIELD_TREE_LEAVE_WC`,
+which sets an attribute of the tree a constructor has just made, take no
+id.
+
 ## Fields: value slots
 
 | Field | `inGetValR` | `inGetValWC` | `inGetValWV` | `inSetValWC` | `inSetValWV`, undo |
@@ -200,3 +210,4 @@ These are never emitted:
 [#724]: https://github.com/adrian-thurston/colm-suite/issues/724
 [#725]: https://github.com/adrian-thurston/colm-suite/issues/725
 [#727]: https://github.com/adrian-thurston/colm-suite/issues/727
+[#745]: https://github.com/adrian-thurston/colm-suite/issues/745

@@ -243,6 +243,9 @@ Some mistakes stop the program where they happen:
 * reading or setting a child or an attribute of a nil tree, as
   xref:3_02_parse.adoc#parsing[the parsing chapter] and
   xref:3_05_reduction.adoc#attributes[the attributes section] describe;
+* reading or setting an attribute through a variable that holds a tree of
+  another type, which an `any` can give it, as
+  xref:2_00_types.adoc#any[the types chapter] describes;
 * setting a child to nil, by assigning nil to its label, through a loop
   variable or a `ref<T>` parameter, or by giving `make_tree` a nil child, or
   setting a child that the tree's production doesn't have, through its label or

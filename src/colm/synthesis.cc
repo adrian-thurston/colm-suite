@@ -3411,11 +3411,15 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 						" must have the map's key type" << endp;
 			}
 		}
-		else if ( searchUT->weak() || !castAssignment( pd, unused, searchUT,
-				0, generic->valueUt->readType() ) )
-		{
+		else if ( searchUT->weak() ) {
 			/* The loop reads each value, so over weak values the variable
 			 * has the target type. */
+			error(loc) << "loop variable " << objField->name <<
+					" can't be weak: the loop reads each value as its target" << endp;
+		}
+		else if ( !castAssignment( pd, unused, searchUT, 0,
+				generic->valueUt->readType() ) )
+		{
 			error(loc) << "loop variable " << objField->name <<
 					" must have the " << kind << "'s value type" << endp;
 		}

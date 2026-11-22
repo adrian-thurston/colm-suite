@@ -6,4 +6,4 @@ L: list<weak<node>> = new list<weak<node>>()
 for N: weak<node> in L
 	print( "x\n" )
 ##### COMP_ERR #####
-6:5: loop variable N must have the list's value type
+6:5: loop variable N can't be weak: the loop reads each value as its target

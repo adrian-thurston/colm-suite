@@ -77,8 +77,8 @@ elements keep their values differently.
   place makes a weak one (12).
 - **A loop over weak values has a `T` variable.** `for N: node in L`, with
   `L` a `list<weak<node>>`, reads each value: its target, or nil. A
-  `weak<T>` loop variable is refused, as any variable is whose type isn't
-  what the loop reads.
+  `weak<T>` loop variable is refused, with `loop variable N can't be weak:
+  the loop reads each value as its target`.
 - **What a context or a global holds counts the same.** [#706]'s and
   [#714]'s checks read a weak type as its target: a weak reference to a
   list, a map or a struct, and a tree whose attribute is one, are held as a

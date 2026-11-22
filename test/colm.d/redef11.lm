@@ -1,0 +1,39 @@
+# A redef that keeps a def's productions with [...] gives them a lang el of
+# its own, with the redef's attributes. A kept production's action had a lhs
+# typed as the def's old lang el, and an r1 the parser never filled. So its
+# lhs.A set the old object's attribute in a tree of the redef's, which the
+# attribute check stops, and its r1 was nil. Now a production's lhs and r1
+# are declared once, as the lang el that ends up with it, and the kept
+# action sets the redef's A and reads its own r1.
+
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def d
+	A: int
+	T: str
+	[id]
+	{
+		lhs.A = 1
+		lhs.T = $r1
+	}
+
+redef d
+	A: int
+	T: str
+	[id id]
+	{
+		lhs.A = 2
+		lhs.T = $r1 + $r2
+	}
+|	[...]
+
+D: d = parse d[ "x y" ]
+print( "D.A=", D.A, " D.T=", D.T, "\n" )
+E: d = parse d[ "x" ]
+print( "E.A=", E.A, " E.T=", E.T, "\n" )
+##### EXP #####
+D.A=2 D.T=xy
+E.A=1 E.T=x

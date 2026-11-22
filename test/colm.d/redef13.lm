@@ -1,0 +1,37 @@
+# A redef that declares the def's attribute with another struct type. An
+# action of a production it keeps with [...] that sets the attribute to a
+# struct of the def's type is refused when it compiles. It was compiled
+# against the def's old attribute, so a p came out of the attribute as a q.
+
+struct q
+	M: int
+end
+
+struct p
+	N: int
+	V: q
+end
+
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def d
+	A: p
+	[id]
+	{
+		P: p = new p()
+		P->N = 7
+		lhs.A = P
+	}
+
+redef d
+	A: q
+	[...]
+
+D: d = parse d[ "x" ]
+Q: q = D.A
+print( "Q->M is [Q->M]\n" )
+##### COMP_ERR #####
+26:7: type mismatch in assignment

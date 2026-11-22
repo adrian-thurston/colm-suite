@@ -1,0 +1,25 @@
+# A redef replaces the def's attributes. An action of a production it keeps
+# with [...] that sets an attribute the redef doesn't declare is refused when
+# it compiles. It was compiled against the def's old attributes, and wrote
+# past the end of the tree's, which segfaulted.
+
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def d
+	A: int
+	[id]
+	{
+		lhs.A = 1
+	}
+
+redef d
+	[id id]
+|	[...]
+
+D: d = parse d[ "x" ]
+print( "D=", D, "\n" )
+##### COMP_ERR #####
+15:7: cannot find name A in object

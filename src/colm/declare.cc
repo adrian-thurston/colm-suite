@@ -472,6 +472,9 @@ void Namespace::declare( Compiler *pd )
 		}
 	}
 
+	/* The lang els of the defs and redefs here, in their order. */
+	Vector<LangEl*> declared;
+
 	for ( NtDefList::Iter n = ntDefList; n.lte(); n++ ) {
 		/* Get the language element. */
 		if ( n->isRedef ) {
@@ -525,15 +528,23 @@ void Namespace::declare( Compiler *pd )
 			n->contextIn->isContext = true;
 		langEl->prodList.transfer( *n->prodList );
 
-		for ( LelProdList::Iter d = langEl->prodList; d.lte(); d++ ) {
+		for ( LelProdList::Iter d = langEl->prodList; d.lte(); d++ )
 			d->prodName = langEl;
 
+		declared.append( langEl );
+	}
+
+	/* A production's action gets lhs and r1 to rN once, typed as the lang el
+	 * that ends up with the production. A redef takes the def's productions
+	 * with [...] into a lang el of its own, with the redef's attributes, so
+	 * this waits until every redef here has run. A def's lang el that a redef
+	 * took the productions from has none left. */
+	for ( Vector<LangEl*>::Iter l = declared; l.lte(); l++ ) {
+		for ( LelProdList::Iter d = (*l)->prodList; d.lte(); d++ ) {
 			if ( d->redBlock != 0 ) {
-				pd->addProdRedObjectVar( d->redBlock->localFrame, langEl );
+				pd->addProdRedObjectVar( d->redBlock->localFrame, *l );
 				pd->addProdRHSVars( d->redBlock->localFrame, d->prodElList );
 			}
-
-			/* References to the reduce item. */
 		}
 	}
 

@@ -1,0 +1,11 @@
+# A weak<node> takes a node or nil, and no other struct.
+struct node
+	N: int
+end
+struct other
+	N: int
+end
+O: other = new other()
+W: weak<node> = O
+##### COMP_ERR #####
+9:1: type mismatch in assignment

@@ -642,6 +642,16 @@ EXTRA_DIST = \
 	utf8.lm \
 	void1.lm \
 	vpop1.lm \
+	weak1.lm \
+	weak2.lm \
+	weak3.lm \
+	weak4.lm \
+	weak5.lm \
+	weak6.lm \
+	weak7.lm \
+	weak8.lm \
+	weak9.lm \
+	weak10.lm \
 	while1.lm \
 	xmlac.lm \
 	yield1.lm \

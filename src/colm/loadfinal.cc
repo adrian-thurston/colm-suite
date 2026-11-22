@@ -973,6 +973,11 @@ struct LoadColm
 		case type_ref::Map: {
 			tr = walkValueMap( typeRef );
 			break;
+		}
+		case type_ref::Weak: {
+			TypeRef *target = walkTypeRef( typeRef._type_ref() );
+			tr = TypeRef::cons( typeRef.loc(), TypeRef::Weak, target );
+			break;
 		}}
 		return tr;
 	}

@@ -44,6 +44,9 @@ ObjectDef *UniqueType::objectDef()
 	else if ( typeId == TYPE_GENERIC ) {
 		return generic->objDef;
 	}
+	else if ( typeId == TYPE_WEAK ) {
+		return target->objectDef();
+	}
 
 	/* This should have generated a compiler error. */
 	assert( false );
@@ -113,6 +116,9 @@ VarRefLookup LangVarRef::lookupQualification( Compiler *pd, NameScope *rootScope
 		/* If we are dealing with an iterator then dereference it. */
 		if ( qualUT->typeId == TYPE_ITER )
 			qualUT = el->typeRef->searchUniqueType;
+
+		/* A weak reference is read as its target. */
+		qualUT = qualUT->readType();
 
 		/* Is it const? */
 		if ( firstConstPart < 0 && el->isConst )

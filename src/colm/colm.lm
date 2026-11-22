@@ -34,6 +34,7 @@ lex
 	token PTR / 'ptr' /
 	token ITER / 'iter' /
 	token REF / 'ref' /
+	token WEAK / 'weak' /
 	token EXPORT / 'export' /
 	token RETURN / 'return' /
 	token BREAK / 'break' /
@@ -673,6 +674,7 @@ def type_ref
 |	[PARSER LT type_ref GT] :Parser
 |	[LIST LT type_ref GT] :List
 |	[MAP LT KeyType: type_ref COMMA ValType: type_ref GT] :Map
+|	[WEAK LT type_ref GT] :Weak
 
 def region_qual
 	[region_qual id DOUBLE_COLON] :Qual

@@ -1,0 +1,7 @@
+# A host function can't return a weak reference: the host gives C values.
+struct node
+	N: int
+end
+weak<node> f( S: str ) = c_f
+##### COMP_ERR #####
+5:1: a host function can't return a weak reference

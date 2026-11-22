@@ -1,0 +1,7 @@
+# weak takes a struct type, which a weak reference is not.
+struct node
+	N: int
+end
+W: weak<weak<node>>
+##### COMP_ERR #####
+5:4: weak takes a struct type

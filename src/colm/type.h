@@ -36,7 +36,8 @@ enum TYPE
 	TYPE_BOOL        = 0x08,
 	TYPE_LIST_PTRS   = 0x09,
 	TYPE_MAP_PTRS    = 0x0a,
-	TYPE_VOID        = 0x0b
+	TYPE_VOID        = 0x0b,
+	TYPE_WEAK        = 0x0c
 };
 
 #endif /* _COLM_TYPE_H */

@@ -7,11 +7,14 @@
 # is in a function the iterator calls, which has a local of its own, F. In
 # local, the call is an operand of a +. In ref, it is a statement, given
 # P.item. In tree, rtree and uloop, it is inside a loop over a tree, over the
-# reverse of a tree's children, and over another user iterator. Before, the
-# teardown stopped at the call, and the locals of that function and of its
-# loops were lost. In temp, the call is the right operand of a +, and the
-# left operand, "s", is a tree the expression holds under the call. Nothing
-# records it, so it is still lost, as the LOST section lists; F isn't.
+# reverse of a tree's children, and over another user iterator. In args, it
+# is in the arguments of a nested loop's iterator, inside a loop over a tree.
+# The nested loop's iterator doesn't exist yet, so the loop over the tree is
+# the one ended. Before, the teardown stopped at the call, and the locals of
+# that function and of its loops were lost. In temp, the call is the right
+# operand of a +, and the left operand, "s", is a tree the expression holds
+# under the call. Nothing records it, so it is still lost, as the LOST
+# section lists; F isn't.
 lex
 	token id /[a-z]+/
 	ignore /[ \n]+/
@@ -24,6 +27,12 @@ def pair
 	[item item]
 
 iter j()
+{
+	J: str = "j"
+	yield J
+}
+
+iter ja( N: int )
 {
 	J: str = "j"
 	yield J
@@ -101,6 +110,18 @@ int fuloop()
 	return 1
 }
 
+int fargs()
+{
+	F: str = "f"
+	P: pair = parse pair[ "a b" ]
+	for I: item in P {
+		for U: str in ja( 1 + g() ) {
+			print( "never\n" )
+		}
+	}
+	return 1
+}
+
 iter i( Where: str )
 {
 	S: str = "s"
@@ -114,6 +135,8 @@ iter i( Where: str )
 		frtree()
 	if Where == "uloop"
 		fuloop()
+	if Where == "args"
+		fargs()
 	if Where == "temp"
 		ftemp()
 }
@@ -150,6 +173,12 @@ done
 ##### LOST #####
 ##### ARGS #####
 uloop
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+args
 ##### EXP #####
 l
 done

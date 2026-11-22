@@ -178,8 +178,12 @@ go of or overwrites.
   `FN_LOAD_ARGV` and `FN_INIT_STDS`, released when the global is freed.
   `stds`'s element holds `stdout`, counted in `construct_stds()`.
 - **A parser's `input`**: counted in `colm_construct_generic()` and
-  `colm_construct_reducer()` (`struct.c`), released when the parser is
-  freed.
+  `colm_construct_reducer()` (`struct.c`), and in `IN_SET_PARSER_INPUT`
+  (`bytecode.c`), which releases the input it replaces, and released when
+  the parser is freed. `IN_SET_PARSER_INPUT` runs for each parse given an
+  `_input`, right after the parser is made with an input of its own: a
+  token action's `parse_stop H: hash(input)[]` gives the new parser the
+  input of the parser the action belongs to, which both then hold.
 - **A parser's context**, `pda_run->context`: counted in
   `colm_parser_set_context()` (`bytecode.c`), which releases the context
   it replaces, and released when the parser is freed.
@@ -374,6 +378,9 @@ Validation, with `COLM_LEAK_CHECK` and `--valgrind` clean:
 - A struct in a tree's attribute lives as long as a copy of the tree does.
 - A map's struct key is released with its element, and a parser's context
   and input with the parser.
+- A parse given an input, as a token action's `parse_stop H: hash(input)[]`
+  is, frees the input it was made with, and leaves the input it was given
+  with the parser that holds it.
 - A host that counts a reference to the program's global before
   `colm_delete_program()` gets `warning: lost structs: N`, N the structs
   the global leads to.

@@ -307,10 +307,13 @@ could be changed through another reference while a parser can back up. Colm
 stops with the error
 `only a new object, nil or what C holds can go into C as it is set up`.
 An `int` or a `str` can come from anywhere, and so can a tree, which is copied
-when it is written. But a copy of a tree shares the list, map, struct or
-parser that an attribute of it, or of a tree below it, holds, and colm doesn't
-yet check a change made through such a copy. So don't put a tree with such an
-attribute into a context object, or take one out, while a parser can back up.
+when it is written. But a copy of a tree shares the list, map, struct, parser
+or stream that an attribute of it, or of a tree below it, holds. So a tree of
+a type that can hold one there gets into a context object only through its
+parse's actions. As the object is set up, only `nil` or what the object holds
+goes in, not even a tree that `cons` or `parse` makes, since what makes it can
+give it a list held elsewhere. Colm stops with the error
+`only nil or what C holds can go into C as it is set up: a T can hold a list, map, parser, stream or struct`.
 
 Outside its parse's actions, the program reads a context object's variables,
 and the lists, maps, structs and parsers they hold in place, through `+->+`,
@@ -320,6 +323,9 @@ take such a list, map, struct or parser out, where it could be changed: put it
 into a variable, pass it to a function, return it, or test it, or take one out
 of what a call gives, such as the struct `find` gives from a map of structs.
 Colm stops with the error `cannot take L out of C, a context object`.
+A tree of a type that can hold one of these counts as one too. The program
+reads its attributes in place, as `+C->T.L->length+` does, and using the tree
+itself as a value, even to print or match it, takes it out.
 While a `for` loop is over such a list or map, a send that makes the
 parser's actions change it, or makes the parser back up over a change to
 it, stops the program, as

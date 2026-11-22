@@ -1,7 +1,7 @@
 # Changing a context object from outside its parse: requirements
 
-For [#706]. This says what must hold of a context object while a parser it
-was given can back up, and what colm checks. The
+For [#706], [#720] and [#729]. This says what must hold of a context object
+while a parser it was given can back up, and what colm checks. The
 [design](context-change-design.md) says how the compiler checks it.
 
 ## Terms
@@ -46,12 +46,24 @@ was given can back up, and what colm checks. The
    It reads the lists, maps, structs and parsers the object holds in place:
    it can't take one out, where it could be changed through another
    reference. What goes into the object as it is set up is new, `nil`, or
-   something the object holds already, so nothing outside holds it. Trees
-   are values, copied on write, and are free to come and go, except that a
-   copy of a tree shares the list, map, parser, stream or struct that an
-   attribute of it, or of a tree below it, holds. A change made through such
-   a copy isn't checked yet (out of scope, below).
-7. Each refusal is a compile error at the reference it is about, saying what
+   something the object holds already, so nothing outside holds it.
+7. A copy of a tree shares the list, map, parser, stream or struct that an
+   attribute of it, or of a tree below it, holds, so a tree whose type can
+   hold one there counts as one too ([#720]). Outside code reads its
+   attributes in place, and any use of the tree itself as a value, printing
+   and matching it included, takes it out. The object gets such a tree only
+   from its parse's actions: as it is set up, only `nil` or what the object
+   holds goes in, since a `cons` or a `parse` can put into the tree what is
+   held elsewhere. Other trees are values, copied on write, and are free to
+   come and go.
+8. A tree goes into a parse as itself, not as a copy, when it is sent with
+   `send_tree`, is an item of a `parse_tree`, or is pushed onto a parser's
+   input. A tree whose type can hold one of those values doesn't go in so
+   ([#729]): the parse's trees would share what its attributes hold with the
+   program, which could change it while the parser can back up. It goes as
+   its text. A token action pushes such a tree onto its own parser's input,
+   which is the parse's own data.
+9. Each refusal is a compile error at the reference it is about, saying what
    can't be done.
 
 ## Out of scope
@@ -65,13 +77,16 @@ was given can back up, and what colm checks. The
   parser runs, so that such a parser keeps the data it changes in a context.
   Its [requirements](global-change-requirements.md) cover [#683] and [#687],
   and [#368] met through a global accum parser.
-- Trees whose attributes, or those of trees below them, hold a list, map,
-  parser, stream or struct ([#720]): a copy taken out of a context object,
-  or a tree the program put in and kept, shares what the attribute holds,
-  so the program can change the context's data through it.
+- A tree that the program reads with `P->tree`, or gets from `finish()`,
+  once the parser's input has ended: it shares what the parse's actions put
+  into its attributes, and a send after the end makes the parser back up
+  over them ([#439]).
+- A cast to a tree type that can't hold a list, map, parser, stream or
+  struct hides one from requirements 7 and 8, which go by type.
 - Host programs: exports give a host trees, never structs.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
+[#439]: https://github.com/adrian-thurston/colm-suite/issues/439
 [#683]: https://github.com/adrian-thurston/colm-suite/issues/683
 [#687]: https://github.com/adrian-thurston/colm-suite/issues/687
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706
@@ -79,3 +94,4 @@ was given can back up, and what colm checks. The
 [#714]: https://github.com/adrian-thurston/colm-suite/issues/714
 [#718]: https://github.com/adrian-thurston/colm-suite/issues/718
 [#720]: https://github.com/adrian-thurston/colm-suite/issues/720
+[#729]: https://github.com/adrian-thurston/colm-suite/issues/729

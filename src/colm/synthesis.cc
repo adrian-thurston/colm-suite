@@ -601,15 +601,6 @@ static bool ctxHeldRef( UniqueType *ut )
 	return false;
 }
 
-/* A for loop reads what it goes over in place if it is named, and the loop's
- * values aren't what could be changed. */
-static bool forInPlace( UniqueType *searchUT, CallArgVect *args )
-{
-	return !ctxHeldRef( searchUT ) && args != 0 && args->length() == 1 &&
-			args->data[0]->expr->type == LangExpr::TermType &&
-			args->data[0]->expr->term->type == LangTerm::VarRefType;
-}
-
 /* A tree type that refTrees has, as far as it is found. Any can be any tree. */
 static bool refTreeSoFar( Compiler *pd, LangEl *lel )
 {
@@ -669,15 +660,46 @@ bool Compiler::treeHoldsRef( LangEl *lel )
 	return refTreeSoFar( this, lel );
 }
 
-/* What code holding it could change, and a global can hold: as for a context
- * object, and a tree whose attributes, or a tree's below it, can hold such a
- * value, since a copy of the tree shares it. */
-static bool globalHeldRef( Compiler *pd, UniqueType *ut )
+/* A tree whose attributes, or a tree's below it, can hold what ctxHeldRef()
+ * counts: a copy of the tree shares it. */
+static bool sharesRef( Compiler *pd, UniqueType *ut )
 {
-	if ( ctxHeldRef( ut ) )
-		return true;
 	return ( ut->typeId == TYPE_TREE || ut->typeId == TYPE_REF ) &&
 			ut->langEl != 0 && pd->treeHoldsRef( ut->langEl );
+}
+
+/* What code holding it could change, and a context object or a global can
+ * hold: what ctxHeldRef() counts, and a tree that shares such a value. */
+static bool heldRef( Compiler *pd, UniqueType *ut )
+{
+	return ctxHeldRef( ut ) || sharesRef( pd, ut );
+}
+
+/* A for loop reads what it goes over in place if it is named, and the loop's
+ * values aren't what could be changed. */
+static bool forInPlace( Compiler *pd, UniqueType *searchUT, CallArgVect *args )
+{
+	return !heldRef( pd, searchUT ) && args != 0 && args->length() == 1 &&
+			args->data[0]->expr->type == LangExpr::TermType &&
+			args->data[0]->expr->term->type == LangTerm::VarRefType;
+}
+
+/* A tree goes into a parse as itself, not as a copy, when it is sent with
+ * send_tree, parsed with parse_tree or pushed onto a parser's input. One that
+ * shares what its attributes hold would let the program change what the
+ * parser's actions change while the parser can back up over them. */
+static void checkTreeIntoParse( Compiler *pd, LangExpr *expr, UniqueType *ut,
+		const char *what, const char *where, const char *instead )
+{
+	if ( !sharesRef( pd, ut ) )
+		return;
+
+	/* An expression that is a single term has its location in the term. */
+	const InputLoc &loc = expr->type == LangExpr::TermType ?
+			expr->term->loc : expr->loc;
+	error( loc ) << "cannot " << what << " a " << ut->langEl->xmlTag <<
+			", which can hold a list, map, parser, stream or struct" << where <<
+			": " << instead << endp;
 }
 
 /* Outside its parse's actions, a context object is changed only while it is
@@ -704,11 +726,12 @@ void LangVarRef::checkContextChange( Compiler *pd, const VarRefLookup &lookup ) 
 
 /* Outside its parse's actions, what a context object holds that could be
  * changed is read in place, never taken out, unless inPlace says the use is
- * one of the few that read it there. */
+ * one of the few that read it there. A tree that shares such a value is
+ * taken out by any use of it as a value. */
 void LangVarRef::checkContextValue( Compiler *pd, const VarRefLookup &lookup,
 		UniqueType *ut, bool inPlace ) const
 {
-	if ( lookup.firstCtxPart < 0 || !ctxHeldRef( ut ) || inPlace )
+	if ( lookup.firstCtxPart < 0 || !heldRef( pd, ut ) || inPlace )
 		return;
 
 	std::ostream &out = error(loc) << "cannot take ";
@@ -771,7 +794,9 @@ ObjectField *LangVarRef::setupVar( Compiler *pd, const VarRefLookup &lookup ) co
 
 /* What a change puts into an object being set up, through var: a new object,
  * nil, or something read out of the object, through var. Anything else
- * could be held elsewhere too, and changed from there. */
+ * could be held elsewhere too, and changed from there. A tree that shares
+ * such a value is never new: a cons or a parse can put into it what is held
+ * elsewhere. So the object gets one from its parse's actions. */
 static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *expr )
 {
 	ObjectField *var = pd->setupStoreVar;
@@ -794,6 +819,13 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 	pd->ctxValueInPlace = through;
 	UniqueType *ut = expr->evaluate( pd, code );
 	pd->ctxValueInPlace = false;
+
+	if ( sharesRef( pd, ut ) && !fresh && !through ) {
+		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
+		error(loc) << "only nil or what " << var->name << " holds can go into " <<
+				var->name << " as it is set up: a " << ut->langEl->xmlTag <<
+				" can hold a list, map, parser, stream or struct" << endp;
+	}
 
 	if ( ctxHeldRef( ut ) && !fresh && !through ) {
 		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
@@ -1091,7 +1123,7 @@ UniqueType *LangVarRef::evaluate( Compiler *pd, CodeVect &code, bool forWriting 
 
 	checkContextValue( pd, lookup, ut, inPlace );
 
-	if ( !inPlace && pd->revertOn && globalHeldRef( pd, ut ) )
+	if ( !inPlace && pd->revertOn && heldRef( pd, ut ) )
 		noteGlobalUse( pd, GlobalUse::Take, qual->length() > 0 ? name : String() );
 
 	/* Used as a value, the variable gives its object away: the setup ends. */
@@ -1228,7 +1260,7 @@ IterImpl *LangVarRef::chooseTriterCall( Compiler *pd,
 		 * that a context object holds reads it in place. */
 		CodeVect unused;
 		CallArgVect::Iter pe = *args;
-		pd->ctxValueInPlace = forInPlace( searchUT, args );
+		pd->ctxValueInPlace = forInPlace( pd, searchUT, args );
 		UniqueType *exprUT = (*pe)->expr->evaluate( pd, unused );
 		pd->ctxValueInPlace = false;
 
@@ -1406,6 +1438,16 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 		else {
 			UniqueType *exprUT = evaluateSetupValue( pd, code, expression );
 			// pd->unwindCode.remove( 0, 1 );
+
+			/* A token action pushes onto its own parser's input, through
+			 * input. Other code pushes onto an input that P->gets() gave. */
+			if ( ( lookup.objMethod->opcodeWV == IN_INPUT_PUSH_WV ||
+					lookup.objMethod->opcodeWV == IN_INPUT_PUSH_IGNORE_WV ) &&
+					!isInbuiltObject() )
+			{
+				checkTreeIntoParse( pd, expression, exprUT, "push",
+						", outside a token action", "push its text" );
+			}
 
 			if ( !castAssignment( pd, code, paramUT, 0, exprUT ) )
 				error(loc) << "arg " << pe.pos()+1 << " is of the wrong type" << endp;
@@ -1610,7 +1652,7 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	if ( qual->length() > 0 ) {
 		if ( change )
 			noteGlobalUse( pd, GlobalUse::Change, String() );
-		if ( pd->revertOn && globalHeldRef( pd, lookup.uniqueType ) )
+		if ( pd->revertOn && heldRef( pd, lookup.uniqueType ) )
 			noteGlobalUse( pd, GlobalUse::Take, "what " + name + " gives" );
 	}
 
@@ -2255,6 +2297,10 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 
 				checkSendItem( pd, item, ut, true, "only a tree, str, int, bool "
 						"or stream can be sent to a parser" );
+				if ( tree ) {
+					checkTreeIntoParse( pd, item->expr, ut, "parse_tree", "",
+							"parse its text" );
+				}
 
 				if ( ut->typeId == TYPE_INT || ut->typeId == TYPE_BOOL )
 					code.append( IN_INT_TO_STR );
@@ -2450,6 +2496,10 @@ void LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) 
 
 				checkSendItem( pd, item, ut, true, "only a tree, str, int, bool "
 						"or stream can be sent to a parser" );
+				if ( !strings ) {
+					checkTreeIntoParse( pd, item->expr, ut, "send_tree", "",
+							"send its text" );
+				}
 
 				if ( ut == pd->uniqueTypeStream )
 					isStream = true;
@@ -3312,16 +3362,7 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	/* A loop over the values of a list or a map that a context object holds
 	 * reads it in place. */
 	bool inPlace = iterImpl->useGenericId &&
-			forInPlace( searchUT, iterCall->langTerm->args );
-
-	/* In a loop over a global's list or map, values that are trees whose
-	 * attributes can hold a list, map or struct are copies that share them:
-	 * a take. */
-	if ( inPlace && pd->revertOn && globalHeldRef( pd, searchUT ) ) {
-		LangVarRef *over = iterCall->langTerm->args->data[0]->expr->term->varRef;
-		over->noteGlobalUse( pd, GlobalUse::Take,
-				over->qual->length() > 0 ? over->name : String() );
-	}
+			forInPlace( pd, searchUT, iterCall->langTerm->args );
 
 	/* A user iterator is other code. */
 	if ( func != 0 )

@@ -1,0 +1,84 @@
+#
+# What stays of a context object's tree whose attribute holds a list. The
+# object gets the tree from its parse's actions, never from the program, and
+# the program reads the tree's attributes in place, between two sends and
+# after the parse: the list's length, a loop over its values, and an int
+# attribute. When the parser backs up over the item actions, the pushes they
+# made come off, and the length goes back. "keep" ends the input with "^",
+# which keeps the reductions of item, "back" without, which backs up over
+# them.
+#
+
+lex
+	literal `h
+end
+
+def holder
+	N: int
+	L: list<str>
+	[`h]
+
+global Run: str = argv->pop()
+
+context ctx
+	T: holder
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	# The object's tree, made in a reduction that backing up keeps.
+	def first
+		[`h]
+		{
+			T = cons holder [ "h" ]
+			T.L = new list<str>()
+		}
+
+	# A1 is tried first: the action runs, then the parser backs up to A2.
+	def item
+		[`*]
+		{
+			T.N = T.N + 1
+			T.L->push_tail( "x" )
+		}
+
+	def start
+		[first A1 item* `; `^ NL]
+	|	[first A2 `* `; NL]
+end
+
+C: ctx = new ctx()
+C->T = nil
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "h * ;"
+print( "between: N ", C->T.N, ", length ", C->T.L->length, "\n" )
+for S: str in C->T.L
+	print( "value ", S, "\n" )
+if Run == 'keep'
+	send P " ^\n"
+else
+	send P "\n"
+print( P->finish(), "\n" )
+print( "after: N ", C->T.N, ", length ", C->T.L->length, "\n" )
+##### ARGS #####
+keep
+##### EXP #####
+between: N 1, length 1
+value x
+h * ; ^
+
+after: N 1, length 1
+##### ARGS #####
+back
+##### EXP #####
+between: N 1, length 1
+value x
+h * ;
+
+after: N 0, length 0

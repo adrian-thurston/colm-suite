@@ -71,23 +71,32 @@ The error is at the context step:
 
 `LangVarRef::checkContextValue()` refuses a value reached through a context
 reference whose type is a list, a map, a parser, a stream, an input or a
-struct that isn't a context (`ctxHeldRef()`), whether it is a name's value
-(`evaluate()`) or a builtin call's result (`evaluateCall()`):
+struct that isn't a context (`ctxHeldRef()`), or a tree that shares one
+(`sharesRef()`), whether it is a name's value (`evaluate()`) or a builtin
+call's result (`evaluateCall()`):
 `cannot take L out of C, a context object`, or
-`cannot take what find gives out of C, a context object`.
+`cannot take what find gives out of C, a context object`. `heldRef()` counts
+both kinds. A tree shares one if `Compiler::treeHoldsRef()` finds its type:
+one with an attribute, or a tree below it with one, that can hold a list,
+map, parser, stream or struct. It finds them once, adding each def or token
+whose attributes or production children reach one until no more do, and
+`any` counts once any type does ([#714]'s check uses it too).
 
 `Compiler::ctxValueInPlace`, which `evaluate()` takes and clears as it
 starts, lets three through:
 
 - what a `for` loops over, named, when the loop variable's type isn't one of
-  those (`forInPlace()`, from `chooseTriterCall()` and `compileForIter()`);
+  those, a tree that shares one included (`forInPlace()`, from
+  `chooseTriterCall()` and `compileForIter()`);
 - the parser or stream a send goes to, which is checked as a change;
 - in a window, a value read through its variable that a change through the
   same variable puts into the object.
 
-Field reads (`C->L->length`, `C->P->tree`) and calls that give a value
-(`find` on a map of `str`) are as before. A context object itself is free to
-pass: every use of it is checked in turn.
+Field reads (`C->L->length`, `C->T.L->length`, `C->P->tree` of a tree that
+shares nothing) and calls that give a value (`find` on a map of `str`) are as
+before. Any other use of a tree that shares one, printing it or matching it
+included, takes it out. A context object itself is free to pass: every use of
+it is checked in turn.
 
 ## What goes in at setup
 
@@ -98,6 +107,33 @@ in `evaluateCall()`, checked in `evaluateArgs()`). A list, map, parser,
 stream, input or non-context struct must be a `new` term, `nil`, or a name
 read through the same variable:
 `only a new object, nil or what C holds can go into C as it is set up`.
+A tree that shares one must be `nil` or a name read through the variable: a
+`cons`, a `parse`, `make_token` or `make_tree` can put into it what is held
+elsewhere, as a reduction action's `lhs.L = GL` does. The error names the
+tree's type:
+`only nil or what C holds can go into C as it is set up: a T can hold a list, map, parser, stream or struct`.
+
+## Trees into a parse
+
+A tree that is sent with `send_tree`, is an item of a `parse_tree`, or is
+pushed onto a parser's input goes into the parse as itself. A tree that
+shares a list, map, parser, stream or struct is refused there
+(`checkTreeIntoParse()`), wherever the code is, and whether the parser can
+back up or not:
+
+- a `send_tree` item: `LangTerm::evaluateSendParser()`, when it isn't
+  sending strings;
+- a `parse_tree` item: `LangTerm::evaluateParse()`, when `tree` is set;
+- a `push` or a `push_ignore` onto an input (`IN_INPUT_PUSH_WV`,
+  `IN_INPUT_PUSH_IGNORE_WV`), in `evaluateArgs()`, unless it is made
+  through `input`, the inbuilt object a token action pushes onto its own
+  parser's input with (`isInbuiltObject()`).
+
+The errors:
+`cannot send_tree a T, which can hold a list, map, parser, stream or struct: send its text`,
+`cannot parse_tree a T, which can hold a list, map, parser, stream or struct: parse its text`
+and
+`cannot push a T, which can hold a list, map, parser, stream or struct, outside a token action: push its text`.
 
 ## Choices
 
@@ -112,6 +148,19 @@ read through the same variable:
   doesn't compile anyway), and a send to a held stream is a change, though
   streams aren't undone.
 - Not taken: a read-only type qualifier, exact about aliases and far larger.
+- For trees, only the types that can hold a list, map, parser, stream or
+  struct, not every tree: the maintainer's answer. Every tree but `str`
+  would have refused twenty programs in `test/colm.d` that set a context's
+  tree up or print one after the parse.
+- Such a tree goes into a context object only in its parse's actions: the
+  maintainer's note on #717, "we don't need to allow trees in and out of a
+  context". Printing and matching it take it out, as they do a global's
+  ([#714]).
+- A tree into a parse is refused wherever it is, not just where the parser
+  is restartable: a `send_tree` always goes to a `new parser`, and nothing in
+  the tree sends or parses such a tree. A token action's pushes onto `input`
+  stay: the C++ grammar's lookup pushes what `make_tree` makes, an `any`,
+  which counts once the grammar's `lang_object` attributes do.
 
 ## Limits
 
@@ -123,11 +172,14 @@ read through the same variable:
   In what a restartable parser runs, the companion rule, [#714], refuses
   both: putting it into a global changes the global, and taking it out of
   one is a take ([design](global-change-design.md)).
-- Trees go into and out of a context object freely, as values, but a copy
-  of a tree shares the list, map, parser, stream or struct that an attribute
-  of it, or of a tree below it, holds. So the program can change the
-  context's data through a tree it took out or put in and kept, and no
-  check sees it ([#720]).
+- A tree that the program reads with `P->tree`, or gets from `finish()`,
+  once the parser's input has ended, shares what the parse's actions put
+  into its attributes. A send after the end makes the parser back up over
+  them ([#439]).
+- The checks go by type: a cast to a tree type that can't hold a list, map,
+  parser, stream or struct hides one.
+- A function that a token action gives `input` to pushes onto an input that
+  isn't `input`, and is refused a tree that shares one.
 
 ## Tests
 
@@ -141,9 +193,24 @@ parser's statement, a function the object goes through into one, a while
 loop's condition, and a yield. Most include `ctxrule.lmi`, a context to
 change.
 
+For trees that share a list: `ctxtake9` is [#720]'s program, and
+`ctxtake10`–`ctxtake15` take one out after the parse's action made it, loop
+over a list of them, take what `find` gives, put in one whose child holds
+the list, put in one a `parse` made, and print one. `treesend1`–`treesend4`
+are [#729]'s program, through a global, as a `parse_tree` item, and pushed
+onto the input `P->gets()` gives. `ctxset2` runs what stays: reads of such a
+tree's attributes in place, between two sends and after the parse, as the
+parser keeps or backs up over its actions. `treesend5` runs a `send_tree`, a
+`parse_tree` and a push of a tree that shares nothing, a holder sent as its
+text, and a token action's push onto `input`, in a program that has such a
+tree type. `attrval1`'s context holds a tree of a type with no list or
+struct, which it can set up with a `cons`.
+
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
+[#439]: https://github.com/adrian-thurston/colm-suite/issues/439
 [#550]: https://github.com/adrian-thurston/colm-suite/issues/550
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706
 [#714]: https://github.com/adrian-thurston/colm-suite/issues/714
 [#718]: https://github.com/adrian-thurston/colm-suite/issues/718
 [#720]: https://github.com/adrian-thurston/colm-suite/issues/720
+[#729]: https://github.com/adrian-thurston/colm-suite/issues/729

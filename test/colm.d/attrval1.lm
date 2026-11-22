@@ -4,7 +4,9 @@
 # global's tree in a function the action calls, stays when the parse keeps
 # the reduction of item. When the parser backs up over the action, the old
 # values come back. "keep" ends the input with ";", "back" with "!". On main
-# each set stopped the program with IN_HALT (#537).
+# each set stopped the program with IN_HALT (#537). The context's tree is a
+# counter, which holds no list or struct: one that can goes into a context
+# only in its parse's actions (#720).
 #
 
 lex
@@ -26,6 +28,10 @@ def holder
 	M: int
 	[id]
 
+def counter
+	N: int
+	[id]
+
 global G: holder = cons holder [ "g" ]
 global Run: str = argv->pop()
 
@@ -35,7 +41,7 @@ void setm( V: int )
 }
 
 context ctx
-	C: holder
+	C: counter
 
 	def item
 		[id num]
@@ -56,7 +62,7 @@ context ctx
 end
 
 Ctx: ctx = new ctx()
-Ctx->C = cons holder [ "c" ]
+Ctx->C = cons counter [ "c" ]
 
 In: str = "y 3 u ;"
 if Run == 'back'

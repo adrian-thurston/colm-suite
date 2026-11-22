@@ -1,0 +1,95 @@
+# A parse that an action starts is held for by the parser at the bottom of
+# the action's chain, here the outer parse. Other parses in that chain can be
+# given the same object, since the outer parse backs up over their actions
+# last first, and once the outer parse has ended outside any action the
+# object is free. Each run parses one sub-context object from the outer
+# parse's actions: for each item (each), after the outer parse has ended
+# (after), and in an action the outer parse backs up over and then in
+# another (backtrack), whose undo takes the first inner parse back.
+context inner
+	N: int
+
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+
+	def start
+		[id]
+		{
+			N = N + 1
+		}
+end
+
+context outer
+	Sub: inner
+
+	lex
+		token word /[a-z]+/
+		literal `; `!
+		ignore /space+/
+	end
+
+	def item
+		[word]
+		{
+			parse X: inner::start( Sub )[ $r1 ]
+		}
+
+	def items
+		[item*]
+
+	def item1
+		[word]
+		{
+			parse X: inner::start( Sub )[ "one" ]
+		}
+
+	def item2
+		[word]
+		{
+			parse X: inner::start( Sub )[ "two" ]
+		}
+
+	def choice
+		[item1 word `;]
+	|	[item2 word `!]
+end
+
+A: str = argv->pop()
+C: outer = new outer()
+C->Sub = new inner()
+
+if ( A == "each" ) {
+	parse P: outer::items( C )[ "a b c" ]
+	print( P, ": N ", C->Sub->N, "\n" )
+}
+elsif ( A == "after" ) {
+	parse P: outer::items( C )[ "a" ]
+	print( P, ": N ", C->Sub->N, "\n" )
+	parse Y: inner::start( C->Sub )[ "z" ]
+	print( Y, ": N ", C->Sub->N, "\n" )
+}
+elsif ( A == "backtrack" ) {
+	parse P: outer::choice( C )[ "a b !" ]
+	print( P, ": N ", C->Sub->N, "\n" )
+}
+##### ARGS #####
+each
+##### EXP #####
+a b c: N 3
+##### EXIT #####
+0
+##### ARGS #####
+after
+##### EXP #####
+a: N 1
+z: N 2
+##### EXIT #####
+0
+##### ARGS #####
+backtrack
+##### EXP #####
+a b !: N 1
+##### EXIT #####
+0

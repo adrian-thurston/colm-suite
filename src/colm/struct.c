@@ -120,6 +120,11 @@ parser_t *colm_parser_new( program_t *prg, struct generic_info *gi, int stop_id,
 	parser->destructor = &colm_parser_destroy;
 	parser->pda_run = pda_run;
 
+	/* Until IN_SET_PARSER_OWNER says otherwise, a parser holds what it and
+	 * its actions' parses are given for itself, to the end of the program. */
+	pda_run->hold_owner = parser;
+	pda_run->holding = 1;
+
 	return parser;
 }
 

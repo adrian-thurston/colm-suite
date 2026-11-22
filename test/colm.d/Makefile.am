@@ -105,6 +105,9 @@ EXTRA_DIST = \
 	ctxhold4.lm \
 	ctxhold5.lm \
 	ctxhold6.lm \
+	ctxhold7.lm \
+	ctxhold8.lm \
+	ctxhold9.lm \
 	ctxholdmsg1.lm \
 	ctxset1.lm \
 	ctxtake1.lm \

@@ -332,23 +332,30 @@ A context object is given to one parser at a time. Two parsers given one
 object would change it under each other, and backing up over an action of
 either would then work on data that isn't as the action left it. So a parser
 holds the object it is given: a parser made with `new` until the program ends,
-and a `parse` until it ends. A parse that an action starts holds it for good,
-since backing up over the action backs the parse up too. Giving the object to
-another parser while one holds it stops the program, as
+and a `parse` outside any action until it ends. Giving the object to another
+parser while one holds it stops the program, as
 xref:8_04_error_handling.adoc#run-time-errors[errors at run time] do, with the
 message `giving a parser a context that another parser holds`. A parser made
 with `new` holds its object even once it is finished: text sent to it after
 its end makes it parse again, and back up.
 
-One parse can share the object: a parse that an action starts, given the
-action's own context, `this`, with no item after the first that runs code, as
-in `+parse_stop T( this input )[]+`. It runs inside the action, and backing up
-over the action backs it up whole. Any other parser gets an object of its own,
-as a parser that the context holds does in
-`+C->Inner = new parser<ctx::inner>( new ctx() )+`, and so does a parser that an
-action makes with `new`. Two parses one after the other can still be given one
-object, as it is: the first lets it go when it ends, and the second sees what
-the first's actions left in it.
+A parse that an action starts runs inside the action, and backing up over the
+action backs it up whole. So what it is given is held for the parser the
+action belongs to, and every parse that parser's actions start, however deep,
+can be given the same object. That can be the action's own context, `this`, as
+in `+parse_stop T( this input )[]+`, or an object of another context that the
+context holds, given to a parse each time an action runs. The object is free
+for other parsers once the parse at the bottom, outside any action, has ended.
+A parser made with `new` at the bottom holds it until the program ends. A
+parse with an item after the first that runs code is the exception: it can
+back up between its items, while the action runs, so it holds what it is
+given for itself until it ends.
+
+Any other parser gets an object of its own, as a parser that the context holds
+does in `+C->Inner = new parser<ctx::inner>( new ctx() )+`, and so does a
+parser that an action makes with `new`. Two parses one after the other can
+still be given one object, as it is: the first lets it go when it ends, and
+the second sees what the first's actions left in it.
 
 [[restartable]]
 == Globals in a restartable parser

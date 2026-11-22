@@ -107,26 +107,39 @@ Two parsers given one object change it under each other ([#718]), and no
 check of the code can see which object a reference holds. So requirement 8
 is checked when the program runs:
 
-- A context object has one slot more than its fields, which is set while a
-  parser holds it. `makeRuntimeData()` (`pdabuild.cc`) adds the slot to the
-  size of a context in `sel_info`, and `context_hold()` (`bytecode.c`) finds
-  it, last.
-- `IN_SET_PARSER_CONTEXT` takes a byte, what the context is given to:
-  `CONTEXT_TO_NEW_PARSER` from `evaluateNew()`, `CONTEXT_TO_PARSE` from
-  `evaluateParse()`, or `CONTEXT_TO_RESTART_PARSE`, which `evaluateParse()`
-  writes over it where an item after the first runs other code, as it puts
-  the type in `restartTypes`.
-- When the slot is set, `IN_SET_PARSER_CONTEXT` stops the program:
-  `giving a parser a context that another parser holds`. Otherwise it sets
-  the slot. A `CONTEXT_TO_PARSE` in an action (`exec->parser`), given the
-  context of the parser the action belongs to, does neither: the parse runs
-  inside the action, and is backed up with it.
-- `IN_RELEASE_PARSER_CONTEXT`, after a parse's last fragment, clears the slot
-  when the parse ran outside any action (`exec->parser` is nil). In an
-  action, the parse keeps holding the object: backing up over the action can
-  back it up. A parser made with `new` holds its object to the end of the
-  program: text sent to it after its end parses again, and backs up
-  ([#439]).
+- A context object has one slot more than its fields, which names the
+  parser that holds it, or is nil. `makeRuntimeData()` (`pdabuild.cc`) adds
+  the slot to the size of a context in `sel_info`, and `context_hold()`
+  (`bytecode.c`) finds it, last.
+- A parser holds what it is given for its owner, the parser whose backing up
+  backs it up. `IN_SET_PARSER_OWNER`, right after a parser is made, takes a
+  byte saying which parser it is: `PARSER_NEW` from `evaluateNew()`,
+  `PARSER_PARSE` from `evaluateParse()`, or `PARSER_RESTART_PARSE`, which
+  `evaluateParse()` writes over it where an item after the first runs other
+  code, as it puts the type in `restartTypes`.
+  - A `PARSER_PARSE` in an action (`exec->parser`) runs inside the action,
+    and is backed up with it. It names the owner of the parser the action
+    belongs to, in `pda_run->hold_owner`.
+  - Every other parser is its own owner, and holds while
+    `pda_run->holding` is set. A parse with an item after the first that
+    runs code can back up between its items, while the action runs, so it
+    holds for itself.
+  - `parser_owner()` follows `hold_owner` to the parser that names itself.
+    `colm_parser_new()` makes a parser its own owner, holding, until
+    `IN_SET_PARSER_OWNER` runs, so a parser made another way holds to the
+    end of the program.
+- `IN_SET_PARSER_CONTEXT` stops the program, with
+  `giving a parser a context that another parser holds`, when the slot names
+  a parser whose owner isn't the given parser's and is holding. Otherwise
+  it names the given parser's owner in the slot. Parsers with one owner
+  share the object: the owner backs their actions up last first.
+- `IN_RELEASE_PARSER_CONTEXT`, after every parse's last fragment, ends the
+  hold of a parse that held for itself. Outside any action (`exec->parser`
+  is nil), it clears `holding`, and what the parse and its actions' parses
+  were given is free. In an action, backing up over the action can still
+  back the parse up, so it names the action's owner instead, which holds
+  what it held. A parser made with `new` holds to the end of the program:
+  text sent to it after its end parses again, and backs up ([#439]).
 
 Not taken:
 
@@ -140,6 +153,10 @@ Not taken:
 - The manual's old exceptions, a parser that a parse's actions send to, and
   any parse they start: the first crashes the same way (`ctxhold3`), and so
   does the second when an item of it after the first runs code (`ctxhold4`).
+- A parse in an action holding its object for good, and sharing only
+  `this`, as #750 first had it: it stopped programs that run correctly, an
+  action that parses an object of another context each time it runs, and a
+  parse of that object after the outer parse has ended (`ctxhold8`).
 
 This is the one check that runs with the program. The maintainer chose it
 for [#718] over the compile-time rule above, which refuses too much.
@@ -190,7 +207,14 @@ a parse an action starts with an item that pops the list, and in `ctxhold5`
 a parse between two sends, a parse in a function, a new parser given `this`,
 and a parse after a finished parser. `ctxholdmsg1` shows the message.
 `ctxhold6` runs what still shares: two parses one after the other, and a
-parse a token action starts, given `this`.
+parse a token action starts, given `this`. `ctxhold7` is a parse in a new
+parser's action, given a global, which holds it while the parser can back
+up. `ctxhold8` runs parses an outer parse's actions start, given one object
+of another context: for each item, after the outer parse has ended, and
+after backing up. `ctxhold9` stops a parse given an object that a new
+parser without a context holds for its action's parse, and one in an item
+of a parse that holds for itself, and runs the parses after that one has
+ended.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439

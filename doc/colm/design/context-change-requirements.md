@@ -58,10 +58,10 @@ was given can back up, and what colm checks. The
    tell which object a reference holds, so this is checked when the program
    runs. Giving a parser an object that another parser holds stops the
    program. A parser made with `new` holds its object to the end of the
-   program, and a parse to its end, or for good if an action starts it. A
-   parse that an action starts, given the action's own context, with no item
-   after the first that runs code, shares the object: it is backed up with
-   the action.
+   program, and a parse outside any action to its end. A parse that an
+   action starts, with no item after the first that runs code, is backed up
+   with the action: what it is given is held for the parser the action
+   belongs to, and every parse in that parser's actions can be given it.
 
 ## Out of scope
 

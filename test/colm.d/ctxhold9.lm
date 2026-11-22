@@ -1,0 +1,153 @@
+# What a parse in an action still can't share. The parser at the bottom of
+# the action's chain holds the object for the parse, and no other parser can
+# be given it while that parser can back up. A parser made with new, without
+# a context, whose action parses a global object, holds it until the program
+# ends (bare). A parse with an item after the first that runs code holds its
+# object itself while it runs, since it can back up between its items: a
+# parse of the object in an item stops the program (item). Once it has
+# ended, the parser whose action started it holds the object, and a later
+# parse in that parser's actions can be given it, as can a parse after that
+# parser has ended (later).
+context inner
+	L: list<str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `; `-
+		token NL /'\n'/
+	end
+
+	def I1 []
+	def I2 []
+
+	# I1 is tried first: the action runs, then the parser backs up to I2.
+	def iitem
+		[`*]
+		{
+			L->push_tail( "" )
+		}
+
+	def start
+		[I1 iitem* `; `^ NL]
+	|	[I2 `* `; NL]
+
+	def popper
+		[`-]
+		{
+			L->pop_tail()
+		}
+end
+
+global G: inner = new inner()
+G->L = new list<str>()
+
+lex
+	ignore /[ \t]+/
+	literal `% `& `!
+	token BNL /'\n'/
+end
+
+def B1 []
+def B2 []
+
+def bitem
+	[`%]
+	{
+		parse X: inner::start( G )[ "* ; ^\n" ]
+	}
+
+# B1 is tried first: the action runs, then the parser backs up to B2.
+def bare
+	[B1 bitem `& `! BNL]
+|	[B2 `% `& BNL]
+
+context outer
+	Sub: inner
+
+	lex
+		token word /[a-z]+/
+		ignore /space+/
+	end
+
+	str popsub()
+	{
+		parse Y: inner::popper( Sub )[ "-" ]
+		return ""
+	}
+
+	str nothing()
+	{
+		return ""
+	}
+
+	def item
+		[word]
+		{
+			parse X: inner::start( Sub )[ "* ;" popsub() "\n" ]
+		}
+
+	def popped
+		[item]
+
+	def first
+		[word]
+		{
+			parse X: inner::start( Sub )[ "* ; ^" nothing() "\n" ]
+		}
+
+	def second
+		[word]
+		{
+			parse Z: inner::start( Sub )[ "* ; ^\n" ]
+		}
+
+	def later
+		[first second]
+end
+
+A: str = argv->pop()
+S: inner = new inner()
+S->L = new list<str>()
+C: outer = new outer()
+C->Sub = S
+print( "before\n" )
+
+if ( A == "bare" ) {
+	P: parser<bare> = new parser<bare>()
+	send P "% &"
+	print( "parsed, L ", G->L->length, "\n" )
+	parse Y: inner::popper( G )[ "-" ]
+	send P "\n"
+	print( P->finish(), "\n" )
+}
+elsif ( A == "item" ) {
+	parse P: outer::popped( C )[ "a" ]
+	print( P, "\n" )
+}
+elsif ( A == "later" ) {
+	parse P: outer::later( C )[ "a b" ]
+	print( P, ": L ", C->Sub->L->length, "\n" )
+	parse W: inner::start( C->Sub )[ "* ; ^\n" ]
+	print( "L ", C->Sub->L->length, "\n" )
+}
+##### ARGS #####
+bare
+##### EXP #####
+before
+parsed, L 1
+##### EXIT #####
+1
+##### ARGS #####
+item
+##### EXP #####
+before
+##### EXIT #####
+1
+##### ARGS #####
+later
+##### EXP #####
+before
+a b: L 2
+L 3
+##### EXIT #####
+0

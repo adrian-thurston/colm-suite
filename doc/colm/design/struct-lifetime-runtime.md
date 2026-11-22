@@ -146,9 +146,9 @@ kind:
   `colm_map_new()`, which sets it as the destructor, as
   `colm_list_destroy()` is beside `colm_list_new()` in `list.c`): each
   element, in key order through the elements' `next`, the same way.
-- A parser, in `colm_parser_destroy()`: its PDA run (`colm_pda_clear()`)
-  and its `result` tree, as today, then its `input` and its context
-  (`pda_run->context`).
+- A parser, in `colm_parser_destroy()`: its context (`pda_run->context`),
+  taken before its PDA run is freed, its PDA run (`colm_pda_clear()`) and
+  its `result` tree, as today, and its `input`.
 - An `_input`, in `colm_input_destroy()`: its buffers, as today, and the
   stream each source buffer holds (below).
 - A stream, in `colm_stream_destroy()`: it closes the stream and frees its

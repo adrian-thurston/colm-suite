@@ -142,9 +142,10 @@ kind:
   with `colm_struct_downref()`.
 - A list, in `colm_list_destroy()`: each element, from the head, in a
   loop: its fields as above, then its memory.
-- A map, in `colm_map_destroy()` (`map.c`, new, which `colm_map_new()`
-  sets as the destructor): each element, in key order through the
-  elements' `next`, the same way.
+- A map, in `colm_map_destroy()` (`struct.c`, new, `static` beside
+  `colm_map_new()`, which sets it as the destructor, as
+  `colm_list_destroy()` is beside `colm_list_new()` in `list.c`): each
+  element, in key order through the elements' `next`, the same way.
 - A parser, in `colm_parser_destroy()`: its PDA run (`colm_pda_clear()`)
   and its `result` tree, as today, then its `input` and its context
   (`pda_run->context`).
@@ -258,8 +259,8 @@ reference to it, so the struct lives as long as any tree that shares it
 1. It releases `prg->return_val`, as today.
 2. It closes every stream still open, in the order they were made, which
    writes out what each holds. This is `close_streams()`, which `exit_now()`
-   uses today, moved out of `bytecode.c`'s statics. A close that fails
-   stops the program, as today.
+   uses today. It leaves `bytecode.c`'s statics as `colm_close_streams()`,
+   declared in `rterror.h`. A close that fails stops the program, as today.
 3. It releases the program's own references: the global, then `stdin`,
    `stdout` and `stderr`, each set to nil first. This frees everything they
    lead to.
@@ -334,8 +335,13 @@ recompiling, as after [#699] and [#715]:
 - `tree.h`: `colm_construct_struct_pointer()` is new.
 - `bytecode.h`: `AF_STRUCT_PTR` is new.
 
-`colm_struct_delete()` keeps its signature. The new functions are
-exported.
+libcolm exports each function that isn't `static`, so its exported
+symbols change too: the new functions above, and `colm_close_streams()`,
+which `close_streams()` becomes. That one is declared in `rterror.h`,
+the runtime's own header, which isn't installed, beside
+`colm_stream_error()`, which is exported the same way.
+`colm_map_destroy()` is `static` in `struct.c`, so it adds nothing.
+`colm_struct_delete()` keeps its signature.
 
 ## Rejected
 

@@ -64,8 +64,8 @@ ctx make( S: str )
 	if ( S == "first" )
 		C->N = 100
 
-	# The last statement of the setup.
-	C->Inner = new parser<ctx::words>( C )
+	# A parser holds the object it is given, so Inner gets one of its own.
+	C->Inner = new parser<ctx::words>( new ctx() )
 	return C
 }
 
@@ -87,7 +87,7 @@ while ( I < 2 ) {
 	D->M = new map<str, int>()
 	D->R = new rec()
 	D->N = I * 10
-	D->Inner = new parser<ctx::words>( D )
+	D->Inner = new parser<ctx::words>( new ctx() )
 	parse Q: ctx::start( D )[ "x y" ]
 	print( "loop ", I, ": N ", D->N, ", Inner", D->Inner->tree, "\n" )
 	I = I + 1
@@ -104,7 +104,7 @@ C = new ctx()
 C->L = new list<str>()
 C->M = new map<str, int>()
 C->R = new rec()
-C->Inner = new parser<ctx::words>( C )
+C->Inner = new parser<ctx::words>( new ctx() )
 parse P2: ctx::start( C )[ "z" ]
 print( "again: N ", C->N, ", L ", C->L->length, "\n" )
 ##### EXP #####

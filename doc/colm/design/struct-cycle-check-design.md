@@ -4,8 +4,9 @@ How the compiler meets item 14 of the
 [requirements](struct-lifetime-requirements.md): a program that compiles
 can't build a cycle of strong references. Part of [#663], for [#671]. A
 check in `src/colm/synthesis.cc` refuses such a program when it compiles.
-Nothing in the bytecode, the reverse code or the runtime changes, and the
-check needs nothing from reference counting ([#667] to [#669]). Of weak
+The check changes nothing in the bytecode, the reverse code or the
+runtime, and needs nothing from reference counting ([#667] to [#669]), but
+it relies on one run-time check, which lands before it (below). Of weak
 references it needs only to know which places are declared weak: how one
 is written is [#670]'s.
 
@@ -58,6 +59,32 @@ Each is a strong reference. A place declared weak gives no edge, and an
 
 A local, a parameter, a return value or a global isn't a node: nothing
 holds one, so no cycle runs through it.
+
+## The struct types it trusts
+
+A struct node trusts that a value declared of a struct type is of that
+type. Elsewhere colm checks a struct's type where the struct is stored,
+and a struct can't go into an `any` or be cast. But where a struct comes
+out of a tree's attribute, its declared type doesn't bound it: a tree of
+another type in the variable, through an `any`, or a `make_token`
+argument in a slot of another type ([#477]), gives the read a struct of
+whatever type the slot holds. On main (d864f64e), a `p` read back through
+an attribute declared `q` can be put in its own field `V: q`, which then
+holds it strongly: a cycle the graph has no edge for, which the check
+would accept.
+
+So the check relies on a run-time check that lands before it, in an issue
+of its own (from review item 4 on [#741]). `IN_GET_FIELD_VAL_R`, the only
+instruction that reads a value attribute, is given the attribute's
+declared type as an operand. When the value it reads is a struct, a list,
+a map or a parser of another type (a struct's id, a list's or a map's
+generic, a parser's `parser_id`), it stops the program through
+`runtime_error()`. With it, every struct a program can name has its
+declared type. The tree node's edges still hold: a struct gets into a tree
+only through an attribute or a `make_token` argument, each an edge out of
+the tree node whatever slot the struct lands in. [#477]'s check of
+`make_token`'s arguments would refuse that route sooner, but the cycle
+check doesn't need it.
 
 ## What is rejected
 
@@ -136,10 +163,11 @@ On main (d864f64e), the check rejects these, with:
 
 ## What changes when it lands
 
-It lands with weak references, or after them, in an issue of its own: a
-program it rejects has no other way to be fixed. On main (d864f64e) it
-rejects 15 programs that compile, each of which then needs a weak place on
-each of its cycles, as item 14 of the requirements lists:
+It lands after the run-time check above, and with weak references or
+after them, in an issue of its own: without weak references, a program it
+rejects has no other way to be fixed. On main (d864f64e) it rejects 15
+programs that compile, each of which then needs a weak place on each of
+its cycles, as item 14 of the requirements lists:
 
 - `doc/colm/code/struct_route.lm`;
 - `lang_object` in `grammar/c++/c++.lm` and `test/colm.d/lookup1.lm`;
@@ -174,6 +202,12 @@ hold a struct of the same type." and `3_04_undo.adoc`'s
   is used, not where it is stored); and leaving `str` out, which misses
   one built by storing an `any` in a `str`. Telling them apart later
   breaks no program: it only accepts more.
+- **A struct's type is checked where it leaves a tree,** by the run-time
+  check above. Rejected: merging into the tree node every struct and
+  generic type that a tree's attribute is declared as or a `make_token`
+  argument has, closed over the types at the same field of any two, which
+  rejects far more programs; and leaving a struct read out of a tree under
+  another type outside item 14's guarantee.
 
 ## Validation
 
@@ -188,10 +222,17 @@ compiles and runs once a place on each of its cycles is weak. A program
 with a cycle and a pattern that doesn't parse gives the pattern's error,
 as it does now.
 
+For the run-time check, cases that read a struct out of a tree's
+attribute as another struct type, through a `make_token` argument and
+through an `any`, and set it as its own field: each stops at the read
+with `fatal:` and exit status 1, where on main it builds the cycle.
+
 [#663]: https://github.com/adrian-thurston/colm-suite/issues/663
 [#667]: https://github.com/adrian-thurston/colm-suite/issues/667
 [#669]: https://github.com/adrian-thurston/colm-suite/issues/669
+[#477]: https://github.com/adrian-thurston/colm-suite/issues/477
 [#670]: https://github.com/adrian-thurston/colm-suite/issues/670
 [#671]: https://github.com/adrian-thurston/colm-suite/issues/671
+[#741]: https://github.com/adrian-thurston/colm-suite/pull/741
 [#700]: https://github.com/adrian-thurston/colm-suite/issues/700
 [#726]: https://github.com/adrian-thurston/colm-suite/issues/726

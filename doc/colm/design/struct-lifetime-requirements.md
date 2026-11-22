@@ -79,18 +79,24 @@ says what, and leaves how to them.
     rejects, at compile time, a struct type that can reach itself through
     strong references alone. Every strong reference counts: struct fields, a
     list's values, a map's keys and values, the runtime's own, such as a
-    parser's to its context, and those that trees hold. A struct that can
-    hold a tree (an `any` can be any tree) reaches every struct type that an
-    attribute of that tree, or of a tree that can be below it, can hold. A
-    weak reference on a path breaks it. Each cycle of types needs a weak
-    reference in it: one elsewhere among the same types isn't enough.
+    parser's to its context, and those that trees hold. An `any` can be
+    assigned to a variable of any tree type, so a place that holds a tree,
+    `str` included, can hold a tree of any type: a struct that can hold a
+    tree reaches every struct type that an attribute of a tree, or a
+    `make_token` argument, can hold. A weak reference on a path breaks it.
+    Each cycle of types needs a weak reference in it: one elsewhere among
+    the same types isn't enough.
 
     This rejects a struct type that holds its own type through a strong
     field, as a singly linked list does, or through a list, as a node with a
-    `list` of its children does. In this repository that is
-    `doc/colm/code/struct_route.lm` (`Next: stop`), and `lang_object` in
-    `grammar/c++/c++.lm` and `test/colm.d/lookup1.lm`, which change when the
-    check lands.
+    `list` of its children does, a context that holds a parser of its own,
+    which holds the context, and a tree whose attribute holds a `list<str>`.
+    In this repository that is `doc/colm/code/struct_route.lm`
+    (`Next: stop`), `lang_object` in `grammar/c++/c++.lm` and `lookup1.lm`,
+    the parser a context's field holds in `accumbt2.lm`, `ctxset1.lm`,
+    `ntrejbt5.lm`, `sendown1.lm` to `sendown4.lm`, `undofrag2.lm` and
+    `undofrag3.lm`, and the attribute in `globread2.lm` and `refcopy13.lm`,
+    all in `test/colm.d`, which change when the check lands.
 15. Apart from what 14 rejects, a program that compiles today still
     compiles, and prints the same output.
 

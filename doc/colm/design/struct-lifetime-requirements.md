@@ -25,8 +25,9 @@ says what, and leaves how to them.
    local, a parameter, a return value, a global, a list's value, a map's key
    or value, a value the VM holds part way through an expression, a def or a
    token attribute of a tree, and the references the runtime keeps for the
-   program, such as a parser's to its context and its input, and those to
-   `stdin`, `stdout`, `stderr` and `argv`.
+   program, such as a parser's to its context and its input, an input's to
+   each stream pushed or sent into it, a `for` loop's to the list or map it
+   is over, and those to `stdin`, `stdout`, `stderr` and `argv`.
 3. A strong reference goes when its place is overwritten, when its local or
    parameter goes out of scope, however its function or action is left (a
    return, a reject or exit), when its element leaves its list or map, or
@@ -92,7 +93,13 @@ says what, and leaves how to them.
     `grammar/c++/c++.lm` and `test/colm.d/lookup1.lm`, which change when the
     check lands.
 15. Apart from what 14 rejects, a program that compiles today still
-    compiles, and prints the same output.
+    compiles, and prints the same output, but for one change: a stream is
+    closed when it is freed (1), as `close()` closes it, not when the
+    program ends. A stream the program drops without closing it, by giving
+    its variable another value or by leaving the variable's scope, is
+    written out there, and a write that fails stops the program there.
+    `stdin`, `stdout` and `stderr` are held until exit, and the streams
+    still open at exit are closed in the order they were opened, as today.
 
 ## Seeing lost structs
 
@@ -115,6 +122,12 @@ clean:
   and a weak attribute reads nil once its target is freed.
 - A parent and child, the child linked back by a weak reference, are freed in
   full: no lost structs.
+- A stream the program drops without closing it is closed at the drop: a
+  file reads back what was sent to it, and a stream on `/dev/full` stops
+  the program there.
+- An input reads a stream pushed into it after the statement that opened
+  the stream has ended, and a `for` loop goes on over a list that a
+  function it calls has replaced.
 - Backing up keeps a struct that an undone action dropped, frees one that
   only the undone action held, and gives a weak reference back its old
   target, or nil.

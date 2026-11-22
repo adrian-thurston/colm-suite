@@ -6,7 +6,7 @@ can't build a cycle of strong references. Part of [#663], for [#671]. A
 check in `src/colm/synthesis.cc` refuses such a program when it compiles.
 The check changes nothing in the bytecode, the reverse code or the
 runtime, and needs nothing from reference counting ([#667] to [#669]), but
-it relies on one run-time check, which lands before it (below). Of weak
+it relies on two other checks, which land before it (below). Of weak
 references it needs only to know which places are declared weak: how one
 is written is [#670]'s.
 
@@ -73,18 +73,18 @@ an attribute declared `q` can be put in its own field `V: q`, which then
 holds it strongly: a cycle the graph has no edge for, which the check
 would accept.
 
-So the check relies on a run-time check that lands before it, in an issue
-of its own (from review item 4 on [#741]). `IN_GET_FIELD_VAL_R`, the only
-instruction that reads a value attribute, is given the attribute's
-declared type as an operand. When the value it reads is a struct, a list,
-a map or a parser of another type (a struct's id, a list's or a map's
-generic, a parser's `parser_id`), it stops the program through
-`runtime_error()`. With it, every struct a program can name has its
-declared type. The tree node's edges still hold: a struct gets into a tree
-only through an attribute or a `make_token` argument, each an edge out of
-the tree node whatever slot the struct lands in. [#477]'s check of
-`make_token`'s arguments would refuse that route sooner, but the cycle
-check doesn't need it.
+So the check relies on two others, which land before it. The first, from
+review item 4 on [#741] ([#745]), checks the tree where an attribute is
+read or set. Every instruction that reaches an attribute is given the id
+of the object of the type that declares it, and stops the program through
+`runtime_error()` when the tree's type has another object. A tree of the
+right type keeps its own attributes in its slots, so this closes the `any`
+route. The second is [#477]'s check of `make_token`'s arguments against
+the token's attributes, which closes the other route. With both, every
+struct a program can name has its declared type. The tree node's edges
+still hold: a struct gets into a tree only through an attribute or a
+`make_token` argument, each an edge out of the tree node whatever slot the
+struct lands in.
 
 ## What is rejected
 
@@ -163,8 +163,8 @@ On main (d864f64e), the check rejects these, with:
 
 ## What changes when it lands
 
-It lands after the run-time check above, and with weak references or
-after them, in an issue of its own: without weak references, a program it
+It lands after the two checks above, and with weak references or after
+them, in an issue of its own: without weak references, a program it
 rejects has no other way to be fixed. On main (d864f64e) it rejects 15
 programs that compile, each of which then needs a weak place on each of
 its cycles, as item 14 of the requirements lists:
@@ -202,12 +202,17 @@ hold a struct of the same type." and `3_04_undo.adoc`'s
   is used, not where it is stored); and leaving `str` out, which misses
   one built by storing an `any` in a `str`. Telling them apart later
   breaks no program: it only accepts more.
-- **A struct's type is checked where it leaves a tree,** by the run-time
-  check above. Rejected: merging into the tree node every struct and
-  generic type that a tree's attribute is declared as or a `make_token`
-  argument has, closed over the types at the same field of any two, which
-  rejects far more programs; and leaving a struct read out of a tree under
-  another type outside item 14's guarantee.
+- **A struct's type is checked where it leaves a tree,** by the two checks
+  above: the tree's type where an attribute is reached, and `make_token`'s
+  arguments. Rejected: checking the struct's own type where
+  `IN_GET_FIELD_VAL_R` reads it, since a pointer tree doesn't say whether
+  its value is a struct or an `int`, so the check would fault on an `int`,
+  and through a tree of another type the slot can be past the tree's last
+  attribute; merging into the tree node every struct and generic type that
+  a tree's attribute is declared as or a `make_token` argument has, closed
+  over the types at the same field of any two, which rejects far more
+  programs; and leaving a struct read out of a tree under another type
+  outside item 14's guarantee.
 
 ## Validation
 
@@ -222,10 +227,11 @@ compiles and runs once a place on each of its cycles is weak. A program
 with a cycle and a pattern that doesn't parse gives the pattern's error,
 as it does now.
 
-For the run-time check, cases that read a struct out of a tree's
-attribute as another struct type, through a `make_token` argument and
-through an `any`, and set it as its own field: each stops at the read
-with `fatal:` and exit status 1, where on main it builds the cycle.
+For the checks it relies on: a struct read out of a tree's attribute
+through a tree of another type, from an `any`, and set as its own field,
+stops at the read with `fatal:` and exit status 1, where before [#745] it
+built the cycle (`attrtype3` in `test/colm.d`); and [#477]'s cases refuse a
+`make_token` argument that doesn't fit the token's attribute.
 
 [#663]: https://github.com/adrian-thurston/colm-suite/issues/663
 [#667]: https://github.com/adrian-thurston/colm-suite/issues/667
@@ -236,3 +242,4 @@ with `fatal:` and exit status 1, where on main it builds the cycle.
 [#741]: https://github.com/adrian-thurston/colm-suite/pull/741
 [#700]: https://github.com/adrian-thurston/colm-suite/issues/700
 [#726]: https://github.com/adrian-thurston/colm-suite/issues/726
+[#745]: https://github.com/adrian-thurston/colm-suite/issues/745

@@ -3405,17 +3405,19 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 
 		generic = argUT->generic;
 
+		/* The loop gives each value or key as a strong reference: a weak
+		 * value's is its target. So the variable has that type, over keys and
+		 * strong values as over weak values. */
+		if ( searchUT->weak() ) {
+			error(loc) << "loop variable " << objField->name <<
+					" can't be weak: the loop gives each value as a strong reference" << endp;
+		}
+
 		if ( iterImpl->type == IterImpl::MapKey ) {
 			if ( !castAssignment( pd, unused, searchUT, 0, generic->keyUt ) ) {
 				error(loc) << "loop variable " << objField->name <<
 						" must have the map's key type" << endp;
 			}
-		}
-		else if ( searchUT->weak() ) {
-			/* The loop reads each value, so over weak values the variable
-			 * has the target type. */
-			error(loc) << "loop variable " << objField->name <<
-					" can't be weak: the loop reads each value as its target" << endp;
 		}
 		else if ( !castAssignment( pd, unused, searchUT, 0,
 				generic->valueUt->readType() ) )

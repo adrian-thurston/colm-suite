@@ -324,6 +324,17 @@ A map's key can't be weak ([#670]), so `key_type` is never `TYPE_WEAK`.
   one reference, which `IN_GEN_ITER_UNWIND` and `IN_GEN_ITER_DESTROY`
   release, and `colm_list_iter_destroy()` pops the word without releasing
   it.
+- A loop over a weak slot, a local, a parameter or an attribute declared
+  `weak<list<T>>` or `weak<map<K, V>>`, takes the temporary's path too, as
+  a loop over a struct's field does. `LangVarRef::canTakeRef()` gives false
+  for any `weak()` slot, so `evaluateArgs()` reads it with its weak read,
+  `FN_GET_LOCAL_WEAK_R` for a local or a parameter and
+  `FN_GET_FIELD_WEAK_R` for an attribute, which pushes the target,
+  counted, or nil. `IN_REF_FROM_BACK` then points at that, and
+  `IN_GEN_ITER_FROM_REF`'s `arg_size` is 1. Given the slot itself, the
+  iterator would walk the slot's cell as a list. A nil or freed target
+  stops the loop, with `for loop over a nil list` or `map`. A weak field or
+  global is read onto the stack already, through `FN_GET_STRUCT_WEAK_R`.
 - A loop over a tree or a user iterator holds no struct: a user iterator
   yields only trees ([#456]).
 
@@ -496,6 +507,8 @@ other designs' Validation, with `COLM_LEAK_CHECK` and `--valgrind` clean:
   freed. A weak parameter given a new struct reads nil.
 - A weak token attribute that `make_token` gave a struct reads that
   struct.
+- A loop over a weak list or map local, parameter or attribute reads its
+  target's values, and stops on a nil or a freed target.
 
 ## Building it
 

@@ -1,0 +1,10 @@
+# weak takes a struct type: a tree has refs of its own, and no weak_head.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+def start
+	[id*]
+W: weak<start>
+##### COMP_ERR #####
+8:4: weak takes a struct type

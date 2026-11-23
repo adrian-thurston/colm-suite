@@ -40,7 +40,7 @@ module Rouge
 
 			def self.types
 				@types ||= Set.new %w(
-					int bool void list map ptr ref parser accum
+					int bool void list map ptr ref weak parser accum
 					str any stream
 				)
 			end

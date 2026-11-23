@@ -99,12 +99,13 @@ says what, and leaves how to them.
     `undofrag3.lm`, the attribute in `globread2.lm` and `refcopy13.lm`, and
     the parser a def's attribute holds in `sendown1.lm` to `sendown4.lm`,
     all in `test/colm.d`, which change when the check lands.
-15. Apart from what 14 rejects, a program that compiles today still
-    compiles, and prints the same output, but for one change: a stream is
-    closed when it is freed (1), as `close()` closes it, not when the
-    program ends. A stream the program drops without closing it, by giving
-    its variable another value or by leaving the variable's scope, is
-    written out there, and a write that fails stops the program there.
+15. Apart from what 14 rejects, and a program that names something `weak`,
+    the keyword a weak reference is declared with ([#670]), a program that
+    compiles today still compiles, and prints the same output, but for one
+    change: a stream is closed when it is freed (1), as `close()` closes it,
+    not when the program ends. A stream the program drops without closing it,
+    by giving its variable another value or by leaving the variable's scope,
+    is written out there, and a write that fails stops the program there.
     `stdin`, `stdout` and `stderr` are held until exit, and the streams
     still open at exit are closed in the order they were opened, as today.
 

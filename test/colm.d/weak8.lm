@@ -1,0 +1,9 @@
+# A loop over weak values reads each one: its variable has the target type.
+struct node
+	N: int
+end
+L: list<weak<node>> = new list<weak<node>>()
+for N: weak<node> in L
+	print( "x\n" )
+##### COMP_ERR #####
+6:5: loop variable N can't be weak: the loop gives each value as a strong reference

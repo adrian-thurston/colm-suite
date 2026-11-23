@@ -137,6 +137,12 @@ int CmpUniqueType::compare( const UniqueType &ut1, const UniqueType &ut2 )
 			else if ( ut1.generic > ut2.generic )
 				return 1;
 			break;
+		case TYPE_WEAK:
+			if ( ut1.target < ut2.target )
+				return -1;
+			else if ( ut1.target > ut2.target )
+				return 1;
+			break;
 	}
 
 	return 0;

@@ -1919,7 +1919,8 @@ struct UniqueType : public AvlTreeEl<UniqueType>
 		langEl(0), 
 		iterDef(0),
 		structEl(0),
-		generic(0)
+		generic(0),
+		target(0)
 	{}
 
 	UniqueType( enum TYPE typeId, LangEl *langEl ) :
@@ -1927,7 +1928,8 @@ struct UniqueType : public AvlTreeEl<UniqueType>
 		langEl(langEl),
 		iterDef(0),
 		structEl(0),
-		generic(0)
+		generic(0),
+		target(0)
 	{}
 
 	UniqueType( enum TYPE typeId, IterDef *iterDef ) :
@@ -1935,7 +1937,8 @@ struct UniqueType : public AvlTreeEl<UniqueType>
 		langEl(0),
 		iterDef(iterDef),
 		structEl(0),
-		generic(0)
+		generic(0),
+		target(0)
 	{}
 
 	UniqueType( enum TYPE typeId, StructEl *structEl ) :
@@ -1943,7 +1946,8 @@ struct UniqueType : public AvlTreeEl<UniqueType>
 		langEl(0),
 		iterDef(0),
 		structEl(structEl),
-		generic(0)
+		generic(0),
+		target(0)
 	{}
 
 	UniqueType( enum TYPE typeId, GenericType *generic ) :
@@ -1951,7 +1955,17 @@ struct UniqueType : public AvlTreeEl<UniqueType>
 		langEl(0),
 		iterDef(0),
 		structEl(0),
-		generic(generic)
+		generic(generic),
+		target(0)
+	{}
+
+	UniqueType( enum TYPE typeId, UniqueType *target ) :
+		typeId(typeId),
+		langEl(0),
+		iterDef(0),
+		structEl(0),
+		generic(0),
+		target(target)
 	{}
 
 	enum TYPE typeId;
@@ -1959,6 +1973,9 @@ struct UniqueType : public AvlTreeEl<UniqueType>
 	IterDef *iterDef;
 	StructEl *structEl;
 	GenericType *generic;
+
+	/* What a weak<T> refers to: T's type. */
+	UniqueType *target;
 
 	ObjectDef *objectDef();
 
@@ -1983,6 +2000,16 @@ struct UniqueType : public AvlTreeEl<UniqueType>
 
 	bool parser()
 		{ return typeId == TYPE_GENERIC && generic->typeId == GEN_PARSER; }
+
+	/* A weak reference, weak<T>: a slot that doesn't keep its struct
+	 * alive. It isn't ptr(): it is a kind of its own. */
+	bool weak()
+		{ return typeId == TYPE_WEAK; }
+
+	/* The type reading a slot of this type gives: a weak reference reads as
+	 * its target, or nil. No expression has a weak type. */
+	UniqueType *readType()
+		{ return typeId == TYPE_WEAK ? target : this; }
 
 	bool listOf( UniqueType *ut )
 		{ return typeId == TYPE_GENERIC && generic->typeId == GEN_LIST && generic->valueUt == ut; }
@@ -2103,7 +2130,8 @@ struct TypeRef
 		MapEl,
 		MapPtrs,
 		Parser,
-		Ref
+		Ref,
+		Weak
 	};
 
 	TypeRef()
@@ -2292,6 +2320,7 @@ struct TypeRef
 	UniqueType *resolveTypeParser( Compiler *pd );
 	UniqueType *resolveType( Compiler *pd );
 	UniqueType *resolveTypeRef( Compiler *pd );
+	UniqueType *resolveTypeWeak( Compiler *pd );
 
 	bool uniqueGeneric( UniqueGeneric *&inMap,
 			Compiler *pd, const UniqueGeneric &searchKey );

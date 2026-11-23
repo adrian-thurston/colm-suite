@@ -1,0 +1,98 @@
+# weak<T> in each place a strong reference can be reads as its target, and
+# nil once set to nil. No struct is freed yet, so this shows the types: what
+# a weak reference takes and what reading one gives.
+lex
+	token id
+		Owner: weak<node>
+		/[a-z]+/
+	ignore /[ \n]+/
+end
+
+def item
+	Owner: weak<node>
+	[id]
+
+struct node
+	Name: str
+	Parent: weak<node>
+end
+
+global G: weak<node>
+
+weak<node> parentOf( N: node )
+{
+	return N->Parent
+}
+
+str nameOf( W: weak<node> )
+{
+	if ( W )
+		return W->Name
+	return "nil"
+}
+
+P: node = new node()
+P->Name = "p"
+C: node = new node()
+C->Name = "c"
+
+# A struct's field, read through by a qualification.
+C->Parent = P
+print( "field ", C->Parent->Name, "\n" )
+
+# A local, set from a field, then to nil.
+W: weak<node> = C->Parent
+print( "local ", W->Name, "\n" )
+W = nil
+print( "nil ", nameOf( W ), "\n" )
+
+# A return value and a parameter.
+U: node = parentOf( C )
+print( "return ", U->Name, " param ", nameOf( C ), "\n" )
+
+# A global.
+G = C
+print( "global ", G->Name, "\n" )
+
+# A list's values, a loop over them with a node variable, and a pop.
+L: list<weak<node>> = new list<weak<node>>()
+L->push_tail( P )
+L->push_tail( nil )
+L->push_tail( C )
+for N: node in L
+	print( "list ", nameOf( N ), "\n" )
+X: node = L->pop_head()
+print( "pop ", X->Name, " head ", nameOf( L->head ), "\n" )
+
+# A map's values.
+M: map<str, weak<node>> = new map<str, weak<node>>()
+M->insert( "c", C )
+F: node = M->find( "c" )
+print( "map ", F->Name, "\n" )
+M->set( "c", nil )
+print( "map ", nameOf( M->find( "c" ) ), "\n" )
+
+# A def's attribute: a copy of the tree keeps it when the tree is set.
+parse I: item[ "x" ]
+I.Owner = C
+J: item = I
+I.Owner = P
+print( "attribute ", I.Owner->Name, " copy ", J.Owner->Name, "\n" )
+
+# A token's attribute.
+T: id = cons id( C ) [ "t" ]
+print( "token ", T.Owner->Name, "\n" )
+##### EXP #####
+field p
+local p
+nil nil
+return p param c
+global c
+list p
+list nil
+list c
+pop p head nil
+map c
+map nil
+attribute p copy c
+token c

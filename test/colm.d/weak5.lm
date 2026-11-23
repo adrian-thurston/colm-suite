@@ -1,0 +1,8 @@
+# A map key can't be weak: a key that turned nil inside the map would break
+# its order.
+struct node
+	N: int
+end
+M: map<weak<node>, int>
+##### COMP_ERR #####
+6:8: a map key can't be weak

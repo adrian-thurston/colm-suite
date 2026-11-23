@@ -1,0 +1,4 @@
+# weak takes a struct type: an int is no reference.
+W: weak<int>
+##### COMP_ERR #####
+2:4: weak takes a struct type

@@ -63,7 +63,10 @@ says what, and leaves how to them.
    key: a key that turned nil inside a map would break the map's order,
    and no program can write the key of an element a map holds.
 9. A weak reference can refer to any struct a strong reference can.
-10. A weak reference doesn't keep its target alive.
+10. A weak reference doesn't keep its target alive. The one exception is a
+    weak token attribute that `make_token` gives a struct: it holds the
+    struct strongly, as [#668]'s design says, so storing a strong reference
+    there doesn't make a weak one (12).
 11. Once its target is freed, a weak reference reads nil, never a dangling
     pointer. Reading or setting a field through it then stops the program,
     as it does through any nil struct.
@@ -150,8 +153,9 @@ clean:
   only through trees are not part of this.
 - How a weak reference is declared, the runtime layout, the instructions,
   how backing up is done, and how the check works: [#667] to [#671].
-- Host programs: exports give a host trees, never structs, so a host holds
-  no struct references.
+- Host programs: exports give a host trees, never structs. A host function
+  given a struct holds a counted reference to it, and counts a struct it
+  returns, as [#668]'s design says.
 
 [#663]: https://github.com/adrian-thurston/colm-suite/issues/663
 [#667]: https://github.com/adrian-thurston/colm-suite/issues/667

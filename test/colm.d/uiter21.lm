@@ -1,15 +1,16 @@
 # Leaving a loop over a user iterator early, while the iterator is suspended
 # in a function that yielded, called where words of the expression around the
 # call lie under it. The argument picks the place: after a value already in
-# another call's arguments (args), a copy given to a ref parameter (copy), a
-# ref argument's qualifier refs (qual), the items after it in a constructor
-# (cons), a constructor's attribute value (consattr), a string's items
-# (embed), make_tree's and make_token's arguments (maketree, maketoken), a
-# map's insert (insert), the left of a comparison of trees (cmp), the ints of
-# an arithmetic expression (arith), the left of a && (and), the parser of a
-# parse and of a send (parse, send), and the stream of a print (print). The
-# teardown pops each word as what it is, so a tree among them is released.
-# Before, the teardown popped them all unreleased, and a tree was lost.
+# another call's arguments (args) or in a user iterator's (iterargs), a copy
+# given to a ref parameter (copy), a ref argument's qualifier refs (qual), the
+# items after it in a constructor (cons), a constructor's attribute value
+# (consattr), a string's items (embed), make_tree's and make_token's arguments
+# (maketree, maketoken), a map's insert (insert), the left of a comparison of
+# trees (cmp), the ints of an arithmetic expression (arith), the left of a &&
+# (and), the parser of a parse and of a send (parse, send), and the stream of
+# a print (print). The teardown pops each word as what it is, so a tree among
+# them is released. Before, the teardown popped them all unreleased, and a
+# tree was lost.
 lex
 	token id /[a-z]+/
 	token tok
@@ -67,10 +68,22 @@ int q( R: ref<item>, B: str )
 	return 1
 }
 
+iter it( A: str, B: str )
+{
+	yield A
+}
+
 int fargs()
 {
 	F: str = "f"
 	I: int = h( "x", gs() )
+	return 1
+}
+
+int fiterargs()
+{
+	F: str = "f"
+	for T: str in it( "x", gs() ) {}
 	return 1
 }
 
@@ -182,6 +195,8 @@ iter i( Where: str )
 	S: str = "s"
 	if Where == "args"
 		fargs()
+	if Where == "iterargs"
+		fiterargs()
 	if Where == "copy"
 		fcopy()
 	if Where == "qual"
@@ -220,6 +235,12 @@ for T: str in i( Where ) {
 print( "done\n" )
 ##### ARGS #####
 args
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+iterargs
 ##### EXP #####
 l
 done

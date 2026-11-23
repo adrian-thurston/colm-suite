@@ -2,18 +2,19 @@
 # under unwinds, as any other exit does: colm_run_program returns to the
 # host, which gets the exit status from colm_delete_program. The unwind pops
 # each word as what it is, so nothing is lost. The argument picks the place:
-# after a value already in another call's arguments (args), a copy given to
-# a ref parameter (copy), a ref argument's qualifier refs (qual), the items
-# after it in a constructor (cons), a constructor's attribute value
-# (consattr), a string's items (embed), make_tree's and make_token's
-# arguments (maketree, maketoken), a map's insert (insert), the left of a
-# comparison of trees (cmp), the ints of an arithmetic expression (arith),
-# the left of a && (and), the parser of a parse and of a send (parse, send),
-# the stream of a print (print), a parser's context (ctx), the left of a +
-# inside a loop over a tree (loop), the same in an iterator's own code
-# (iter), and at the top level (root). In action, the exit is in a
-# production's action, under a parse that is an item of a print. Before,
-# each of these exits ended the host's process.
+# after a value already in another call's arguments (args) or in a user
+# iterator's (iterargs), a copy given to a ref parameter (copy), a ref
+# argument's qualifier refs (qual), the items after it in a constructor
+# (cons), a constructor's attribute value (consattr), a string's items
+# (embed), make_tree's and make_token's arguments (maketree, maketoken), a
+# map's insert (insert), the left of a comparison of trees (cmp), the ints
+# of an arithmetic expression (arith), the left of a && (and), the parser
+# of a parse and of a send (parse, send), the stream of a print (print), a
+# parser's context (ctx), the left of a + inside a loop over a tree
+# (loop), the same in an iterator's own code (iter), and at the top level
+# (root). In action, the exit is in a production's action, under a parse
+# that is an item of a print. Before, each of these exits ended the host's
+# process.
 lex
 	token id /[a-z]+/
 	token tok
@@ -87,6 +88,11 @@ int q( R: ref<item>, B: str )
 	return 1
 }
 
+iter it( A: str, B: str )
+{
+	yield A
+}
+
 iter ix()
 {
 	S: str = "s" + xs()
@@ -98,6 +104,9 @@ int f( Where: str )
 	F: str = "f"
 	if Where == "args" {
 		I: int = h( "x", xs() )
+	}
+	elsif Where == "iterargs" {
+		for T: str in it( "x", xs() ) {}
 	}
 	elsif Where == "copy" {
 		I: int = r( "lit", xs() )
@@ -192,6 +201,13 @@ int main( int argc, const char **argv )
 }
 ##### ARGS #####
 args
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+iterargs
 ##### EXP #####
 x
 host: exit status 3

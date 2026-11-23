@@ -150,8 +150,9 @@ clean:
   only through trees are not part of this.
 - How a weak reference is declared, the runtime layout, the instructions,
   how backing up is done, and how the check works: [#667] to [#671].
-- Host programs: exports give a host trees, never structs, so a host holds
-  no struct references.
+- Host programs: exports give a host trees, never structs. A host function
+  given a struct holds a counted reference to it, and counts a struct it
+  returns, as [#668]'s design says.
 
 [#663]: https://github.com/adrian-thurston/colm-suite/issues/663
 [#667]: https://github.com/adrian-thurston/colm-suite/issues/667

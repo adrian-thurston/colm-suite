@@ -1,0 +1,65 @@
+# A parse in an action of a new parser, given a global context object. The
+# program then gives the object to a parse whose action would pop what the
+# first parse's action pushed, and would make the new parser back up over
+# its action, onto the empty list. The new parser holds the object for the
+# parse in its action until the program ends, so giving it to the second
+# parse stops the program.
+context inner
+	L: list<str>
+
+	lex
+		token id /[a-z]+/
+		literal `-
+		ignore /space+/
+	end
+
+	def start
+		[id]
+		{
+			L->push_tail( $r1 )
+		}
+
+	def popper
+		[`-]
+		{
+			L->pop_tail()
+		}
+end
+
+global G: inner = new inner()
+G->L = new list<str>()
+
+context outer
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			parse X: inner::start( G )[ "x" ]
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+C: outer = new outer()
+P: parser<outer::start> = new parser<outer::start>( C )
+send P "* ;"
+print( "before, L ", G->L->length, "\n" )
+parse Y: inner::popper( G )[ "-" ]
+print( "popped, L ", G->L->length, "\n" )
+send P "\n"
+print( P->finish(), "\n" )
+print( "after, L ", G->L->length, "\n" )
+##### EXP #####
+before, L 1
+##### EXIT #####
+1

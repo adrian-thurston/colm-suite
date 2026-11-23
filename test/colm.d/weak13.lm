@@ -1,0 +1,10 @@
+# A loop over strong values can't have a weak variable: the loop gives each
+# value as a strong reference.
+struct node
+	Name: str
+end
+L: list<node> = new list<node>()
+for N: weak<node> in L
+	print( "x\n" )
+##### COMP_ERR #####
+7:5: loop variable N can't be weak: the loop gives each value as a strong reference

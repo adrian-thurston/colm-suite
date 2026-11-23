@@ -53,13 +53,20 @@ was given can back up, and what colm checks. The
    a copy isn't checked yet (out of scope, below).
 7. Each refusal is a compile error at the reference it is about, saying what
    can't be done.
+8. A context object is held by one parser at a time ([#718]): two parsers
+   given one object would change it under each other. Compile time can't
+   tell which object a reference holds, so this is checked when the program
+   runs. Giving a parser an object that another parser holds stops the
+   program. A parser made with `new` holds its object to the end of the
+   program, and a parse outside any action to its end. A parse that an
+   action starts, with no item after the first that runs code, is backed up
+   with the action: what it is given is held for the parser the action
+   belongs to, and every such parse in that parser's actions can be given
+   it. A parse with an item after the first that runs code holds what it is
+   given for itself, and can't be given an object that the parser holds.
 
 ## Out of scope
 
-- Two parsers that the program drives, given the same object ([#718]):
-  compile time can't tell. The manual says to give each parser its own
-  object, except a parse that a parser's actions start and a parser they
-  send to.
 - Globals that a parse's actions change and the program changes too: the
   companion rule, [#714], makes globals read-only in what a restartable
   parser runs, so that such a parser keeps the data it changes in a context.

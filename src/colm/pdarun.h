@@ -296,6 +296,13 @@ struct pda_run
 
 	struct colm_struct *context;
 
+	/* The parser that holds the context objects this parser, and the parses
+	 * its actions start, are given: the one whose backing up backs them up.
+	 * It is this parser itself, which holds them while holding is set, or it
+	 * is found through the parser this one names (IN_SET_PARSER_OWNER). */
+	struct colm_parser *hold_owner;
+	int holding;
+
 	int stop;
 	int parse_error;
 

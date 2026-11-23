@@ -1,0 +1,5 @@
+# weak is a keyword: a program can't name anything weak.
+weak: int = 1
+print( weak, "\n" )
+##### COMP_ERR #####
+2:5: working/weak10.lm: parse error: working/weak10.lm:2:5: parse error

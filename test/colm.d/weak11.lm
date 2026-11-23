@@ -1,0 +1,110 @@
+# weak<T> of each kind of struct a strong reference can be, used as the
+# strong one is: a parser and a stream sent to, a list and a map, a context
+# given to a parse, an _input set and read in a token action. And an alias of
+# weak<T>, a loop over a map's weak values, and a list of weak values at both
+# ends.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def start
+	[id*]
+
+struct node
+	Name: str
+end
+
+alias wnode weak<node>
+
+context ctx
+	In: weak<_input>
+
+	lex
+		token id /[a-z]+/
+		{
+			In = input
+			In->push( make_token( typeid<id>, In->pull( match_length ) ) )
+		}
+		ignore /[ \n]+/
+	end
+
+	def start
+		[id*]
+end
+
+# A send, a send_tree and a prints through a weak parser and a weak stream.
+P: parser<start> = new parser<start>()
+W: weak<parser<start>> = P
+send W "a b c"
+send_tree W [ " d" ]
+W->finish()
+print( "parser ", W->tree, "\n" )
+
+S: weak<stream> = stdout
+send S "send to a stream\n"
+prints( S, "prints to a stream\n" )
+
+N: node = new node()
+N->Name = "n"
+
+# An alias of weak<node>.
+A: wnode = N
+print( "alias ", A->Name, "\n" )
+
+# A loop over a map's weak values, one of them nil.
+M: map<str, weak<node>> = new map<str, weak<node>>()
+M->insert( "a", N )
+M->insert( "b", nil )
+for X: node in M {
+	if ( X )
+		print( "map loop ", X->Name, "\n" )
+	else
+		print( "map loop nil\n" )
+}
+
+# A list's other ends: push_head, tail and pop_tail.
+L: list<weak<node>> = new list<weak<node>>()
+L->push_tail( N )
+L->push_head( nil )
+T: node = L->tail
+Q: node = L->pop_tail()
+print( "tail ", T->Name, " pop_tail ", Q->Name, " length ", L->length, "\n" )
+
+# A weak list, pushed to and looped over.
+SL: list<node> = new list<node>()
+WL: weak<list<node>> = SL
+WL->push_tail( N )
+for Y: node in WL
+	print( "weak list ", Y->Name, " ", WL->length, "\n" )
+
+# A weak map, inserted into, found in and looped over, by value and by key.
+SM: map<str, node> = new map<str, node>()
+WM: weak<map<str, node>> = SM
+WM->insert( "a", N )
+F: node = WM->find( "a" )
+print( "weak map find ", F->Name, " length ", WM->length, "\n" )
+for Z: node in WM
+	print( "weak map loop ", Z->Name, "\n" )
+for K: str in map_keys( WM )
+	print( "weak map key ", K, "\n" )
+
+# A weak context given to a parse, whose token action pushes and pulls
+# through a weak _input.
+C: ctx = new ctx()
+WC: weak<ctx> = C
+parse R: ctx::start( WC ) [ "e f" ]
+print( "context ", R, "\n" )
+##### EXP #####
+parser a b c d
+send to a stream
+prints to a stream
+alias n
+map loop n
+map loop nil
+tail n pop_tail n length 1
+weak list n 1
+weak map find n length 1
+weak map loop n
+weak map key a
+context e f

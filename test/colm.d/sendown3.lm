@@ -2,64 +2,61 @@
 # sends to the other while one of the other's actions runs: Q's action sends
 # to P, and later, once that parse of P is done, P's action sends to Q. A
 # parser that an action sent to can be sent to again once the action is
-# over. The parsers are in a context, since a restartable parser's actions
-# can't send to a parser that a global holds. The action of drive sends to
-# them and finishes them, as the program would, and its token action makes Q.
-context ctx
-	lex
-		literal `a `b `p `q
-		ignore /space+/
-	end
-
-	P: parser<ctx::pstart>
-	Q: parser<ctx::qstart>
-
-	def qitem
-		[`a]
-		{
-			print( "qitem\n" )
-			send P ["p "]
-		}
-
-	def qstart
-		[qitem `b `b]
-
-	def pitem
-		[`p]
-		{
-			print( "pitem\n" )
-			send Q ["b"]
-		}
-
-	def pstart
-		[pitem `q]
-
-	lex
-		token go /'go'/
-		{
-			Q = new parser<ctx::qstart>( this )
-			input->push( make_token( typeid<go>, input->pull( match_length ) ) )
-		}
-	end
-
-	def drive
-		[go]
-		{
-			send Q ["a b"]
-			send P ["q"]
-			QS: qstart = Q->finish()
-			PS: pstart = P->finish()
-			print( "Q: ", QS, "\n" )
-			print( "P: ", PS, "\n" )
-		}
+# over. Each parser reaches the other through an attribute of a tree the
+# program sends to it: two parsers can't share a context object, which a
+# parser holds, and a restartable parser's actions can't send to a parser
+# that a global holds.
+lex
+	literal `a `b `p `q `@ `%
+	ignore /space+/
 end
 
-C: ctx = new ctx()
-C->P = new parser<ctx::pstart>( C )
+def hp
+	P: parser<pstart>
+	[`@]
 
-parse D: ctx::drive( C )[ "go" ]
+def hq
+	Q: parser<qstart>
+	[`%]
+
+def qitem
+	[`a hp]
+	{
+		print( "qitem\n" )
+		send r2.P ["p "]
+	}
+
+def qstart
+	[qitem `b `b]
+
+def pitem
+	[`p hq]
+	{
+		print( "pitem\n" )
+		send r2.Q ["b"]
+	}
+
+def pstart
+	[pitem `q]
+
+parse HP: hp[ "@" ]
+parse HQ: hq[ "%" ]
+P: parser<pstart> = new parser<pstart>()
+Q: parser<qstart> = new parser<qstart>()
+HP.P = P
+HQ.Q = Q
+
+send Q ["a"]
+send_tree Q [HP]
+send Q [" b"]
+send_tree P [HQ]
+send P ["q"]
+QS: qstart = Q->finish()
+PS: pstart = P->finish()
+print( "Q: ", QS, "\n" )
+print( "P: ", PS, "\n" )
 ##### EXP #####
 qitem
 pitem
-Q: a bb
-P: p q
+Q: a@ bb
+P: p %q

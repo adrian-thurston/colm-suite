@@ -286,6 +286,10 @@ UniqueType *TypeRef::resolveTypeMap( Compiler *pd )
 	UniqueType *utKey = typeRef1->resolveType( pd );	
 	UniqueType *utEl = typeRef2->resolveType( pd );	
 
+	/* A key that turned nil inside the map would break its order. */
+	if ( utKey->weak() )
+		error( typeRef1->loc ) << "a map key can't be weak" << endp;
+
 	if ( utEl->typeId != TYPE_STRUCT )
 		error( loc ) << "only structs can be map elements" << endp;
 
@@ -354,6 +358,14 @@ UniqueType *TypeRef::resolveTypeRef( Compiler *pd )
 	if ( !typeRef1->uniqueType->tree() )
 		error( loc ) << "ref takes a tree type" << endp;
 	return pd->findUniqueType( TYPE_REF, typeRef1->uniqueType->langEl );
+}
+
+UniqueType *TypeRef::resolveTypeWeak( Compiler *pd )
+{
+	typeRef1->resolveType( pd );
+	if ( !typeRef1->uniqueType->ptr() )
+		error( loc ) << "weak takes a struct type" << endp;
+	return pd->findUniqueType( TYPE_WEAK, typeRef1->uniqueType );
 }
 
 void TypeRef::resolveRepeat( Compiler *pd )
@@ -456,6 +468,9 @@ UniqueType *TypeRef::resolveType( Compiler *pd )
 			break;
 		case Ref:
 			uniqueType = resolveTypeRef( pd );
+			break;
+		case Weak:
+			uniqueType = resolveTypeWeak( pd );
 			break;
 		case Iterator:
 			uniqueType = resolveIterator( pd );
@@ -742,11 +757,19 @@ void Compiler::resolveFunction( Function *func )
 
 void Compiler::resolveInHost( Function *func )
 {
-	if ( func->typeRef != 0 ) 
-		func->typeRef->resolveType( this );
+	/* The host gets and gives C values. A weak reference is the runtime's
+	 * own, which the host can't read. */
+	if ( func->typeRef != 0 && func->typeRef->resolveType( this )->weak() ) {
+		error( func->typeRef->loc ) << "a host function can't "
+				"return a weak reference" << endp;
+	}
 
-	for ( ParameterList::Iter param = *func->paramList; param.lte(); param++ )
-		param->typeRef->resolveType( this );
+	for ( ParameterList::Iter param = *func->paramList; param.lte(); param++ ) {
+		if ( param->typeRef->resolveType( this )->weak() ) {
+			error( param->loc ) << "a host function's parameter "
+					"can't be weak" << endp;
+		}
+	}
 }
 
 

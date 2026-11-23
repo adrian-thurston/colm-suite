@@ -67,7 +67,7 @@ context ctx
 end
 
 C: ctx = new ctx()
-C->Inner = new parser<ctx::one>( C )
+C->Inner = new parser<ctx::one>( new ctx() )
 
 parse Two: ctx::two( C )[ stdin ]
 

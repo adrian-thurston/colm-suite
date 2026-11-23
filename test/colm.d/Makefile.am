@@ -102,6 +102,16 @@ EXTRA_DIST = \
 	ctxgram5.lm \
 	ctxgram6.lm \
 	ctxgram7.lm \
+	ctxhold1.lm \
+	ctxhold2.lm \
+	ctxhold3.lm \
+	ctxhold4.lm \
+	ctxhold5.lm \
+	ctxhold6.lm \
+	ctxhold7.lm \
+	ctxhold8.lm \
+	ctxhold9.lm \
+	ctxholdmsg1.lm \
 	ctxset1.lm \
 	ctxtake1.lm \
 	ctxtake2.lm \
@@ -396,6 +406,7 @@ EXTRA_DIST = \
 	noctx3.lm \
 	noctx4.lm \
 	noctx5.lm \
+	noctx6.lm \
 	nsref1.lm \
 	ntignbt1.lm \
 	ntignbt2.lm \
@@ -646,6 +657,19 @@ EXTRA_DIST = \
 	utf8.lm \
 	void1.lm \
 	vpop1.lm \
+	weak1.lm \
+	weak2.lm \
+	weak3.lm \
+	weak4.lm \
+	weak5.lm \
+	weak6.lm \
+	weak7.lm \
+	weak8.lm \
+	weak9.lm \
+	weak10.lm \
+	weak11.lm \
+	weak12.lm \
+	weak13.lm \
 	while1.lm \
 	xmlac.lm \
 	yield1.lm \

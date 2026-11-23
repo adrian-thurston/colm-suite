@@ -4,89 +4,93 @@
 # its action: P undoes its parse, and while P runs the reverse code of its
 # action, Q backs up over its own action, which undoes Q's send to P. That
 # send came after P's action, so the undo finds nothing of P's to back up.
-# The parsers are in a context, since a restartable parser's actions can't
-# send to a parser that a global holds. The action of drive sends to them
-# and finishes them, as the program would, and its token action makes P and
-# Q.
-context ctx
-	lex
-		literal `a `c `x `y `p `q `m
-	end
-
-	Once: bool
-	R: parser<ctx::rstart>
-	P: parser<ctx::pstart>
-	Q: parser<ctx::qstart>
-
-	def ritem
-		[`a]
-		{
-			print( "ritem\n" )
-			send P ["pp"]
-		}
-
-	def rstart
-		[ritem `c `x]
-	|	[`a `c `y]
-
-	def pitem
-		[`p]
-		{
-			print( "pitem\n" )
-			if ( !Once ) {
-				Once = true
-				send Q ["q"]
-			}
-		}
-
-	def mitem
-		[`m]
-
-	def pstart
-		[pitem* mitem*]
-
-	def qitem
-		[`q]
-		{
-			print( "qitem\n" )
-			send P ["m"]
-		}
-
-	def qstart
-		[qitem*]
-
-	lex
-		token go /'go'/
-		{
-			P = new parser<ctx::pstart>( this )
-			Q = new parser<ctx::qstart>( this )
-			input->push( make_token( typeid<go>, input->pull( match_length ) ) )
-		}
-	end
-
-	def drive
-		[go]
-		{
-			send R ["ac"]
-			print( "sending q\n" )
-			send Q ["q"]
-			print( "sending y\n" )
-			send R ["y"]
-			print( "after\n" )
-			RS: rstart = R->finish()
-			print( "R: ", RS, "\n" )
-			PS: pstart = P->finish()
-			print( "P: <", PS, ">\n" )
-			QS: qstart = Q->finish()
-			print( "Q: ", QS, "\n" )
-		}
+# Each parser reaches the next through an attribute of a tree sent to it:
+# two parsers can't share a context object, which a parser holds, and a
+# restartable parser's actions can't send to a parser that a global holds.
+lex
+	literal `a `c `x `y `p `q `m `@ `%
 end
 
-C: ctx = new ctx()
-C->R = new parser<ctx::rstart>( C )
+def hp
+	P: parser<pstart>
+	[`@]
+
+def hq
+	Q: parser<qstart>
+	[`%]
+
+def ritem
+	[`a hp hq]
+	{
+		print( "ritem\n" )
+		send r2.P ["p"]
+		send_tree r2.P [r3]
+		send_tree r2.P [r2]
+		send r2.P ["p"]
+	}
+
+def rstart
+	[ritem `c `x]
+|	[`a hp hq `c `y]
+
+# The first p, which P takes from R's action with the trees that reach Q and
+# P, sends to Q.
+def pfirst
+	[`p hq hp]
+	{
+		print( "pitem\n" )
+		send r2.Q ["q"]
+		send_tree r2.Q [r3]
+	}
+
+def pitem
+	[`p]
+	{
+		print( "pitem\n" )
+	}
+
+def mitem
+	[`m]
+
+def pstart
+	[pfirst pitem* mitem*]
+|	[]
+
+def qitem
+	[`q hp]
+	{
+		print( "qitem\n" )
+		send r2.P ["m"]
+	}
+
+def qstart
+	[qitem*]
+
+parse HP: hp[ "@" ]
+parse HQ: hq[ "%" ]
+R: parser<rstart> = new parser<rstart>()
+P: parser<pstart> = new parser<pstart>()
+Q: parser<qstart> = new parser<qstart>()
+HP.P = P
+HQ.Q = Q
 
 print( "before\n" )
-parse D: ctx::drive( C )[ "go" ]
+send R ["a"]
+send_tree R [HP]
+send_tree R [HQ]
+send R ["c"]
+print( "sending q\n" )
+send Q ["q"]
+send_tree Q [HP]
+print( "sending y\n" )
+send R ["y"]
+print( "after\n" )
+RS: rstart = R->finish()
+print( "R: ", RS, "\n" )
+PS: pstart = P->finish()
+print( "P: <", PS, ">\n" )
+QS: qstart = Q->finish()
+print( "Q: ", QS, "\n" )
 ##### EXP #####
 before
 ritem
@@ -96,7 +100,7 @@ qitem
 pitem
 sending y
 after
-R: acy
+R: a@%cy
 P: <>
 qitem
-Q: q
+Q: q@

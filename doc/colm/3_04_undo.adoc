@@ -349,7 +349,10 @@ for other parsers once the parse at the bottom, outside any action, has ended.
 A parser made with `new` at the bottom holds it until the program ends. A
 parse with an item after the first that runs code is the exception: it can
 back up between its items, while the action runs, so it holds what it is
-given for itself until it ends.
+given for itself until it ends. So it can't be given an object that the
+action's parser holds, such as one a parse in an earlier action was given, or
+that it was given itself the last time the action ran. To share one, evaluate
+the item before the parse, into a variable.
 
 Any other parser gets an object of its own, as a parser that the context holds
 does in `+C->Inner = new parser<ctx::inner>( new ctx() )+`, and so does a

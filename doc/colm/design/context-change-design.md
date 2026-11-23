@@ -155,8 +155,10 @@ Not taken:
 - Sharing with a parser whose actions never change their context: it needs
   a pass over what each parser runs, for a reader of another parse's data.
 - The manual's old exceptions, a parser that a parse's actions send to, and
-  any parse they start: the first crashes the same way (`ctxhold3`), and so
-  does the second when an item of it after the first runs code (`ctxhold4`).
+  a parse they start whose item after the first runs code: the first crashes
+  the same way (`ctxhold3`), and so does the second (`ctxhold4`). A parse
+  they start without such an item is taken, and shares with the parser the
+  action belongs to.
 - A parse in an action holding its object for good, and sharing only
   `this`, as #750 first had it: it stopped programs that run correctly, an
   action that parses an object of another context each time it runs, and a

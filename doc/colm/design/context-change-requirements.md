@@ -61,7 +61,9 @@ was given can back up, and what colm checks. The
    program, and a parse outside any action to its end. A parse that an
    action starts, with no item after the first that runs code, is backed up
    with the action: what it is given is held for the parser the action
-   belongs to, and every parse in that parser's actions can be given it.
+   belongs to, and every such parse in that parser's actions can be given
+   it. A parse with an item after the first that runs code holds what it is
+   given for itself, and can't be given an object that the parser holds.
 
 ## Out of scope
 

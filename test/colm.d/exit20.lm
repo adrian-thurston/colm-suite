@@ -1,7 +1,8 @@
 #
 # An exit reached through a call that the expression around it has words
-# under can't unwind the stack. The program's output comes out, and it ends
-# there with the exit status. The argument picks the call.
+# under unwinds the stack. The call's unwind code pops each word as what it
+# is, so nothing is lost, and the program ends with the exit status. The
+# argument picks the call.
 #
 
 lex

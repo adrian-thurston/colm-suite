@@ -1,0 +1,332 @@
+# An exit reached through a call that words of the expression around it lie
+# under unwinds, as any other exit does: colm_run_program returns to the
+# host, which gets the exit status from colm_delete_program. The unwind pops
+# each word as what it is, so nothing is lost. The argument picks the place:
+# after a value already in another call's arguments (args), a copy given to
+# a ref parameter (copy), a ref argument's qualifier refs (qual), the items
+# after it in a constructor (cons), a constructor's attribute value
+# (consattr), a string's items (embed), make_tree's and make_token's
+# arguments (maketree, maketoken), a map's insert (insert), the left of a
+# comparison of trees (cmp), the ints of an arithmetic expression (arith),
+# the left of a && (and), the parser of a parse and of a send (parse, send),
+# the stream of a print (print), a parser's context (ctx), the left of a +
+# inside a loop over a tree (loop), the same in an iterator's own code
+# (iter), and at the top level (root). In action, the exit is in a
+# production's action, under a parse that is an item of a print. Before,
+# each of these exits ended the host's process.
+lex
+	token id /[a-z]+/
+	token tok
+		A: str
+		/[0-9]+/
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+	{
+		if $r1 == 'stop'
+			exit( 3 )
+	}
+
+def pair
+	[item item]
+
+def tagged
+	N: int
+	[item]
+
+def items
+	[item*]
+
+context ctx
+	def start
+		[item*]
+end
+
+str xs()
+{
+	print( "x\n" )
+	exit( 3 )
+	return "x"
+}
+
+item xi()
+{
+	print( "x\n" )
+	exit( 3 )
+	return parse item[ "x" ]
+}
+
+int xn()
+{
+	print( "x\n" )
+	exit( 3 )
+	return 1
+}
+
+ctx xc()
+{
+	print( "x\n" )
+	exit( 3 )
+	return new ctx()
+}
+
+int h( A: str, B: str )
+{
+	return 1
+}
+
+int r( R: ref<str>, B: str )
+{
+	return 1
+}
+
+int q( R: ref<item>, B: str )
+{
+	return 1
+}
+
+iter ix()
+{
+	S: str = "s" + xs()
+	yield S
+}
+
+int f( Where: str )
+{
+	F: str = "f"
+	if Where == "args" {
+		I: int = h( "x", xs() )
+	}
+	elsif Where == "copy" {
+		I: int = r( "lit", xs() )
+	}
+	elsif Where == "qual" {
+		P: pair = parse pair[ "a b" ]
+		I: int = q( P.item, xs() )
+	}
+	elsif Where == "cons" {
+		I: item = parse item[ "a" ]
+		P: pair = cons pair[ xi() " " I ]
+	}
+	elsif Where == "consattr" {
+		T: tagged = cons tagged( 1 ) [ xi() ]
+	}
+	elsif Where == "embed" {
+		S: str = [ "a " xs() ]
+	}
+	elsif Where == "maketree" {
+		P: pair = make_tree( typeid<pair>, parse item[ "a" ], xi() )
+	}
+	elsif Where == "maketoken" {
+		T: tok = make_token( typeid<tok>, "1", xs() )
+	}
+	elsif Where == "insert" {
+		M: map<str, str> = new map<str, str>()
+		M->insert( "k", xs() )
+	}
+	elsif Where == "cmp" {
+		B: bool = F == xs()
+	}
+	elsif Where == "arith" {
+		I: int = 2 * ( 3 - xn() )
+	}
+	elsif Where == "and" {
+		if F == "f" && xs() == "x"
+			print( "never\n" )
+	}
+	elsif Where == "parse" {
+		P: items = parse items[ "a b " xs() ]
+	}
+	elsif Where == "send" {
+		Q: parser<items> = new parser<items>()
+		send Q [ "a b " xs() ]
+	}
+	elsif Where == "print" {
+		print( "p", xs() )
+	}
+	elsif Where == "ctx" {
+		Q: parser<ctx::start> = new parser<ctx::start>( xc() )
+	}
+	elsif Where == "loop" {
+		P: pair = parse pair[ "a b" ]
+		for I: item in P {
+			S: str = "s" + xs()
+		}
+	}
+	elsif Where == "iter" {
+		for T: str in ix() {
+			print( "never\n" )
+		}
+	}
+	elsif Where == "action" {
+		print( "p\n", parse items[ "a stop b" ] )
+	}
+	return 1
+}
+
+Where: str = argv->pop()
+if Where == "root" {
+	S: str = "s" + xs()
+}
+else {
+	f( Where )
+}
+print( "after\n" )
+##### HOST #####
+
+#include <colm/colm.h>
+#include <stdio.h>
+
+extern colm_sections colm_object;
+
+int main( int argc, const char **argv )
+{
+	colm_program *program = colm_new_program( &colm_object );
+	colm_run_program( program, argc, argv );
+	int status = colm_delete_program( program );
+
+	printf( "host: exit status %d\n", status );
+	return status;
+}
+##### ARGS #####
+args
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+copy
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+qual
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+cons
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+consattr
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+embed
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+maketree
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+maketoken
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+insert
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+cmp
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+arith
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+and
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+parse
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+send
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+print
+##### EXP #####
+px
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+ctx
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+loop
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+iter
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+action
+##### EXP #####
+p
+host: exit status 3
+##### EXIT #####
+3
+##### ARGS #####
+root
+##### EXP #####
+x
+host: exit status 3
+##### EXIT #####
+3

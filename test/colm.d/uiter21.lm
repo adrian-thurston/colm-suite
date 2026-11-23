@@ -1,0 +1,310 @@
+# Leaving a loop over a user iterator early, while the iterator is suspended
+# in a function that yielded, called where words of the expression around the
+# call lie under it. The argument picks the place: after a value already in
+# another call's arguments (args), a copy given to a ref parameter (copy), a
+# ref argument's qualifier refs (qual), the items after it in a constructor
+# (cons), a constructor's attribute value (consattr), a string's items
+# (embed), make_tree's and make_token's arguments (maketree, maketoken), a
+# map's insert (insert), the left of a comparison of trees (cmp), the ints of
+# an arithmetic expression (arith), the left of a && (and), the parser of a
+# parse and of a send (parse, send), and the stream of a print (print). The
+# teardown pops each word as what it is, so a tree among them is released.
+# Before, the teardown popped them all unreleased, and a tree was lost.
+lex
+	token id /[a-z]+/
+	token tok
+		A: str
+		/[0-9]+/
+	ignore /[ \n]+/
+end
+
+def item
+	[id]
+
+def pair
+	[item item]
+
+def tagged
+	N: int
+	[item]
+
+def items
+	[item*]
+
+str gs()
+{
+	L: str = "l"
+	yield L
+	return "g"
+}
+
+item gi()
+{
+	L: str = "l"
+	yield L
+	return parse item[ "g" ]
+}
+
+int gn()
+{
+	L: str = "l"
+	yield L
+	return 1
+}
+
+int h( A: str, B: str )
+{
+	return 1
+}
+
+int r( R: ref<str>, B: str )
+{
+	return 1
+}
+
+int q( R: ref<item>, B: str )
+{
+	return 1
+}
+
+int fargs()
+{
+	F: str = "f"
+	I: int = h( "x", gs() )
+	return 1
+}
+
+int fcopy()
+{
+	F: str = "f"
+	I: int = r( "lit", gs() )
+	return 1
+}
+
+int fqual()
+{
+	F: str = "f"
+	P: pair = parse pair[ "a b" ]
+	I: int = q( P.item, gs() )
+	return 1
+}
+
+int fcons()
+{
+	F: str = "f"
+	I: item = parse item[ "a" ]
+	P: pair = cons pair[ gi() " " I ]
+	return 1
+}
+
+int fconsattr()
+{
+	F: str = "f"
+	T: tagged = cons tagged( 1 ) [ gi() ]
+	return 1
+}
+
+int fembed()
+{
+	F: str = "f"
+	S: str = [ "a " gs() ]
+	return 1
+}
+
+int fmaketree()
+{
+	F: str = "f"
+	P: pair = make_tree( typeid<pair>, parse item[ "a" ], gi() )
+	return 1
+}
+
+int fmaketoken()
+{
+	F: str = "f"
+	T: tok = make_token( typeid<tok>, "1", gs() )
+	return 1
+}
+
+int finsert()
+{
+	F: str = "f"
+	M: map<str, str> = new map<str, str>()
+	M->insert( "k", gs() )
+	return 1
+}
+
+int fcmp()
+{
+	F: str = "f"
+	B: bool = F == gs()
+	return 1
+}
+
+int farith()
+{
+	F: str = "f"
+	I: int = 2 * ( 3 - gn() )
+	return 1
+}
+
+int fand()
+{
+	F: str = "f"
+	if F == "f" && gs() == "g"
+		print( "never\n" )
+	return 1
+}
+
+int fparse()
+{
+	F: str = "f"
+	P: items = parse items[ "a b " gs() ]
+	return 1
+}
+
+int fsend()
+{
+	F: str = "f"
+	Q: parser<items> = new parser<items>()
+	send Q [ "a b " gs() ]
+	return 1
+}
+
+int fprint()
+{
+	F: str = "f"
+	print( "p", gs() )
+	return 1
+}
+
+iter i( Where: str )
+{
+	S: str = "s"
+	if Where == "args"
+		fargs()
+	if Where == "copy"
+		fcopy()
+	if Where == "qual"
+		fqual()
+	if Where == "cons"
+		fcons()
+	if Where == "consattr"
+		fconsattr()
+	if Where == "embed"
+		fembed()
+	if Where == "maketree"
+		fmaketree()
+	if Where == "maketoken"
+		fmaketoken()
+	if Where == "insert"
+		finsert()
+	if Where == "cmp"
+		fcmp()
+	if Where == "arith"
+		farith()
+	if Where == "and"
+		fand()
+	if Where == "parse"
+		fparse()
+	if Where == "send"
+		fsend()
+	if Where == "print"
+		fprint()
+}
+
+Where: str = argv->pop()
+for T: str in i( Where ) {
+	print( T, "\n" )
+	break
+}
+print( "done\n" )
+##### ARGS #####
+args
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+copy
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+qual
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+cons
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+consattr
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+embed
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+maketree
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+maketoken
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+insert
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+cmp
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+arith
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+and
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+parse
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+send
+##### EXP #####
+l
+done
+##### LOST #####
+##### ARGS #####
+print
+##### EXP #####
+pl
+done
+##### LOST #####

@@ -181,6 +181,7 @@ EXTRA_DIST = \
 	exit21.lm \
 	exit22.lm \
 	exit23.lm \
+	exit24.lm \
 	export1.lm \
 	export2.lm \
 	export3.lm \
@@ -652,6 +653,7 @@ EXTRA_DIST = \
 	uiter18.lm \
 	uiter19.lm \
 	uiter20.lm \
+	uiter21.lm \
 	uiterarg1.lm \
 	uiterarg2.lm \
 	uiterarg3.lm \

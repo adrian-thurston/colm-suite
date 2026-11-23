@@ -13,8 +13,7 @@
 # the one ended. Before, the teardown stopped at the call, and the locals of
 # that function and of its loops were lost. In temp, the call is the right
 # operand of a +, and the left operand, "s", is a tree the expression holds
-# under the call. Nothing records it, so it is still lost, as the LOST
-# section lists; F isn't.
+# under the call. The call's unwind code releases it, so nothing is lost.
 lex
 	token id /[a-z]+/
 	ignore /[ \n]+/
@@ -189,5 +188,3 @@ temp
 l
 done
 ##### LOST #####
-lost trees: 1
-lost heads: 1

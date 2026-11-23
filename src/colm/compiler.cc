@@ -319,8 +319,6 @@ Compiler::Compiler( )
 	nextFuncId(0),
 	nextHostId(0),
 	curFunction(0),
-	stmtTerm(0),
-	noUnwind(false),
 	unwindLoop(0),
 	loopDepth(0),
 	stmtListDepth(0),

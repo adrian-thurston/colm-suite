@@ -99,7 +99,7 @@ typedef unsigned char uchar;
 
 #define IN_POP_TREE              0x1d
 #define IN_POP_N_WORDS           0x1e
-#define IN_POP_EXPR              0x5c
+#define IN_EXPR_WORDS            0x5c
 #define IN_POP_VAL               0xbe
 #define IN_DUP_VAL               0x1f
 #define IN_DUP_TREE              0xf2

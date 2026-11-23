@@ -1,7 +1,8 @@
 #
 # An exit in a parser action, where the parse is part of a larger expression
-# in a function, can't unwind the stack. The program's output comes out, and
-# it ends there with the exit status. The argument picks the expression.
+# in a function, unwinds the stack. The parse's unwind code pops the words of
+# the expression under it, so nothing is lost, and the program ends with the
+# exit status. The argument picks the expression.
 #
 
 lex

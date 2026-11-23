@@ -177,7 +177,8 @@ static int stopping = 0;
  * list. What the program wrote so far comes out first, then "fatal: " and the
  * message on standard error, and the process exits with status 1. That ends a
  * host program too, unlike an exit in the code colm_run_program runs, which
- * unwinds the VM and returns to the host where it can (see exit_now).
+ * unwinds the VM and returns to the host, but in an exported function that
+ * the host called (see exit_now).
  * Whether an error should unwind the VM instead is still open. Every check
  * that stops the program goes through here, so that is one change. A read or
  * write on a stream that fails comes here from stream.c, through
@@ -230,10 +231,11 @@ static void close_streams( program_t *prg )
 	}
 }
 
-/* An exit the VM can't unwind ends the process at once, as exit_hard does.
- * What the program wrote to stdout and stderr comes out first, then every
- * stream it left open is closed, as colm_delete_program would close it. A
- * write that fails stops the program with status 1 instead. */
+/* Ends the process at once: exit_hard does, and so does an exit in an
+ * exported function that the host called, which the VM can't unwind back to
+ * the host. What the program wrote to stdout and stderr comes out first, then
+ * every stream it left open is closed, as colm_delete_program would close it.
+ * A write that fails stops the program with status 1 instead. */
 static void exit_now( program_t *prg )
 {
 	flush_streams( prg );
@@ -781,22 +783,20 @@ static void release_locals( program_t *prg, tree_t **sp, tree_t **frame,
 	}
 }
 
-/* Moves past the unwind code at instr: its length, then the code. A negative
- * length, at a call or parse with words of an expression under it, has code
- * too, as long as the length's absolute value. */
+/* Moves past the unwind code at instr: its length, then the code. */
 static code_t *skip_unwind( code_t *instr )
 {
 	short unwind_len;
 	read_half( unwind_len );
-	if ( unwind_len < 0 )
-		unwind_len = -unwind_len;
 	instr += unwind_len;
 	return instr;
 }
 
-/* Pops a call frame, once its values are released, as IN_RET does, and the
- * arguments IN_PREP_ARGS pushed for the call. Gives the instruction after
- * the call, which is the call's unwind code. */
+/* Pops a call frame, once its values are released, as IN_RET does. Gives the
+ * instruction after the call, which is the call's unwind code. The arguments
+ * IN_PREP_ARGS pushed for the call are its to pop, as the code after the call
+ * pops them when it returns: the refs of the call's ref arguments and its
+ * copies lie on them. */
 static code_t *pop_call_frame( program_t *prg, execution_t *exec, tree_t ***psp,
 		struct frame_info *fi )
 {
@@ -811,15 +811,128 @@ static code_t *pop_call_frame( program_t *prg, execution_t *exec, tree_t ***psp,
 	tree_t *ret_val = vm_pop_tree();
 	vm_pop_value();
 
-	/* The IN_PREP_ARGS stack data. */
-	vm_popn( fi->arg_size );
-	vm_pop_value();
-
 	if ( fi->ret_tree )
 		colm_tree_downref( prg, sp, ret_val );
 
 	*psp = sp;
 	return instr;
+}
+
+/* Whether the runtime checks colm's record of the words under each call: in
+ * a DEBUG build always, and otherwise when COLM_LEAK_CHECK is set, as the
+ * test harness sets it. -1 until it is read. */
+static int check_words = -1;
+
+static int checking_words( void )
+{
+	if ( check_words < 0 ) {
+#if DEBUG
+		check_words = 1;
+#else
+		check_words = getenv( "COLM_LEAK_CHECK" ) != 0;
+#endif
+	}
+	return check_words;
+}
+
+/* How many words lie from sp up to base, which a frame below holds. Since the
+ * frame was pushed, the stack may have gone on into newer blocks. */
+static long words_to( program_t *prg, tree_t **sp, tree_t **base )
+{
+	if ( base >= prg->sb_beg && base <= prg->sb_end )
+		return base - sp;
+
+	long words = prg->sb_end - sp;
+	struct stack_block *b = prg->stack_block->next;
+	while ( b != 0 ) {
+		tree_t **top = b->data + b->offset;
+		if ( base >= top && base <= b->data + b->len )
+			return words + ( base - top );
+		words += b->len - b->offset;
+		b = b->next;
+	}
+
+	assert( false );
+	return -1;
+}
+
+/* Checks colm's record of the words that an expression, and a call's own
+ * arguments, leave under a call, a parse or an exit: count words lie on what
+ * the innermost loop of the frame left, which loop, the instruction that ends
+ * it, names, with its iterator at field. The stack's height at the start of a
+ * loop's body is the iterator's root_size and yield_size. With no loop, they
+ * lie on the frame's locals, which end at frame_ptr - frame_size. A word the
+ * record misses would make an unwind pop the wrong words. */
+static void check_expr_words( program_t *prg, execution_t *exec, tree_t **sp,
+		half_t count, half_t loop, short field )
+{
+	void *mem = vm_get_plocal( exec, field );
+	long found = -1;
+	switch ( loop ) {
+		case IN_TRITER_UNWIND: {
+			tree_iter_t *iter = mem;
+			found = vm_ssize() - ( iter->root_size + iter->yield_size );
+			break;
+		}
+		case IN_REV_TRITER_UNWIND: {
+			rev_tree_iter_t *iter = mem;
+			found = vm_ssize() - ( iter->root_size + iter->yield_size );
+			break;
+		}
+		case IN_GEN_ITER_UNWIND: {
+			generic_iter_t *iter = mem;
+			found = vm_ssize() - ( iter->root_size + iter->yield_size );
+			break;
+		}
+		case IN_UITER_UNWIND: {
+			/* The local holds a pointer to the iterator. */
+			user_iter_t *uiter = *(user_iter_t**) mem;
+			found = vm_ssize() - ( uiter->root_size + uiter->yield_size );
+			break;
+		}
+		case 0: {
+			/* In the iterator's own frame, exec->frame_id is the loop's. */
+			long frame_id = exec->frame_id;
+			if ( exec->iframe_ptr != 0 && exec->frame_ptr == exec->iframe_ptr ) {
+				user_iter_t *uiter = (user_iter_t*) vm_plocal_iframe( IFR_AA );
+				frame_id = uiter->frame_id;
+			}
+
+			struct frame_info *fi = &prg->rtd->frame_info[frame_id];
+			found = words_to( prg, sp, exec->frame_ptr - fi->frame_size );
+			break;
+		}
+		default:
+			assert( false );
+	}
+
+	if ( found != (long)count ) {
+		static char msg[128];
+		sprintf( msg, "colm's record of the words under a call is wrong: "
+				"%ld recorded, %ld found", (long)count, found );
+		runtime_error( prg, msg );
+	}
+}
+
+/* At a call of a function colm compiled: instr is at the call's unwind code,
+ * which begins with IN_EXPR_WORDS, since the call's arguments are always
+ * under its frame. What lies on the stack now is what an unwind through the
+ * call meets once the frame is popped. */
+static void check_call_words( program_t *prg, execution_t *exec, tree_t **sp,
+		code_t *instr )
+{
+	short unwind_len;
+	half_t count, loop;
+	short field;
+
+	read_half( unwind_len );
+	assert( unwind_len > 0 && *instr == IN_EXPR_WORDS );
+	instr += SIZEOF_CODE;
+	read_half( count );
+	read_half( loop );
+	read_half( field );
+
+	check_expr_words( prg, exec, sp, count, loop, field );
 }
 
 /* Ends a user iterator that is suspended at a yield. From there, it runs the
@@ -829,9 +942,8 @@ static code_t *pop_call_frame( program_t *prg, execution_t *exec, tree_t ***psp,
  * iterator.
  *
  * A call inside an expression has words of the expression under it. Its
- * unwind code first pops them (IN_POP_EXPR), then ends the frame's loops as
- * at any other call. Only the trees those words hold are lost: nothing
- * records which words they are. */
+ * unwind code pops each as what it is, as colm's record of them says, then
+ * ends the frame's loops as at any other call. So nothing is lost. */
 static void uiter_teardown( program_t *prg, execution_t *exec, tree_t ***psp,
 		user_iter_t *uiter )
 {
@@ -2375,71 +2487,20 @@ again:
 			vm_pop_tree();
 			break;
 		}
-		case IN_POP_EXPR: {
-			half_t loop;
+		case IN_EXPR_WORDS: {
+			half_t count, loop;
 			short field;
+			read_half( count );
 			read_half( loop );
 			read_half( field );
 
-			debug( prg, REALM_BYTECODE, "IN_POP_EXPR %hd %hd\n", loop, field );
+			debug( prg, REALM_BYTECODE, "IN_EXPR_WORDS %lu %lu %hd\n",
+					count, loop, field );
 
-			/* At the start of a call's unwind code, the words that the
-			 * expression around the call pushed. Nothing records what they
-			 * are, so any tree among them is lost. They lie on what the
-			 * innermost loop of the frame left: its iterator is at field,
-			 * and loop is the instruction that ends it. The stack's height
-			 * at the start of a loop's body is the iterator's root_size and
-			 * yield_size. With no loop, they lie on the frame's locals,
-			 * which end at frame_ptr - frame_size. */
-			void *mem = vm_get_plocal( exec, field );
-			long height = -1;
-			switch ( loop ) {
-				case IN_TRITER_UNWIND: {
-					tree_iter_t *iter = mem;
-					height = iter->root_size + iter->yield_size;
-					break;
-				}
-				case IN_REV_TRITER_UNWIND: {
-					rev_tree_iter_t *iter = mem;
-					height = iter->root_size + iter->yield_size;
-					break;
-				}
-				case IN_GEN_ITER_UNWIND: {
-					generic_iter_t *iter = mem;
-					height = iter->root_size + iter->yield_size;
-					break;
-				}
-				case IN_UITER_UNWIND: {
-					/* The local holds a pointer to the iterator. */
-					user_iter_t *uiter = *(user_iter_t**) mem;
-					height = uiter->root_size + uiter->yield_size;
-					break;
-				}
-				case 0:
-					break;
-				default:
-					assert( false );
-			}
-
-			if ( loop != 0 ) {
-				assert( vm_ssize() >= height );
-				vm_popn( vm_ssize() - height );
-			}
-			else {
-				/* In the iterator's own frame, exec->frame_id is the loop's. */
-				long frame_id = exec->frame_id;
-				if ( exec->iframe_ptr != 0 && exec->frame_ptr == exec->iframe_ptr ) {
-					user_iter_t *uiter = (user_iter_t*) vm_plocal_iframe( IFR_AA );
-					frame_id = uiter->frame_id;
-				}
-
-				/* Word by word: the expression's words may have started a new
-				 * stack block, and a pop crosses back. */
-				struct frame_info *fi = &prg->rtd->frame_info[frame_id];
-				tree_t **base = exec->frame_ptr - fi->frame_size;
-				while ( vm_ptop() != base )
-					vm_pop_value();
-			}
+			/* At the start of the unwind code of a call, a parse or an exit:
+			 * how many words it pops, and where they lie. */
+			if ( checking_words() )
+				check_expr_words( prg, exec, sp, count, loop, field );
 			break;
 		}
 		case IN_POP_N_WORDS: {
@@ -4480,6 +4541,10 @@ again:
 
 			debug( prg, REALM_BYTECODE, "IN_CALL_WV %s\n", fr->name );
 
+			/* The call's unwind code says what lies under its frame. */
+			if ( checking_words() )
+				check_call_words( prg, exec, sp, instr );
+
 			vm_contiguous( FR_AA + fi->frame_size );
 
 			vm_push_type( tree_t**, exec->call_args );
@@ -4504,6 +4569,10 @@ again:
 			struct frame_info *fr = &prg->rtd->frame_info[fi->frame_id];
 
 			debug( prg, REALM_BYTECODE, "IN_CALL_WC %s %d\n", fr->name, fr->frame_size );
+
+			/* The call's unwind code says what lies under its frame. */
+			if ( checking_words() )
+				check_call_words( prg, exec, sp, instr );
 
 			vm_contiguous( FR_AA + fi->frame_size );
 
@@ -5512,8 +5581,7 @@ again:
 			}
 			case FN_EXIT: {
 				/* The unwind code follows the exit call (exception, see
-				 * synthesis). A negative length means words of an
-				 * expression lie under the call or parse (see exit_now). */
+				 * synthesis). */
 				short unwind_len;
 				read_half( unwind_len );
 
@@ -5532,12 +5600,6 @@ again:
 					exit_now( prg );
 
 				while ( true ) {
-					/* The call or parse we are in sits on words of an
-					 * expression. Its unwind code pops them, but what they
-					 * hold can't be released, so the exit ends the process. */
-					if ( unwind_len < 0 )
-						exit_now( prg );
-
 					/* In a user iterator's own code. Leave the iterator
 					 * suspended here, as at a yield, and go on in the frame
 					 * of the loop over it, whose unwind code ends it. */

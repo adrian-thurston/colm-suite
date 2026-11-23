@@ -922,12 +922,52 @@ struct Compiler
 	/* For stack unwinding. Used at exits, returns, iterator destroy, etc. */
 	CodeVect unwindCode;
 
-	/* The term a statement evaluates with nothing of its own on the stack,
-	 * and whether the call or parse being compiled has words of an
-	 * expression under it. Its unwind code pops them first (IN_POP_EXPR),
-	 * and an exit there ends the process. */
-	LangTerm *stmtTerm;
-	bool noUnwind;
+	/* An entry of the record of the words that the code compiled so far has
+	 * pushed and not yet consumed. */
+	struct ExprWord
+	{
+		enum Kind {
+			/* A word that holds a reference to a tree, or nil. */
+			Tree,
+
+			/* An int, a bool, or another word that owns nothing. */
+			Value,
+
+			/* A struct, list, map, parser or stream. */
+			Struct,
+
+			/* A struct that a parse has under it: the parser, which FN_EXIT
+			 * pops itself after the action it unwinds. */
+			Parser,
+
+			/* Words that own nothing: a ref, or the refs of a qualifier. */
+			Plain,
+
+			/* A call's arguments, which IN_PREP_ARGS pushed: its slots, and
+			 * the saved call_args under them. */
+			Area
+		};
+
+		ExprWord( Kind kind, long words )
+			: kind(kind), words(words) {}
+
+		/* How many words it is on the stack. */
+		long stackWords() const
+			{ return kind == Area ? words + 1 : words; }
+
+		Kind kind;
+
+		/* Plain: how many words. Area: how many slots. Otherwise 1. */
+		long words;
+
+		/* Area: what each slot holds. Slot 0 is the top word. */
+		Vector<Kind> slots;
+	};
+
+	/* The record itself, the top word last. Each call, parse and exit writes
+	 * pops for the words into its unwind code, so an unwind through it pops
+	 * each as what it is. */
+	Vector<ExprWord*> exprWords;
 
 	/* The innermost for loop of the code being compiled, or 0 outside any
 	 * loop. The words of an expression lie on what its iterator left. */

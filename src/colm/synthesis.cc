@@ -1348,6 +1348,106 @@ static bool refArgTypeOk( Compiler *pd, UniqueType *paramUT, UniqueType *argUT )
 			argUT->langEl == pd->anyLangEl;
 }
 
+/* What a site's unwind code is after: a call of a function colm compiles, a
+ * parse, or an exit, a yield or a loop's advance. */
+enum UnwindSite { UnwindCall, UnwindParse, UnwindOther };
+
+/*
+ * The record of the words that the code compiled so far has pushed and not
+ * yet consumed (Compiler::exprWords). Each place that leaves a word on the
+ * stack while it evaluates more pushes an entry once the word's code is
+ * written, and pops it when it writes the instruction that consumes the word.
+ * appendUnwindCode() writes the entries' pops into the unwind code of each
+ * call, parse and exit, so an unwind through one pops each word as what it
+ * is.
+ */
+
+/* The kind of word a value of type ut is on the stack. */
+static Compiler::ExprWord::Kind exprWordKind( Compiler *pd, UniqueType *ut )
+{
+	if ( ut->treeValue() || ut->typeId == TYPE_NIL )
+		return Compiler::ExprWord::Tree;
+	if ( ut->ptr() )
+		return Compiler::ExprWord::Struct;
+	return Compiler::ExprWord::Value;
+}
+
+static Compiler::ExprWord *pushExprWord( Compiler *pd,
+		Compiler::ExprWord::Kind kind, long words = 1 )
+{
+	Compiler::ExprWord *word = new Compiler::ExprWord( kind, words );
+	pd->exprWords.append( word );
+	return word;
+}
+
+/* A word holding a value of type ut. */
+static void pushExprValue( Compiler *pd, UniqueType *ut )
+{
+	pushExprWord( pd, exprWordKind( pd, ut ) );
+}
+
+/* The argument area that IN_PREP_ARGS pushes for a call of a function with
+ * size words of parameters. Its slots are zeroed, and hold nothing until the
+ * arguments are stashed in them. */
+static void pushExprArea( Compiler *pd, long size )
+{
+	Compiler::ExprWord *area = pushExprWord( pd, Compiler::ExprWord::Area, size );
+	for ( long i = 0; i < size; i++ )
+		area->slots.append( Compiler::ExprWord::Value );
+}
+
+/* The innermost argument area, which the arguments being evaluated go into. */
+static Compiler::ExprWord *topExprArea( Compiler *pd )
+{
+	for ( long i = pd->exprWords.length() - 1; i >= 0; i-- ) {
+		if ( pd->exprWords[i]->kind == Compiler::ExprWord::Area )
+			return pd->exprWords[i];
+	}
+	assert( false );
+	return 0;
+}
+
+/* Drops the entries above length, whose words are consumed. */
+static void popExprWords( Compiler *pd, long length )
+{
+	while ( pd->exprWords.length() > length ) {
+		long last = pd->exprWords.length() - 1;
+		delete pd->exprWords[last];
+		pd->exprWords.remove( last );
+	}
+}
+
+/* The pops of an entry, which release what its words hold. */
+static void exprWordPop( Compiler::ExprWord *word, CodeVect &code )
+{
+	switch ( word->kind ) {
+		case Compiler::ExprWord::Tree:
+			code.append( IN_POP_TREE );
+			break;
+		case Compiler::ExprWord::Value:
+		case Compiler::ExprWord::Struct:
+		case Compiler::ExprWord::Parser:
+			/* A struct pops with IN_POP_PTR once structs are counted. */
+			code.append( IN_POP_VAL );
+			break;
+		case Compiler::ExprWord::Plain:
+			code.append( IN_POP_N_WORDS );
+			code.appendHalf( word->words );
+			break;
+		case Compiler::ExprWord::Area: {
+			/* The arguments of a call not made yet: each slot, from the top,
+			 * then the saved call_args, which IN_CLEAR_ARGS puts back. */
+			for ( long s = 0; s < word->words; s++ ) {
+				Compiler::ExprWord slot( word->slots[s], 1 );
+				exprWordPop( &slot, code );
+			}
+			code.append( IN_CLEAR_ARGS );
+			code.appendHalf( 0 );
+			break;
+		}
+	}
+}
+
 ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code, 
 		VarRefLookup &lookup, CallArgVect *args )
 {
@@ -1373,6 +1473,11 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 	long size = 0;
 	long tempPops = 0;
 	long pos = 0;
+
+	/* The arguments of a function colm compiles go into its argument area.
+	 * Others stay on the stack until the call takes them. Either way, the
+	 * record has each word that waits. */
+	bool area = lookup.objMethod->func != 0 && !lookup.objMethod->func->inHost;
 
 	paramList != 0 && ( p = *paramList );
 	for ( CallArgVect::Iter pe = *args; pe.lte(); pe++ ) {
@@ -1477,6 +1582,26 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 				code.appendHalf( 2 );
 			}
 
+			/* What stays on the stack: a qualified variable's qualifier
+			 * refs, or the copy. A ref that isn't stashed stays too. */
+			if ( expression->canTakeRef( pd ) ) {
+				long quals = expression->term->varRef->qual->length() * 2;
+				long words = quals + ( lookup.objMethod->func ? 0 : 2 );
+				if ( words > 0 )
+					pushExprWord( pd, Compiler::ExprWord::Plain, words );
+			}
+			else {
+				pushExprWord( pd, Compiler::ExprWord::Tree );
+				if ( !lookup.objMethod->func )
+					pushExprWord( pd, Compiler::ExprWord::Plain, 2 );
+			}
+
+			if ( area ) {
+				Compiler::ExprWord *argArea = topExprArea( pd );
+				argArea->slots[pos] = Compiler::ExprWord::Plain;
+				argArea->slots[pos+1] = Compiler::ExprWord::Plain;
+			}
+
 			pos += 2;
 		}
 		else {
@@ -1498,10 +1623,14 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 
 			size += 1;
 
-			if ( lookup.objMethod->func && !lookup.objMethod->func->inHost ) {
+			if ( area ) {
 				code.append( IN_STASH_ARG );
 				code.appendHalf( pos );
 				code.appendHalf( 1 );
+				topExprArea( pd )->slots[pos] = exprWordKind( pd, paramUT );
+			}
+			else {
+				pushExprValue( pd, exprUT );
 			}
 
 			pos += 1;
@@ -1527,39 +1656,73 @@ void LangVarRef::resetActiveRefs( Compiler *pd, VarRefLookup &lookup,
 	}
 }
 
-/* After a call, or a parse, which runs parser actions: the length of the code
- * that unwinds this frame on an exit below, then the code. FN_EXIT runs it,
- * the return or the parse skips it. Where words the expression around the
- * call or parse pushed lie under it, the length is negative, and the code
- * begins with IN_POP_EXPR, which pops them down to what the innermost loop's
- * iterator left, or to the frame's locals. The teardown of a user iterator
- * suspended under the call runs it. An exit there ends the process, since
- * what those words hold can't be released. */
-static void appendUnwindCode( Compiler *pd, CodeVect &code )
+/* After a call, a parse, which runs parser actions, an exit, a yield, and a
+ * loop's advance, where a user iterator's own code runs: the length of the
+ * code that unwinds this frame from there, then the code. FN_EXIT and the
+ * teardown of a user iterator run it, the return or the parse skips it. It
+ * pops the words in the record, top first, then ends the loops of the frame
+ * (pd->unwindCode). Where it pops any, IN_EXPR_WORDS first says how many, and
+ * where they lie on the stack, for the check of the record. At a call of a
+ * function colm compiles, the topmost argument area is the call's own, and
+ * so are the words above it: the refs of its ref arguments' qualifiers, and
+ * its copies. The callee's frame released its parameters, so the area pops
+ * whole. At a parse, the top word is the parser, which FN_EXIT pops itself. */
+static void appendUnwindCode( Compiler *pd, CodeVect &code, UnwindSite site )
 {
-	if ( pd->noUnwind ) {
-		CodeVect pop;
-		pop.append( IN_POP_EXPR );
-		if ( pd->unwindLoop != 0 ) {
-			pop.appendHalf( pd->unwindLoop->iterImpl->inUnwind );
-			pop.appendHalf( pd->unwindLoop->offset );
+	long top = pd->exprWords.length();
+	if ( site == UnwindParse ) {
+		assert( top > 0 && pd->exprWords[top-1]->kind == Compiler::ExprWord::Parser );
+		top -= 1;
+	}
+
+	/* The call's own area. */
+	long own = -1;
+	if ( site == UnwindCall ) {
+		for ( own = top - 1; own >= 0; own-- ) {
+			if ( pd->exprWords[own]->kind == Compiler::ExprWord::Area )
+				break;
+		}
+		assert( own >= 0 );
+	}
+
+	long count = 0;
+	CodeVect pops;
+	for ( long i = top - 1; i >= 0; i-- ) {
+		Compiler::ExprWord *word = pd->exprWords[i];
+		count += word->stackWords();
+		if ( i == own ) {
+			pops.append( IN_CLEAR_ARGS );
+			pops.appendHalf( word->words );
 		}
 		else {
-			pop.appendHalf( 0 );
-			pop.appendHalf( 0 );
+			exprWordPop( word, pops );
 		}
-		code.appendHalf( (half_t) -( pop.length() + pd->unwindCode.length() + 1 ) );
-		code.append( pop );
-		code.append( pd->unwindCode );
-		code.append( IN_DONE );
 	}
-	else if ( pd->unwindCode.length() == 0 )
+
+	if ( count == 0 && pd->unwindCode.length() == 0 ) {
 		code.appendHalf( 0 );
-	else {
-		code.appendHalf( pd->unwindCode.length() + 1 );
-		code.append( pd->unwindCode );
-		code.append( IN_DONE );
+		return;
 	}
+
+	CodeVect check;
+	if ( count > 0 ) {
+		check.append( IN_EXPR_WORDS );
+		check.appendHalf( count );
+		if ( pd->unwindLoop != 0 ) {
+			check.appendHalf( pd->unwindLoop->iterImpl->inUnwind );
+			check.appendHalf( pd->unwindLoop->offset );
+		}
+		else {
+			check.appendHalf( 0 );
+			check.appendHalf( 0 );
+		}
+	}
+
+	code.appendHalf( check.length() + pops.length() + pd->unwindCode.length() + 1 );
+	code.append( check );
+	code.append( pops );
+	code.append( pd->unwindCode );
+	code.append( IN_DONE );
 }
 
 bool LangVarRef::isFinishCall( VarRefLookup &lookup ) const
@@ -1584,9 +1747,14 @@ void LangVarRef::callOperation( Compiler *pd, CodeVect &code, VarRefLookup &look
 	bool unwind = false;
 	
 	if ( isFinishCall( lookup ) ) {
+		/* The parser is under the parse. */
+		long words = pd->exprWords.length();
+		pushExprWord( pd, Compiler::ExprWord::Parser );
+
 		code.append( IN_SEND_EOF_W );
 
 		LangTerm::parseFrag( pd, code, 0 );
+		popExprWords( pd, words );
 
 		code.append( IN_GET_PARSER_MEM_R );
 		code.appendHalf( 0 );
@@ -1618,8 +1786,10 @@ void LangVarRef::callOperation( Compiler *pd, CodeVect &code, VarRefLookup &look
 	if ( lookup.objMethod->useGenericId )
 		code.appendHalf( lookup.objMethod->generic->id );
 
-	if ( unwind )
-		appendUnwindCode( pd, code );
+	if ( unwind ) {
+		appendUnwindCode( pd, code, lookup.objMethod->func != 0 ?
+				UnwindCall : UnwindOther );
+	}
 }
 
 void LangVarRef::popRefQuals( Compiler *pd, CodeVect &code, 
@@ -1673,10 +1843,12 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 
 	/* Prepare the contiguous call args space. */
 	int asLoc;
+	long words = pd->exprWords.length();
 	if ( func != 0 && !func->inHost ) {
 		code.append( IN_PREP_ARGS );
 		asLoc = code.length();
 		code.appendHalf( 0 );
+		pushExprArea( pd, func->paramListSize );
 	}
 
 	/* Evaluate and push the arguments. A change through an object being set
@@ -1684,6 +1856,11 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	pd->setupStoreVar = change ? setupVar( pd, lookup ) : 0;
 	ObjectField **paramRefs = evaluateArgs( pd, code, lookup, args );
 	pd->setupStoreVar = 0;
+
+	/* The instruction of a built-in or a host function takes its arguments.
+	 * What popRefQuals() pops after it lies under no call. */
+	if ( func == 0 || func->inHost )
+		popExprWords( pd, words );
 
 	/* The change is made after the arguments, which may end the setup, and
 	 * gives its result after that. */
@@ -1711,19 +1888,6 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	if ( func != 0 && pd->revertOn && pd->curBlock != 0 )
 		pd->curBlock->calls.append( func );
 
-	/* A ref argument's qualifiers, or the value a ref argument takes, stay
-	 * on the stack under the call, where an exit can't unwind them. */
-	if ( args != 0 ) {
-		for ( CallArgVect::Iter pe = *args; pe.lte(); pe++ ) {
-			LangExpr *expression = (*pe)->expr;
-			UniqueType *paramUT = lookup.objMethod->paramUTs[pe.pos()];
-
-			if ( paramUT->typeId == TYPE_REF && ( !expression->canTakeRef( pd ) ||
-					expression->term->varRef->qual->length() > 0 ) )
-				pd->noUnwind = true;
-		}
-	}
-
 	/* Write the call opcode. */
 	callOperation( pd, code, lookup );
 
@@ -1736,6 +1900,7 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 		code.append( IN_CLEAR_ARGS );
 		code.appendHalf( func->paramListSize );
 		code.setHalf( asLoc, func->paramListSize );
+		popExprWords( pd, words );
 	}
 
 	if ( func != 0 && !func->inHost )
@@ -1994,9 +2159,12 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 	}
 
 	/*
-	 * First load the context into the parser.
+	 * First load the context into the parser, which waits under it.
 	 */
 	if ( context ) {
+		long words = pd->exprWords.length();
+		pushExprWord( pd, Compiler::ExprWord::Parser );
+
 		bool contextGiven = false;
 		for ( int i = 0; fieldInitArgs != 0 && i < fieldInitArgs->length(); i++ ) {
 			/* Eval what we are initializing with. A new parser runs nothing,
@@ -2019,6 +2187,7 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 		}
 
 		checkContextGiven( loc, newUT->generic->elUt->langEl, contextGiven );
+		popExprWords( pd, words );
 	}
 
 	evaluateCapture( pd, code, newUT );
@@ -2098,7 +2267,9 @@ void LangTerm::assignFieldArgs( Compiler *pd, CodeVect &code, UniqueType *replUT
 
 UniqueType *LangTerm::evaluateConstruct( Compiler *pd, CodeVect &code ) const
 {
-	/* Evaluate the initialization expressions. */
+	/* Evaluate the initialization expressions. Each waits under the rest,
+	 * and the items, until it is set. */
+	long words = pd->exprWords.length();
 	if ( fieldInitArgs != 0 && fieldInitArgs->length() > 0 ) {
 		for ( FieldInitVect::Iter pi = *fieldInitArgs; pi.lte(); pi++ ) {
 			FieldInit *fieldInit = *pi;
@@ -2106,10 +2277,16 @@ UniqueType *LangTerm::evaluateConstruct( Compiler *pd, CodeVect &code ) const
 
 			/* A value goes into an attribute wrapped, as an assignment
 			 * stores it. */
-			if ( fieldInit->exprUT->ptr() || fieldInit->exprUT->scalar() )
+			if ( fieldInit->exprUT->ptr() || fieldInit->exprUT->scalar() ) {
 				code.append( IN_VAL_TO_POINTER );
+				pushExprWord( pd, Compiler::ExprWord::Tree );
+			}
+			else {
+				pushExprValue( pd, fieldInit->exprUT );
+			}
 		}
 	}
+	long fieldWords = pd->exprWords.length();
 
 	/* Assign bind ids to the variables in the replacement. */
 	for ( ConsItemList::Iter item = *constructor->list; item.lte(); item++ ) {
@@ -2133,6 +2310,9 @@ UniqueType *LangTerm::evaluateConstruct( Compiler *pd, CodeVect &code ) const
 			}
 
 			item->langEl = ut->langEl;
+
+			/* It waits under the items before it, which come after. */
+			pushExprWord( pd, Compiler::ExprWord::Tree );
 		}
 	}
 
@@ -2140,6 +2320,7 @@ UniqueType *LangTerm::evaluateConstruct( Compiler *pd, CodeVect &code ) const
 	 * code. */
 	code.append( IN_CONSTRUCT );
 	code.appendHalf( constructor->patRepId );
+	popExprWords( pd, fieldWords );
 
 	/* Lookup the type of the replacement and store it in the replacement
 	 * object so that replacement parsing has a target. */
@@ -2149,6 +2330,7 @@ UniqueType *LangTerm::evaluateConstruct( Compiler *pd, CodeVect &code ) const
 	
 	constructor->langEl = replUT->langEl;
 	assignFieldArgs( pd, code, replUT );
+	popExprWords( pd, words );
 
 	evaluateCapture( pd, code, replUT );
 
@@ -2158,7 +2340,7 @@ UniqueType *LangTerm::evaluateConstruct( Compiler *pd, CodeVect &code ) const
 void LangTerm::parseFrag( Compiler *pd, CodeVect &code, int stopId )
 {
 	code.append( IN_PARSE_FRAG_W );
-	appendUnwindCode( pd, code );
+	appendUnwindCode( pd, code, UnwindParse );
 }
 
 UniqueType *LangTerm::evaluateReadReduce( Compiler *pd, CodeVect &code ) const
@@ -2265,6 +2447,10 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 	code.append( IN_SET_PARSER_OWNER );
 	long madeForPos = code.length();
 	code.append( PARSER_PARSE );
+
+	/* The parser waits under its context, its items, and the parses. */
+	long words = pd->exprWords.length();
+	pushExprWord( pd, Compiler::ExprWord::Parser );
 
 	/*
 	 * First load the context into the parser.
@@ -2423,6 +2609,7 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 	/* Replace the parser with the parsed tree. */
 	code.append( IN_GET_PARSER_MEM_R );
 	code.appendHalf( 0 );
+	popExprWords( pd, words );
 
 	/* Capture to the local var. */
 	evaluateCapture( pd, code, targetUT );
@@ -2441,6 +2628,10 @@ void LangTerm::evaluateSendStream( Compiler *pd, CodeVect &code ) const
 		code.appendHalf( varUt->generic->id );
 		code.appendHalf( 0 );
 	}
+
+	/* The stream waits under its items. */
+	long words = pd->exprWords.length();
+	pushExprWord( pd, Compiler::ExprWord::Struct );
 
 	/* Assign bind ids to the variables in the replacement. */
 	for ( ConsItemList::Iter item = *parserText->list; item.lte(); item++ ) {
@@ -2498,6 +2689,9 @@ void LangTerm::evaluateSendStream( Compiler *pd, CodeVect &code ) const
 		code.append( IN_PRINT_TREE );
 		code.append( trim );
 	}
+
+	/* The stream is the send's value. */
+	popExprWords( pd, words );
 }
 
 void LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) const
@@ -2513,6 +2707,10 @@ void LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) 
 		code.appendHalf( varUt->generic->id );
 		code.appendHalf( 0 );
 	}
+
+	/* The parser waits under its items and the parses. */
+	long words = pd->exprWords.length();
+	pushExprWord( pd, Compiler::ExprWord::Parser );
 
 	if ( parserText->list->length() == 0 ) {
 		code.append( IN_SEND_NOTHING );
@@ -2602,6 +2800,9 @@ void LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) 
 		code.append( IN_SEND_EOF_W );
 		parseFrag( pd, code, 0 );
 	}
+
+	/* The parser is the send's value. */
+	popExprWords( pd, words );
 }
 
 /* A send changes what it goes to, once its items are made, which may end the
@@ -2651,7 +2852,9 @@ UniqueType *LangTerm::evaluateSendTree( Compiler *pd, CodeVect &code ) const
 
 UniqueType *LangTerm::evaluateEmbedString( Compiler *pd, CodeVect &code ) const
 {
-	/* Assign bind ids to the variables in the replacement. */
+	/* Assign bind ids to the variables in the replacement. Each item gives a
+	 * string, which waits under the items after it. */
+	long words = pd->exprWords.length();
 	for ( ConsItemList::Iter item = *consItemList; item.lte(); item++ ) {
 		switch ( item->type ) {
 		case ConsItem::LiteralType: {
@@ -2712,6 +2915,8 @@ UniqueType *LangTerm::evaluateEmbedString( Compiler *pd, CodeVect &code ) const
 			}
 			break;
 		}}
+
+		pushExprWord( pd, Compiler::ExprWord::Tree );
 	}
 
 	/* If there was nothing loaded, load the empty string. We must produce
@@ -2731,6 +2936,7 @@ UniqueType *LangTerm::evaluateEmbedString( Compiler *pd, CodeVect &code ) const
 	long items = consItemList->length();
 	for ( long i = 0; i < items-1; i++ )
 		code.append( IN_CONCAT_STR );
+	popExprWords( pd, words );
 
 	return pd->uniqueTypeStr;
 }
@@ -2754,12 +2960,6 @@ UniqueType *LangTerm::evaluateSearch( Compiler *pd, CodeVect &code ) const
 
 UniqueType *LangTerm::evaluate( Compiler *pd, CodeVect &code ) const
 {
-	/* Only the term a statement starts with can be unwound by an exit. Any
-	 * other runs over words the expression around it has pushed. */
-	bool noUnwind = pd->noUnwind;
-	pd->noUnwind = this != pd->stmtTerm;
-	pd->stmtTerm = 0;
-
 	UniqueType *retUt = 0;
 	switch ( type ) {
 		case VarRefType:
@@ -2857,7 +3057,6 @@ UniqueType *LangTerm::evaluate( Compiler *pd, CodeVect &code ) const
 			break;
 	}
 
-	pd->noUnwind = noUnwind;
 	return retUt;
 }
 
@@ -2867,8 +3066,11 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 		case BinaryType: {
 			switch ( op ) {
 				case '+': {
+					long words = pd->exprWords.length();
 					UniqueType *lt = left->evaluate( pd, code );
+					pushExprValue( pd, lt );
 					UniqueType *rt = right->evaluate( pd, code );
+					popExprWords( pd, words );
 
 					// pd->unwindCode.remove( 0, 2 );
 					// pd->unwindCode.insert( 0, IN_POP_TREE );
@@ -2888,8 +3090,11 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					break;
 				}
 				case '-': {
+					long words = pd->exprWords.length();
 					UniqueType *lt = left->evaluate( pd, code );
+					pushExprValue( pd, lt );
 					UniqueType *rt = right->evaluate( pd, code );
+					popExprWords( pd, words );
 
 					if ( lt == pd->uniqueTypeInt && rt == pd->uniqueTypeInt ) {
 						code.append( IN_SUB_INT );
@@ -2900,8 +3105,11 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					break;
 				}
 				case '*': {
+					long words = pd->exprWords.length();
 					UniqueType *lt = left->evaluate( pd, code );
+					pushExprValue( pd, lt );
 					UniqueType *rt = right->evaluate( pd, code );
+					popExprWords( pd, words );
 
 					if ( lt == pd->uniqueTypeInt && rt == pd->uniqueTypeInt ) {
 						code.append( IN_MULT_INT );
@@ -2913,8 +3121,11 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					break;
 				}
 				case '/': {
+					long words = pd->exprWords.length();
 					UniqueType *lt = left->evaluate( pd, code );
+					pushExprValue( pd, lt );
 					UniqueType *rt = right->evaluate( pd, code );
+					popExprWords( pd, words );
 
 					if ( lt == pd->uniqueTypeInt && rt == pd->uniqueTypeInt ) {
 						code.append( IN_DIV_INT );
@@ -2926,8 +3137,11 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					break;
 				}
 				case OP_DoubleEql: {
+					long words = pd->exprWords.length();
 					UniqueType *lt = left->evaluate( pd, code );
+					pushExprValue( pd, lt );
 					UniqueType *rt = right->evaluate( pd, code );
+					popExprWords( pd, words );
 
 					if ( lt != rt )
 						error(loc) << "comparison of different types" << endp;
@@ -2939,8 +3153,11 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					return pd->uniqueTypeBool;
 				}
 				case OP_NotEql: {
+					long words = pd->exprWords.length();
 					UniqueType *lt = left->evaluate( pd, code );
+					pushExprValue( pd, lt );
 					UniqueType *rt = right->evaluate( pd, code );
+					popExprWords( pd, words );
 
 					if ( lt != rt )
 						error(loc) << "comparison of different types" << endp;
@@ -2953,8 +3170,11 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					return pd->uniqueTypeBool;
 				}
 				case '<': {
+					long words = pd->exprWords.length();
 					UniqueType *lt = left->evaluate( pd, code );
+					pushExprValue( pd, lt );
 					UniqueType *rt = right->evaluate( pd, code );
+					popExprWords( pd, words );
 
 					if ( lt != rt )
 						error(loc) << "comparison of different types" << endp;
@@ -2966,8 +3186,11 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					return pd->uniqueTypeBool;
 				}
 				case '>': {
+					long words = pd->exprWords.length();
 					UniqueType *lt = left->evaluate( pd, code );
+					pushExprValue( pd, lt );
 					UniqueType *rt = right->evaluate( pd, code );
+					popExprWords( pd, words );
 
 					if ( lt != rt )
 						error(loc) << "comparison of different types" << endp;
@@ -2980,8 +3203,11 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					return pd->uniqueTypeBool;
 				}
 				case OP_LessEql: {
+					long words = pd->exprWords.length();
 					UniqueType *lt = left->evaluate( pd, code );
+					pushExprValue( pd, lt );
 					UniqueType *rt = right->evaluate( pd, code );
+					popExprWords( pd, words );
 
 					if ( lt != rt )
 						error(loc) << "comparison of different types" << endp;
@@ -2994,8 +3220,11 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					return pd->uniqueTypeBool;
 				}
 				case OP_GrtrEql: {
+					long words = pd->exprWords.length();
 					UniqueType *lt = left->evaluate( pd, code );
+					pushExprValue( pd, lt );
 					UniqueType *rt = right->evaluate( pd, code );
+					popExprWords( pd, words );
 
 					if ( lt != rt )
 						error(loc) << "comparison of different types" << endp;
@@ -3021,10 +3250,14 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					code.append( IN_JMP_FALSE_VAL );
 					code.appendHalf( 0 );
 
-					/* Evauluate the right, add the test. Store it separately. */
+					/* Evauluate the right, add the test. Store it separately.
+					 * The left's test waits under it. */
+					long words = pd->exprWords.length();
+					pushExprWord( pd, Compiler::ExprWord::Value );
 					UniqueType *rut = right->evaluate( pd, code );
 					if ( !( rut->ptr() || rut->scalar() ) )
 						code.append( IN_TST_NZ_TREE );
+					popExprWords( pd, words );
 
 					code.append( IN_TST_LOGICAL_AND );
 
@@ -3048,10 +3281,14 @@ UniqueType *LangExpr::evaluate( Compiler *pd, CodeVect &code ) const
 					code.append( IN_JMP_TRUE_VAL );
 					code.appendHalf( 0 );
 
-					/* Evauluate the right, add the test. */
+					/* Evauluate the right, add the test. The left's test
+					 * waits under it. */
+					long words = pd->exprWords.length();
+					pushExprWord( pd, Compiler::ExprWord::Value );
 					UniqueType *rut = right->evaluate( pd, code );
 					if ( !( rut->ptr() || rut->scalar() ) )
 						code.append( IN_TST_NZ_TREE );
+					popExprWords( pd, words );
 
 					code.append( IN_TST_LOGICAL_OR );
 
@@ -3209,6 +3446,8 @@ UniqueType *LangTerm::evaluateMakeToken( Compiler *pd, CodeVect &code ) const
 		error(loc) << "make_token cannot make an il" << endp;
 	}
 
+	/* Each argument waits under the ones after it. */
+	long words = pd->exprWords.length();
 	for ( CallArgVect::Iter pe = *args; pe.lte(); pe++ ) {
 		/* Evaluate. */
 		UniqueType *exprUT = (*pe)->expr->evaluate( pd, code );
@@ -3221,13 +3460,19 @@ UniqueType *LangTerm::evaluateMakeToken( Compiler *pd, CodeVect &code ) const
 
 		/* The rest are attributes. A value goes into one wrapped, as an
 		 * assignment stores it. */
-		if ( pe.pos() >= 2 && ( exprUT->ptr() || exprUT->scalar() ) )
+		if ( pe.pos() >= 2 && ( exprUT->ptr() || exprUT->scalar() ) ) {
 			code.append( IN_VAL_TO_POINTER );
+			pushExprWord( pd, Compiler::ExprWord::Tree );
+		}
+		else {
+			pushExprValue( pd, exprUT );
+		}
 	}
 
 	/* The token is now created, send it. */
 	code.append( IN_MAKE_TOKEN );
 	code.append( args->length() );
+	popExprWords( pd, words );
 
 	return pd->uniqueTypeAny;
 }
@@ -3256,17 +3501,22 @@ UniqueType *LangTerm::evaluateMakeTree( Compiler *pd, CodeVect &code ) const
 			error(loc) << "make_tree cannot make a token or str" << endp;
 	}
 
+	/* Each argument waits under the ones after it. */
+	long words = pd->exprWords.length();
 	for ( CallArgVect::Iter pe = *args; pe.lte(); pe++ ) {
 		/* Evaluate. */
 		UniqueType *exprUT = (*pe)->expr->evaluate( pd, code );
 
 		if ( pe.pos() == 0 && exprUT != pd->uniqueTypeInt )
 			error(loc) << "first arg, nonterm id, must be an int" << endp;
+
+		pushExprValue( pd, exprUT );
 	}
 
 	/* The token is now created, send it. */
 	code.append( IN_MAKE_TREE );
 	code.append( args->length() );
+	popExprWords( pd, words );
 
 	return pd->uniqueTypeAny;
 }
@@ -3317,7 +3567,7 @@ void LangStmt::compileForIterBody( Compiler *pd,
 	/* A user iterator's own code runs at the advance. An exit in it comes
 	 * back to the loop, whose unwind code ends the iterator. */
 	if ( objField->iterImpl->type == IterImpl::User )
-		appendUnwindCode( pd, code );
+		appendUnwindCode( pd, code, UnwindOther );
 
 	/* Test: jump past the while block if false. Note that we don't have the
 	 * distance yet. */
@@ -3374,10 +3624,12 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	/* Prepare the contiguous call args space. */
 	Function *func = lookup.objMethod->func;
 	int asLoc;
+	long words = pd->exprWords.length();
 	if ( func != 0 ) {
 		code.append( IN_PREP_ARGS );
 		asLoc = code.length();
 		code.appendHalf( 0 );
+		pushExprArea( pd, func->paramListSize );
 	}
 
 	/* 
@@ -3556,6 +3808,10 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	if ( iterImpl->useGenericId )
 		code.appendHalf( generic->id );
 
+	/* The iterator has its arguments. What it leaves of them is under the
+	 * loop, whose unwind code pops it. */
+	popExprWords( pd, words );
+
 	/* The words the loop leaves under its iterator: the refs of a ref
 	 * argument's qualification, and a user iterator's arguments. The end of
 	 * the loop pops them, and so does a return or an exit that leaves it. */
@@ -3574,19 +3830,12 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	delete[] paramRefs;
 }
 
-/* The term an expression is, if it is one. */
-static LangTerm *stmtTerm( LangExpr *expr )
-{
-	return expr->type == LangExpr::TermType ? expr->term : 0;
-}
-
 void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 {
 	/* Generate code for the while test. Remember the top. The test runs
 	 * again after the body, so a setup outside the loop doesn't reach into
 	 * it either. */
 	long top = code.length();
-	pd->stmtTerm = stmtTerm( expr );
 	pd->loopDepth += 1;
 	UniqueType *eut = expr->evaluate( pd, code );
 	pd->loopDepth -= 1;
@@ -3623,10 +3872,12 @@ void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 
 void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 {
+	/* A statement consumes what it pushes. */
+	long words = pd->exprWords.length();
+
 	switch ( type ) {
 		case ExprType: {
 			/* Evaluate the exrepssion, then pop it immediately. */
-			pd->stmtTerm = stmtTerm( expr );
 			UniqueType *exprUt = expr->evaluate( pd, code );
 			if ( exprUt->treeValue() )
 				code.append( IN_POP_TREE );
@@ -3640,7 +3891,6 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			long jumpFalse = 0, jumpPastElse = 0, distance = 0;
 
 			/* Evaluate the test. */
-			pd->stmtTerm = stmtTerm( expr );
 			UniqueType *eut = expr->evaluate( pd, code );
 
 			/* Jump past the if block if false. We don't know the distance
@@ -3710,7 +3960,6 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			/* Evaluate the exrepssion. A change through an object being set
 			 * up puts it into the object. */
 			pd->setupStoreVar = varRef->setupVar( pd, varRef->lookupField( pd ) );
-			pd->stmtTerm = stmtTerm( expr );
 			UniqueType *exprUT = evaluateSetupValue( pd, code, expr );
 			pd->setupStoreVar = 0;
 
@@ -3764,7 +4013,6 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			}
 
 			/* Evaluate the exrepssion. */
-			pd->stmtTerm = stmtTerm( expr );
 			UniqueType *exprUT = expr->evaluate( pd, code );
 
 			if ( pd->curFunction == 0 ) {
@@ -3867,7 +4115,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 					quals.appendHalf( (short)(varRef->qual->length()*2) );
 				}
 				pd->unwindCode.insert( 0, quals );
-				appendUnwindCode( pd, code );
+				appendUnwindCode( pd, code, UnwindOther );
 				pd->unwindCode.remove( 0, quals.length() );
 			}
 
@@ -3887,6 +4135,8 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 		if ( pd->setupWindows[i].closing )
 			pd->setupWindows.remove( i );
 	}
+
+	assert( pd->exprWords.length() == words );
 }
 
 void CodeBlock::compile( Compiler *pd, CodeVect &code ) const

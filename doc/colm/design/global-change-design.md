@@ -129,8 +129,10 @@ a restartable parser, and a change undone in a parse whose only item that
 runs code is its first. `globread2` reads such a tree's attributes in place.
 `nilset2` and `undomap10` became parses that aren't restartable, and
 `sendown1`–`sendown4` kept their parsers in a context, until [#718] made a
-parser hold its context object: now each parser reaches another through an
-attribute of a tree sent to it.
+parser hold its context object. Then each parser reached another through an
+attribute of a tree sent to it, until [#720]'s rule refused a tree that can
+hold a parser too, and the four were removed: no program that compiles
+reaches the stops they tested.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#683]: https://github.com/adrian-thurston/colm-suite/issues/683

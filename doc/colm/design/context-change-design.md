@@ -231,6 +231,16 @@ for [#718] over the compile-time rule above, which refuses too much.
   the tree sends or parses such a tree. A token action's pushes onto `input`
   stay: the C++ grammar's lookup pushes what `make_tree` makes, an `any`,
   which counts once the grammar's `lang_object` attributes do.
+- A tree whose attributes can hold a parser, and nothing else, counts too:
+  the maintainer's answer when this rule met [#718]'s `sendown1`–`sendown4`.
+  Exempting it would let the program and a parser's action both send to the
+  parser such a tree carries, and backing up over the action's send would
+  take out the wrong text, as [#368] did through a global's parser. With
+  [#714]'s rule and #718's hold, no program that compiles reaches [#619]'s
+  two stops, a send to a parser while one of its actions runs and backing up
+  over one (`parser_check()` and `IN_PARSE_INIT_BKT` in `bytecode.c`). They
+  stay as safeguards, and `sendown1`–`sendown4`, which reached them through
+  such trees, are removed.
 
 ## Limits
 
@@ -293,11 +303,14 @@ matching such a tree, taking its text with `$`, a tree loop over it, a held
 parser's tree of such a type, and a `cons` at setup. It also added
 `treesend6`, a `push_ignore`. In `treesend7`, which sends an `any`, and
 `ctxtake21`, which sets up a type named `item`, the message puts `an`
-before the type's name (`article()`).
+before the type's name (`article()`). `treesend8` is the program of the
+removed `sendown2`: two parsers that reach each other through parser
+attributes of trees sent with `send_tree`.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439
 [#550]: https://github.com/adrian-thurston/colm-suite/issues/550
+[#619]: https://github.com/adrian-thurston/colm-suite/issues/619
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706
 [#714]: https://github.com/adrian-thurston/colm-suite/issues/714
 [#718]: https://github.com/adrian-thurston/colm-suite/issues/718

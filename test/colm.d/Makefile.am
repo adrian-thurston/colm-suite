@@ -578,10 +578,6 @@ EXTRA_DIST = \
 	sendignbt1.lm \
 	sendnil1.lm \
 	sendnilmsg1.lm \
-	sendown1.lm \
-	sendown2.lm \
-	sendown3.lm \
-	sendown4.lm \
 	sendstream.lm \
 	setchildnil1.lm \
 	sprintf.lm \
@@ -629,6 +625,7 @@ EXTRA_DIST = \
 	treesend5.lm \
 	treesend6.lm \
 	treesend7.lm \
+	treesend8.lm \
 	typeref1.lm \
 	typeref2.lm \
 	typeref3.lm \

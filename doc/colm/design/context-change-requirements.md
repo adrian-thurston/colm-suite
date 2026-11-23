@@ -82,7 +82,7 @@ while a parser it was given can back up, and what colm checks. The
   into its attributes, and a send after the end makes the parser back up
   over them ([#439]).
 - A cast to a tree type that can't hold a list, map, parser, stream or
-  struct hides one from requirements 7 and 8, which go by type.
+  struct hides one from requirements 7 and 8, which go by type ([#755]).
 - Host programs: exports give a host trees, never structs.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
@@ -95,3 +95,4 @@ while a parser it was given can back up, and what colm checks. The
 [#718]: https://github.com/adrian-thurston/colm-suite/issues/718
 [#720]: https://github.com/adrian-thurston/colm-suite/issues/720
 [#729]: https://github.com/adrian-thurston/colm-suite/issues/729
+[#755]: https://github.com/adrian-thurston/colm-suite/issues/755

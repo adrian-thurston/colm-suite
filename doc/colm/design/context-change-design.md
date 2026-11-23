@@ -177,7 +177,7 @@ and
   into its attributes. A send after the end makes the parser back up over
   them ([#439]).
 - The checks go by type: a cast to a tree type that can't hold a list, map,
-  parser, stream or struct hides one.
+  parser, stream or struct hides one ([#755]).
 - A function that a token action gives `input` to pushes onto an input that
   isn't `input`, and is refused a tree that shares one.
 
@@ -220,3 +220,4 @@ before the type's name (`article()`).
 [#718]: https://github.com/adrian-thurston/colm-suite/issues/718
 [#720]: https://github.com/adrian-thurston/colm-suite/issues/720
 [#729]: https://github.com/adrian-thurston/colm-suite/issues/729
+[#755]: https://github.com/adrian-thurston/colm-suite/issues/755

@@ -126,6 +126,7 @@ typedef struct colm_map
 
 struct colm_struct *colm_struct_new_size( struct colm_program *prg, int size );
 struct colm_struct *colm_struct_new( struct colm_program *prg, int id );
+struct colm_struct *colm_struct_new_el( struct colm_program *prg, int id );
 void colm_struct_add( struct colm_program *prg, struct colm_struct *item );
 void colm_struct_delete( struct colm_program *prg, struct colm_tree **sp,
 		struct colm_struct *el );

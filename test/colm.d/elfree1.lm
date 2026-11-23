@@ -1,56 +1,54 @@
 # A list's value pop, a map's remove, and an insert of a key the map has
-# already, free the element they take out or don't put in, at once. The host
-# runs the program twice, with 0 rounds and with 100, and counts the structs
-# left on the program's heap after each run. Each round pops and pushes a
-# list value, and removes and inserts a map key. The two counts are the same.
+# already, free the element they take out or don't put in, at once. An
+# element is on no list of the program's, so heap_bytes() gives the bytes
+# that malloc has given out and not had back: the same after 10 rounds as
+# after 110. Each round pops and pushes a list value, and removes and
+# inserts a map key. Both measures come before the program first prints,
+# which makes stdout and its buffer.
 
-N: int = atoi( argv->pop() )
-L: list<str> = new list<str>()
+int heap_bytes() = c_heap_bytes
+
+global L: list<str> = new list<str>()
 L->push_tail( "a" )
 L->push_tail( "b" )
-M: map<str, str> = new map<str, str>()
+global M: map<str, str> = new map<str, str>()
 M->insert( "k", "v" )
-I: int = 0
-while ( I < N ) {
-	L->push_tail( L->pop_head() )
-	V: str = M->find( "k" )
-	M->remove( "k" )
-	M->insert( "k", V )
-	M->insert( "k", "again" )
-	I = I + 1
+
+void rounds( N: int )
+{
+	I: int = 0
+	while ( I < N ) {
+		L->push_tail( L->pop_head() )
+		V: str = M->find( "k" )
+		M->remove( "k" )
+		M->insert( "k", V )
+		M->insert( "k", "again" )
+		I = I + 1
+	}
 }
+
+rounds( 10 )
+Before: int = heap_bytes()
+rounds( 100 )
+After: int = heap_bytes()
+print( "bytes left after 100 rounds: ", After - Before, "\n" )
 print( "L ", L->length, ", M ", M->length, " ", M->find( "k" ), "\n" )
-##### HOST #####
+##### CALL #####
+#include <colm/tree.h>
+#include <colm/bytecode.h>
+#include <malloc.h>
+#include <stdlib.h>
+#include <string.h>
 
-#include <colm/colm.h>
-#include <colm/program.h>
-#include <colm/struct.h>
-#include <stdio.h>
-
-extern colm_sections colm_object;
-
-static long run( const char *rounds )
+/* The bytes malloc has given out and not had back. Under valgrind, which
+ * keeps freed blocks back and finds a leak itself, 0. */
+value_t c_heap_bytes( program_t *prg, tree_t **sp )
 {
-	const char *argv[] = { "elfree1", rounds, 0 };
-	colm_program *prg = colm_new_program( &colm_object );
-	colm_run_program( prg, 2, argv );
-
-	long count = 0;
-	for ( struct colm_struct *s = prg->heap.head; s != 0; s = s->next )
-		count += 1;
-
-	colm_delete_program( prg );
-	return count;
-}
-
-int main( int argc, const char **argv )
-{
-	long none = run( "0" );
-	long some = run( "100" );
-	printf( "structs left after 100 rounds: %ld\n", some - none );
-	return 0;
+	const char *preload = getenv( "LD_PRELOAD" );
+	if ( preload != 0 && strstr( preload, "vgpreload" ) != 0 )
+		return 0;
+	return (value_t)mallinfo2().uordblks;
 }
 ##### EXP #####
+bytes left after 100 rounds: 0
 L 2, M 1 v
-L 2, M 1 v
-structs left after 100 rounds: 0

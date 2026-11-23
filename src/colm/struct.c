@@ -66,6 +66,18 @@ struct colm_struct *colm_struct_new( program_t *prg, int id )
 	return s;
 }
 
+/* A list's or a map's element, made as colm_struct_new() makes a struct but
+ * kept off the heap list. Only its list or map holds it, and frees it. */
+struct colm_struct *colm_struct_new_el( program_t *prg, int id )
+{
+	size_t memsize = sizeof(struct colm_struct) + ( sizeof(tree_t*) *
+			prg->rtd->sel_info[id - prg->rtd->num_lang_els].size );
+	struct colm_struct *item = (struct colm_struct*) malloc( memsize );
+	memset( item, 0, memsize );
+	item->id = id;
+	return item;
+}
+
 static struct struct_el_info *colm_sel_info( program_t *prg, int id )
 {
 	return &prg->rtd->sel_info[id - prg->rtd->num_lang_els];
@@ -128,6 +140,19 @@ parser_t *colm_parser_new( program_t *prg, struct generic_info *gi, int stop_id,
 	return parser;
 }
 
+/* Frees the map's elements, in key order, with what each holds. */
+static void colm_map_destroy( struct colm_program *prg, tree_t **sp, struct colm_struct *s )
+{
+	map_t *map = (map_t*)s;
+	long gen_id = map->generic_info - prg->rtd->generic_info;
+	map_el_t *map_el = map->head;
+	while ( map_el != 0 ) {
+		map_el_t *next = map_el->next;
+		colm_struct_delete( prg, sp, colm_generic_el_container( prg, map_el, gen_id ) );
+		map_el = next;
+	}
+}
+
 map_t *colm_map_new( struct colm_program *prg )
 {
 	size_t memsize = sizeof(struct colm_map);
@@ -135,6 +160,7 @@ map_t *colm_map_new( struct colm_program *prg )
 	memset( map, 0, memsize );
 	colm_struct_add( prg, (struct colm_struct *)map );
 	map->id = prg->rtd->struct_inbuilt_id;
+	map->destructor = &colm_map_destroy;
 	return map;
 }
 

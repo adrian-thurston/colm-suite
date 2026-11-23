@@ -1,0 +1,26 @@
+# After a redef, a child of a production it keeps with [...] is read by its
+# label from outside the parse, and a child of a production it adds by its
+# type's name. colm refused S.Name: the redef's object had no names for the
+# kept productions' children.
+
+lex
+	literal `;
+	token id /[a-z]+/
+	token number /[0-9]+/
+	ignore /space+/
+end
+
+def statement
+	[Name: id `;]
+
+redef statement
+	[number `;]
+|	[...]
+
+parse S: statement[ "x;" ]
+print( $S.Name, "\n" )
+parse T: statement[ "7;" ]
+print( $T.number, "\n" )
+##### EXP #####
+x
+7

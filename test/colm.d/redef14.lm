@@ -1,0 +1,35 @@
+# An action of a production that a redef keeps with [...] reads the
+# production's labelled children through lhs, as lhs.Left. The redef's
+# object had no names for the kept productions' children. Once a kept
+# action's lhs was typed as the redef's lang el, colm refused lhs.Left. The
+# redef's object now gets the names of the children of the productions it
+# keeps.
+
+lex
+	literal `-
+	token number /[0-9]+/
+	ignore /space+/
+end
+
+def expr
+	Value: int
+	[Left: number `- Right: number]
+	{
+		lhs.Value = atoi( $lhs.Left ) - atoi( $lhs.Right )
+	}
+
+redef expr
+	Value: int
+	[number]
+	{
+		lhs.Value = atoi( $r1 )
+	}
+|	[...]
+
+parse E: expr[ "9 - 4" ]
+print( "E.Value=", E.Value, "\n" )
+parse F: expr[ "7" ]
+print( "F.Value=", F.Value, "\n" )
+##### EXP #####
+E.Value=5
+F.Value=7

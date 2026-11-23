@@ -1,0 +1,23 @@
+# The same as redef14, for a child with no label, which a kept action reads
+# by its type's name, as lhs.id.
+
+lex
+	literal `;
+	token id /[a-z]+/
+	token number /[0-9]+/
+	ignore /space+/
+end
+
+def statement
+	[id `;]
+	{
+		print( "id ", lhs.id, "\n" )
+	}
+
+redef statement
+	[number `;]
+|	[...]
+
+parse S: statement[ "x;" ]
+##### EXP #####
+id x

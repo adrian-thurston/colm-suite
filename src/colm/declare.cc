@@ -411,6 +411,31 @@ void GenericType::declare( Compiler *pd, Namespace *nspace )
 	}
 }
 
+/* A redef's [...] takes a def's production into the redef's lang el, whose
+ * object is the redef's. Give that object the names of the production's
+ * children, as cflDef() does for a def's own productions: an element's label,
+ * or its type's name if it has none. A name the object has already gets the
+ * child too, as for two productions of one def. */
+static void declareKeptCaptures( ObjectDef *objectDef, Production *prod )
+{
+	if ( prod->prodElList == 0 )
+		return;
+
+	for ( ProdElList::Iter pel = *prod->prodElList; pel.lte(); pel++ ) {
+		if ( pel->captureField == 0 )
+			continue;
+
+		ObjectField *of = objectDef->rootScope->checkRedecl( pel->captureField->name );
+		if ( of == 0 ) {
+			of = ObjectField::cons( pel->captureField->loc, ObjectField::RhsNameType,
+					pel->typeRef, pel->captureField->name );
+			objectDef->rootScope->insertField( of->name, of );
+		}
+
+		of->rhsVal.append( RhsVal( pel ) );
+	}
+}
+
 void Namespace::declare( Compiler *pd )
 {
 	for ( GenericList::Iter g = genericList; g.lte(); g++ )
@@ -506,6 +531,7 @@ void Namespace::declare( Compiler *pd )
 						Production *prod = langEl->prodList.detachFirst();
 						prod->prodNum = combined.length();
 						combined.append( prod );
+						declareKeptCaptures( n->objectDef, prod );
 					}
 				}
 				else {

@@ -256,10 +256,14 @@ beside. `IN_PTRS_TO_VALS` takes none.
   `FN_GET_FIELD_WEAK_R` reads such an attribute as the struct it holds
   (above). Wrapping by the slot's kind instead would need a table of each
   attribute's kind at run time, which the runtime doesn't keep.
-- [#745]'s check of the type of a struct read out of an attribute goes in
-  the instructions that read one, `IN_GET_FIELD_PTR_R` and
-  `FN_GET_FIELD_WEAK_R`. Whichever of the two lands second moves it there
-  from `IN_GET_FIELD_VAL_R`.
+- [#745] checks the tree's type in every instruction that reads or sets
+  an attribute, against the id of the object of the type that declares
+  the attribute. Each new attribute instruction checks it as the `_VAL_`
+  instruction it stands beside does: `IN_GET_FIELD_PTR_R`,
+  `IN_SET_FIELD_PTR_WC` and `_WV`, `FN_GET_FIELD_WEAK_R`, and
+  `FN_SET_FIELD_WEAK_WC` and `_WV`. `IN_GET_FIELD_VAL_R` and the other
+  `_VAL_` instructions keep the check. Whichever of [#745]'s fix and this
+  design's implementation lands second adds it to the new instructions.
 
 ### Lists and maps
 

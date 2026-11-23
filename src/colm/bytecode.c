@@ -177,8 +177,8 @@ static int stopping = 0;
  * list. What the program wrote so far comes out first, then "fatal: " and the
  * message on standard error, and the process exits with status 1. That ends a
  * host program too, unlike an exit in the code colm_run_program runs, which
- * unwinds the VM and returns to the host, but in an exported function that
- * the host called (see exit_now).
+ * unwinds the VM and returns to the host. An exit in an exported function
+ * that the host called ends the process too (see exit_now).
  * Whether an error should unwind the VM instead is still open. Every check
  * that stops the program goes through here, so that is one change. A read or
  * write on a stream that fails comes here from stream.c, through

@@ -111,7 +111,8 @@ instruction, and a `weak()` its weak one.
 
 ## The instructions
 
-The one-byte opcode space has 23 free values, with [#743]'s `IN_POP_EXPR`.
+The one-byte opcode space has 23 free values, with [#744]'s `IN_EXPR_WORDS`,
+which has the value [#743]'s `IN_POP_EXPR` had.
 The strong instructions take 14 of them. The weak ones run far less often,
 and are two-byte codes under `IN_FN`, named `FN_`, as a list's and a map's
 are. Their values are the implementation's: the next free ones in
@@ -431,10 +432,11 @@ A map's key can't be weak ([#670]), so `key_type` is never `TYPE_WEAK`.
 - A statement that drops a struct ends with `IN_POP_PTR`, where
   `LangStmt::compile()`'s `ExprType` writes `IN_POP_VAL` today, and a
   capture copies one with `IN_DUP_PTR` (`LangTerm::evaluateCapture()`).
-- The words an expression has under a call, which [#743]'s `IN_POP_EXPR`
-  pops when a user iterator is torn down there, are popped unreleased, as
-  trees there are. A struct among them is a lost struct until [#744]. An
-  `exit` at such a call ends the process, and frees nothing ([#411]).
+- The words an expression has under a call are in colm's record of them
+  ([#744]), and the call's unwind code pops each as what it is, when a user
+  iterator is torn down there or an `exit` unwinds through it. A struct
+  among them is popped with `IN_POP_VAL` until this is built: its kind's
+  pop, in `exprWordPop()` (`synthesis.cc`), becomes `IN_POP_PTR`.
 
 ## For [#669]
 
@@ -531,7 +533,6 @@ reference. Weak references come after, on [#670]'s compiler part. When
 this is built, [the access instructions](access-instructions.md) gain the
 strong and the weak instructions in their tables.
 
-[#411]: https://github.com/adrian-thurston/colm-suite/issues/411
 [#456]: https://github.com/adrian-thurston/colm-suite/issues/456
 [#477]: https://github.com/adrian-thurston/colm-suite/issues/477
 [#663]: https://github.com/adrian-thurston/colm-suite/issues/663

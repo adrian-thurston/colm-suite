@@ -91,9 +91,9 @@ this rule: a record counts each tree it names.
    with `colm_tree_downref()`, as today, and a cell with
    `colm_weak_free()`.
 6. Each unit that a `_WV` starts is ended by the write after it. A unit
-   left open makes `colm_make_reverse_code()` read the unit's last word as
-   its length, and the reference its record holds is never released.
-   [#762] leaves such a unit open today.
+   left open makes `colm_make_reverse_code()` read the last byte of the
+   unit's last word as its length, and the reference its record holds is
+   never released. [#762] leaves such a unit open today.
 
 ## Why each hold is needed
 
@@ -219,8 +219,8 @@ Each pushes the object that the rest of its unit acts on.
 Each pops the list or the map its unit's root pushed, and releases it last.
 
 - `FN_VLIST_PUSH_TAIL_BKT` and `FN_VLIST_PUSH_HEAD_BKT`, and
-  `FN_VMAP_INSERT_BKT` of a key the insert added, free the element they
-  take out, which releases its value and its key ([#667]).
+  `FN_VMAP_INSERT_BKT` and `FN_VMAP_SET_BKT` of a key they added, free the
+  element they take out, which releases its value and its key ([#667]).
 - `FN_VLIST_POP_HEAD_WV`, `FN_VLIST_POP_TAIL_WV` and `FN_VMAP_REMOVE_WV`
   push the value, counted by `colm_value_get()` ([#668]), and give the
   element, which keeps its own reference to the value, to the record.

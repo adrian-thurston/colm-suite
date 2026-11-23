@@ -140,7 +140,7 @@ and
 ## One parser per object
 
 Two parsers given one object change it under each other ([#718]), and no
-check of the code can see which object a reference holds. So requirement 8
+check of the code can see which object a reference holds. So requirement 10
 is checked when the program runs:
 
 - A context object has one slot more than its fields, which names the

@@ -30,6 +30,9 @@ The types are:
 * `ref<T>`, for a tree type `T`, a parameter that refers to the caller's
   local variable, in
   xref:1_04_functions.adoc#functions[the functions chapter]
+* `weak<T>`, for a struct, list, map, parser, `_input` or `stream` type `T`,
+  a place that refers to a value without counting toward a cycle, in
+  xref:2_02_list_map_struct_alias.adoc#weak[the weak references section]
 
 `alias` gives a type a second name, as
 xref:2_02_list_map_struct_alias.adoc#aliases[the aliases section] explains.

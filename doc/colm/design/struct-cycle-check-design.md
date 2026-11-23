@@ -187,6 +187,21 @@ grammars. In the manual, `2_02_list_map_struct_alias.adoc`'s "A field can
 hold a struct of the same type." and `3_04_undo.adoc`'s
 `+C->Inner = new parser<ctx::inner>( C )+` change too.
 
+As built, for #766, on main (2d650535) it refuses 13 programs that
+compile: `struct_route.lm`; `lang_object` in `lookup1.lm` (and
+`grammar/c++/c++.lm`); `pointer1.lm`; the parser a context's field holds
+in `accumbt2.lm`, `ctxhold3.lm`, `ctxset1.lm`, `ntrejbt5.lm`,
+`undofrag2.lm` and `undofrag3.lm`; and the `list<str>` attribute in
+`ctxset2.lm`, `globread2.lm`, `refcopy13.lm` and `treesend5.lm`.
+`sendown1.lm` to `sendown4.lm` had been removed. The parser a context's
+field holds can't be held strongly in a local or a global: [#706]'s setup
+takes only a new object, `nil` or what the object holds, and refuses
+taking the parser out. So the field is made weak and keeps the parser it
+is given, which nothing else holds; once structs are freed, that needs
+another answer. The check landed before [#477], so until it does, a
+`make_token` argument put into an attribute of another struct type is a
+route the graph has no edge for.
+
 ## Decided
 
 - **A parser's reference to its context is strong.** Rejected: making it
@@ -243,3 +258,4 @@ built the cycle (`attrtype3` in `test/colm.d`); and [#477]'s cases refuse a
 [#700]: https://github.com/adrian-thurston/colm-suite/issues/700
 [#726]: https://github.com/adrian-thurston/colm-suite/issues/726
 [#745]: https://github.com/adrian-thurston/colm-suite/issues/745
+[#706]: https://github.com/adrian-thurston/colm-suite/issues/706

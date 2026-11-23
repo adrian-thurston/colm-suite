@@ -21,7 +21,8 @@ include::code/poker.exp[]
 NOTE: this also illustrates how to iterate through a `list` and access elements in a `map`.
 
 The sections below describe each in turn: structs, which also introduce
-`new` and `+->+`, then aliases, lists and maps.
+`new` and `+->+`, then aliases, lists and maps, and last weak references,
+which let a struct refer to one of its own type.
 
 [[structs]]
 == Structs
@@ -47,7 +48,9 @@ A struct variable is nil until it is given a struct, so make one with `new`
 before using its fields. Reading or setting a field of a nil struct stops the
 program, as xref:8_04_error_handling.adoc#run-time-errors[the error handling
 chapter] says. Assigning `nil` to a struct, list or map variable makes it nil
-again. A field can hold a struct of the same type.
+again. A field can't hold a struct of its own type, but it can refer to one
+weakly, as xref:2_02_list_map_struct_alias.adoc#weak[weak references]
+explain.
 
 Structs are shared, as xref:2_00_types.adoc#sharing[the types chapter] says,
 so a function can change a struct passed to it.
@@ -56,7 +59,8 @@ A struct can also hold `lex` blocks, tokens and defs. Passed to `parse`, it
 is a parsing context, the subject of xref:3_04_undo.adoc#context[the context
 chapter]. `context` is another keyword for `struct`.
 
-This program builds a route of stops, each a struct that holds the next:
+This program builds a route of stops. A list holds the stops, and each stop
+refers to the next with a weak field:
 
 [source,colm]
 .struct_route.lm
@@ -242,3 +246,37 @@ include::code/map_count.exp[]
 
 `bird` comes last because it is longer than the other keys. `fish` isn't a
 key, so `find( "fish" )` gives 0, and `contains( "fish" )` gives 0.
+
+[[weak]]
+== Weak references
+
+A struct can't hold a struct of its own type, through a field of that type or
+through what its fields hold: a list's or a map's values, a map's keys, a
+parser's context, or a tree. An `any` can be given to a variable of any tree
+type, so a field that holds a tree, a `str` included, counts as holding every
+struct, list, map or parser that an attribute of a tree, or a `make_token`
+argument, can hold. Colm refuses such a program when it compiles. The error is
+at the first place on the cycle, in the order the program declares them, and
+names the places that lead back to it. The route above, with `Next: stop`,
+gives
+`strong references make a cycle: stop.Next; declare a field or attribute in it weak`.
+
+A place declared `weak<T>` refers to a value of type `T`, and doesn't count
+toward a cycle. `T` is a struct, list, map, parser, `_input` or `stream` type.
+Each cycle needs a weak place of its own: one elsewhere among the same types
+isn't enough.
+
+* It can be a struct's or a context's field, a variable, a parameter, a
+  function's return type, a list's or a map's value, as in
+  `list<weak<node>>`, or a def's or a token's attribute.
+* It can't be a map's key, with the error `a map key can't be weak`, or a
+  type that isn't a struct's, such as `weak<int>` or `weak<str>`, with
+  `weak takes a struct type`. A host function's parameters and result can't
+  be weak either.
+* It reads as its value, or `nil`, and takes a `T` or `nil`. A loop over a
+  list or a map of weak values has a `T` variable.
+* A parser holds its context, so a context can't hold a parser of its own
+  types: declare the field `weak<parser<T>>`.
+
+For now colm frees a struct only when the program ends, so a weak place reads
+as the value it was last given, or `nil`.

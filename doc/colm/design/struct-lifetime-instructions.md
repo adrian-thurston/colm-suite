@@ -400,7 +400,9 @@ A map's key can't be weak ([#670]), so `key_type` is never `TYPE_WEAK`.
   that nothing else holds. `IN_GET_PARSER_STREAM` (`gets()`) counts the
   input it pushes, then releases the parser.
 - `FN_EXIT` in an action releases the parser that `IN_PARSE_FRAG_W` left on
-  the stack, where it pops it today.
+  the stack once `colm_parse_frag()` has let the parser finish up after the
+  action. It pops the parser and uses it there, and a parse's parser may
+  have no other reference.
 - The instructions that pop an `_input` or a stream as their object, and
   don't push it back, release it: `IN_READ_REDUCE`, `IN_INPUT_PULL_WC` and
   `_WV`, `IN_INPUT_PUSH_WC` and `_WV`, `IN_INPUT_PUSH_IGNORE_WC` and `_WV`,

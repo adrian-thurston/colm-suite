@@ -1,0 +1,49 @@
+# A loop over a context's list of trees whose attribute holds a list: each
+# value of the loop is a copy that shares the list.
+lex
+	literal `h
+end
+
+def holder
+	L: list<str>
+	[`h]
+
+context ctx
+	LH: list<holder>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			if ( LH->length == 0 ) {
+				H: holder = cons holder [ "h" ]
+				H.L = new list<str>()
+				LH->push_tail( H )
+			}
+			T: holder = LH->head
+			T.L->push_tail( "x" )
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+C: ctx = new ctx()
+C->LH = new list<holder>()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+for V: holder in C->LH
+	V.L->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+44:21: cannot take LH out of C, a context object

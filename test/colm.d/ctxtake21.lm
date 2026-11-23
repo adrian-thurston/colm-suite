@@ -1,0 +1,48 @@
+# #720's program with the context's tree of a type named item, whose child
+# holds the list. The message says "an item".
+lex
+	literal `h
+end
+
+def holder
+	L: list<str>
+	[`h]
+
+def item
+	[holder]
+
+context ctx
+	T: item
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	# A1 is tried first: the action runs, then the parser backs up to A2.
+	def step
+		[`*]
+		{
+			T.holder.L->push_tail( "x" )
+		}
+
+	def start
+		[A1 step* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+parse I: item[ "h" ]
+I.holder.L = new list<str>()
+C: ctx = new ctx()
+C->T = I
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+I.holder.L->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+41:8: only nil or what C holds can go into C as it is set up: an item can hold a list, map, parser, stream or struct

@@ -1,0 +1,43 @@
+# #729's program with the tree pushed onto the parser's input, which
+# P->gets() gives, in place of the send_tree.
+lex
+	literal `h
+end
+
+def holder
+	L: list<str>
+	[`h]
+
+lex
+	ignore /[ \t]+/
+	literal `* `^ `;
+	token NL /'\n'/
+end
+
+def A1 []
+def A2 []
+
+# A1 is tried first: the action runs, then the parser backs up to A2.
+def item
+	[holder]
+	{
+		r1.L->push_tail( "x" )
+	}
+
+def start
+	[A1 item* `; `^ NL]
+|	[A2 holder `; NL]
+
+parse H: holder[ "h" ]
+H.L = new list<str>()
+P: parser<start> = new parser<start>()
+I: _input = P->gets()
+I->push( H )
+send P " ;"
+print( "length ", H.L->length, "\n" )
+H.L->pop_tail()
+send P "\n"
+P->finish()
+print( "done\n" )
+##### COMP_ERR #####
+35:10: cannot push a holder, which can hold a list, map, parser, stream or struct, outside a token action: push its text

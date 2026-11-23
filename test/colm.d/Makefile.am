@@ -113,6 +113,7 @@ EXTRA_DIST = \
 	ctxhold9.lm \
 	ctxholdmsg1.lm \
 	ctxset1.lm \
+	ctxset2.lm \
 	ctxtake1.lm \
 	ctxtake2.lm \
 	ctxtake3.lm \
@@ -121,6 +122,19 @@ EXTRA_DIST = \
 	ctxtake6.lm \
 	ctxtake7.lm \
 	ctxtake8.lm \
+	ctxtake9.lm \
+	ctxtake10.lm \
+	ctxtake11.lm \
+	ctxtake12.lm \
+	ctxtake13.lm \
+	ctxtake14.lm \
+	ctxtake15.lm \
+	ctxtake16.lm \
+	ctxtake17.lm \
+	ctxtake18.lm \
+	ctxtake19.lm \
+	ctxtake20.lm \
+	ctxtake21.lm \
 	ctxthis1.lm \
 	ctxthis2.lm \
 	ctxthis3.lm \
@@ -567,10 +581,6 @@ EXTRA_DIST = \
 	sendignbt1.lm \
 	sendnil1.lm \
 	sendnilmsg1.lm \
-	sendown1.lm \
-	sendown2.lm \
-	sendown3.lm \
-	sendown4.lm \
 	sendstream.lm \
 	setchildnil1.lm \
 	sprintf.lm \
@@ -611,6 +621,14 @@ EXTRA_DIST = \
 	translate2.lm \
 	travs1.lm \
 	treecmp1.lm \
+	treesend1.lm \
+	treesend2.lm \
+	treesend3.lm \
+	treesend4.lm \
+	treesend5.lm \
+	treesend6.lm \
+	treesend7.lm \
+	treesend8.lm \
 	typeref1.lm \
 	typeref2.lm \
 	typeref3.lm \

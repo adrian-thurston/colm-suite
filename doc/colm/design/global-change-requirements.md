@@ -57,9 +57,9 @@ companion of the [rule for context objects](context-change-requirements.md),
 - The undo of what the actions of a parse that isn't restartable do to
   globals, which still runs. [Its instructions](access-instructions.md) are
   those of any undone write.
-- A tree that a context object holds, whose attribute, or that of a tree
-  below it, holds a list, map or struct ([#720]): a copy of it shares what
-  the attribute holds. For a global, requirement 5 covers it.
+- A tree that the program sends to a parser as itself, whose attribute holds
+  a list, map or struct, through a global or not: the [rule for context
+  objects](context-change-requirements.md) refuses it ([#729]).
 - Two parsers given one context object ([#718]).
 - Host programs: exports give a host trees, never structs.
 
@@ -69,4 +69,4 @@ companion of the [rule for context objects](context-change-requirements.md),
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706
 [#714]: https://github.com/adrian-thurston/colm-suite/issues/714
 [#718]: https://github.com/adrian-thurston/colm-suite/issues/718
-[#720]: https://github.com/adrian-thurston/colm-suite/issues/720
+[#729]: https://github.com/adrian-thurston/colm-suite/issues/729

@@ -99,8 +99,7 @@ says what, and leaves how to them.
     (`Next: stop`), `lang_object` in `grammar/c++/c++.lm` and `lookup1.lm`,
     `foo` in `pointer1.lm`, the parser a context's field holds in
     `accumbt2.lm`, `ctxset1.lm`, `ntrejbt5.lm`, `undofrag2.lm` and
-    `undofrag3.lm`, the attribute in `globread2.lm` and `refcopy13.lm`, and
-    the parser a def's attribute holds in `sendown1.lm` to `sendown4.lm`,
+    `undofrag3.lm`, and the attribute in `globread2.lm` and `refcopy13.lm`,
     all in `test/colm.d`, which change when the check lands.
 15. Apart from what 14 rejects, and a program that names something `weak`,
     the keyword a weak reference is declared with ([#670]), a program that

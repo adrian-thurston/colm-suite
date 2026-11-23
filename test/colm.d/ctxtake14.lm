@@ -1,0 +1,47 @@
+# A tree that a parse makes at setup isn't new: its reduction action gives
+# its attribute a global's list, which the context's tree then shares.
+lex
+	literal `h
+end
+
+global GL: list<str> = new list<str>()
+
+def holder
+	L: list<str>
+	[`h]
+	{
+		lhs.L = GL
+	}
+
+context ctx
+	T: holder
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			T.L->push_tail( "x" )
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+C: ctx = new ctx()
+C->T = parse holder[ "h" ]
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+GL->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+40:8: only nil or what C holds can go into C as it is set up: a holder can hold a list, map, parser, stream or struct

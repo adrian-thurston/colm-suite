@@ -1,0 +1,35 @@
+# Printing a context's tree whose attribute holds a list uses the tree as a
+# value, which takes it out, as it does a global's. The program reads its
+# attributes in place.
+lex
+	literal `h
+end
+
+def holder
+	L: list<str>
+	[`h]
+
+context ctx
+	T: holder
+
+	lex
+		ignore /[ \t]+/
+		literal `*
+	end
+
+	def item
+		[`*]
+		{
+			T = cons holder [ "h" ]
+			T.L = new list<str>()
+		}
+
+	def start
+		[item*]
+end
+
+C: ctx = new ctx()
+parse S: ctx::start( C )[ "*" ]
+print( C->T, "\n" )
+##### COMP_ERR #####
+33:11: cannot take T out of C, a context object

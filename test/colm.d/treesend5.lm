@@ -1,0 +1,77 @@
+#
+# What stays of sending a tree to a parser as itself, in a program with a
+# tree type whose attribute holds a list. A tree whose type can't hold one
+# is sent with send_tree, parsed with parse_tree and pushed onto a parser's
+# input from the program, and a holder goes in these as its text. A token
+# action pushes a token that make_token makes, an any, onto its own parser's
+# input.
+#
+
+lex
+	token number /[0-9]+/
+	token word /[a-z0-9]+/
+
+	# Scanned, <ab> is the word ab.
+	token bracket /'<' [a-z]+ '>'/
+	{
+		input->pull( 1 )
+		Word: str = input->pull( match_length - 2 )
+		input->pull( 1 )
+		input->push( make_token( typeid<word>, Word ) )
+	}
+
+	ignore /space+/
+end
+
+def holder
+	L: list<str>
+	[word]
+
+def value
+	[number]
+|	[word]
+
+def values
+	[value*]
+
+void show( Name: str, Values: values )
+{
+	for V: value in Values {
+		if ( V.number )
+			print( Name, ": number ", $V, "\n" )
+		else
+			print( Name, ": word ", $V, "\n" )
+	}
+}
+
+# A word whose text is digits. Scanned, the same text is a number.
+W: word = make_token( typeid<word>, "42" )
+parse H: holder[ "h" ]
+H.L = new list<str>()
+
+T: parser<values> = new parser<values>()
+send_tree T [W " 7 " $H]
+show( "send_tree", T->finish() )
+
+parse_tree Parsed: values[ W " 7 " $H ]
+show( "parse_tree", Parsed )
+
+Q: parser<values> = new parser<values>()
+I: _input = Q->gets()
+I->push( W )
+send Q [" 7"]
+show( "push", Q->finish() )
+
+parse Bracketed: values[ "<ab> 3" ]
+show( "token action", Bracketed )
+##### EXP #####
+send_tree: word 42
+send_tree: number 7
+send_tree: word h
+parse_tree: word 42
+parse_tree: number 7
+parse_tree: word h
+push: word 42
+push: number 7
+token action: word ab
+token action: number 3

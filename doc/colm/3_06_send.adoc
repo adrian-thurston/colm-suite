@@ -194,6 +194,19 @@ so the parser gets a number. Sent with `send_tree`, or parsed with
 `parse_tree`, `W` stays a word. The string `" 7"` is scanned each time, and `7`
 is a number.
 
+A tree that goes into a parse as itself is shared with the program. A copy of
+a tree shares the list, map, struct, parser or stream that an attribute of it,
+or of a tree below it, holds, so the program could change what the parser's
+actions change while the parser can still back up over them, as
+xref:3_04_undo.adoc#context[the context chapter] describes. So colm doesn't
+compile a `send_tree` or a `parse_tree` of a tree whose type can hold one
+there, or a push of one onto the input that `+P->gets()+` gives. It stops with
+the error
+`cannot send_tree a T, which can hold a list, map, parser, stream or struct: send its text`,
+or one like it for `parse_tree` and `push`. Sent as its text, as `$T`, the tree
+is scanned, and the parser makes a tree of its own. A token action can push
+such a tree onto its own parser's input, through `input`.
+
 == Streams
 
 `stdin`, `stdout` and `stderr` are streams. `open( Name, Mode )` opens a file,

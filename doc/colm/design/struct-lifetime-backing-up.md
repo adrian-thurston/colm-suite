@@ -271,6 +271,13 @@ in planning #669, to settle it here, with a cell.
 - The slot keeps a weak reference, a [#670] cell, to the parser it names.
   It reads nil once that parser is freed: no parser holds the object
   then, and any parser can be given it.
+- So a `new parser` holds its object until it is freed, not to the end of
+  the program, as [context requirement 10](context-change-requirements.md)
+  and the [context-change design](context-change-design.md) say today.
+  Once the program drops such a parser, another parser can be given its
+  object, where today the program stops. A freed parser can't back up,
+  and backing up is all that the hold guards against. Those lines change
+  when this is built.
 - `IN_SET_PARSER_CONTEXT` reads the slot's parser with `colm_weak_get()`,
   and names the owner in it with `colm_weak_set()`. Setting up a parser is
   never undone, so the cell moves from parser to parser.
@@ -368,6 +375,9 @@ other designs' Validation, with `COLM_LEAK_CHECK` and `--valgrind` clean:
 - Two parses given one context object, one after the other, the first's
   parser freed at its end: the second is given the object (`ctxhold6`,
   `ctxhold8`).
+- A `new parser` given a context object, which the program then drops: a
+  parser given the object after the drop parses, where today the program
+  stops with `giving a parser a context that another parser holds`.
 
 ## Building it
 

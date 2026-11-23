@@ -1,6 +1,9 @@
 
 context lookup
 	alias list_lang_object
+		list<weak<lang_object>>
+
+	alias list_held_lang_object
 		list<lang_object>
 
 	alias list_declaration_data
@@ -25,12 +28,12 @@ context lookup
 		name: str
 
 		# If the object is a typedef, this points to the real object.
-		typedefOf: lang_object
+		typedefOf: weak<lang_object>
 
 		objectMap: map_list_lang_object
 		inherited: list_lang_object
-		lookupParent: lang_object
-		specializationOf: lang_object
+		lookupParent: weak<lang_object>
+		specializationOf: weak<lang_object>
 	end
 
 	# This structure is used to keep track of information necessary to make a
@@ -79,6 +82,9 @@ context lookup
 
 	# Root namespace object
 	rootNamespace: lang_object
+
+	# Every other object, which the lists and fields above refer to weakly.
+	heldObjects: list_held_lang_object
 
 	#
 	# Identifier lookup.
@@ -191,8 +197,8 @@ context lookup
 
 		# Identifiers
 		token lookup_id 
-			obj: lang_object
-			qualObj: lang_object
+			obj: weak<lang_object>
+			qualObj: weak<lang_object>
 
 			/( [a-zA-Z_] [a-zA-Z0-9_]* )/
 			{
@@ -269,6 +275,7 @@ context lookup
 	lang_object createLangObject( typeId: int, name: str, lookupParent: lang_object )
 	{
 		Obj: lang_object = new lang_object()
+		heldObjects->push_tail( Obj )
 
 		Obj->typeId = typeId 
 		Obj->name = name
@@ -1198,7 +1205,7 @@ context lookup
 	#
 
 	def declarator
-		lookupObj: lang_object
+		lookupObj: weak<lang_object>
 
 		[ptr_operator_seq_opt declarator_id decl_array_or_param_rep declarator_end]
 		{
@@ -1300,7 +1307,7 @@ context lookup
 
 	# Undoes the setup done by declarator_id and pdc_start.
 	def declarator_end
-		lookupObj: lang_object
+		lookupObj: weak<lang_object>
 
 		[]
 		{
@@ -2217,6 +2224,7 @@ Lookup->declaratorData = new lookup::list_declarator_data()
 
 # Template declarations
 Lookup->templDecl = new lookup::list_int()
+Lookup->heldObjects = new lookup::list_held_lang_object()
 
 # Root namespace object. What goes into the context as it is set up is new,
 # so the object is made here, as createLangObject makes one.

@@ -1,0 +1,12 @@
+# A weak field elsewhere among the same types doesn't break a cycle: a.B and
+# b.A still make one.
+struct a
+	B: b
+	W: weak<b>
+end
+
+struct b
+	A: a
+end
+##### COMP_ERR #####
+4:2: strong references make a cycle: a.B, b.A; declare a field or attribute in it weak

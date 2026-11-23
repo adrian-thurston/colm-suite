@@ -6,6 +6,9 @@
 # action pushes a token that make_token makes, an any, onto its own parser's
 # input.
 #
+# L is weak: a list of trees in a tree's attribute makes a cycle, so a
+# variable, Held, holds the list.
+#
 
 lex
 	token number /[0-9]+/
@@ -24,7 +27,7 @@ lex
 end
 
 def holder
-	L: list<str>
+	L: weak<list<str>>
 	[word]
 
 def value
@@ -47,7 +50,8 @@ void show( Name: str, Values: values )
 # A word whose text is digits. Scanned, the same text is a number.
 W: word = make_token( typeid<word>, "42" )
 parse H: holder[ "h" ]
-H.L = new list<str>()
+Held: list<str> = new list<str>()
+H.L = Held
 
 T: parser<values> = new parser<values>()
 send_tree T [W " 7 " $H]

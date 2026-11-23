@@ -13,6 +13,9 @@
 # undoes sends with no reject before them, two for `a b ;` and four for
 # `a b c ;`. `a b !` undoes no send. The first and last runs are controls.
 #
+# Inner is weak: a parser holds its context, so a context can't hold a parser
+# of its own types strongly.
+#
 
 context ctx
 	lex
@@ -35,7 +38,7 @@ context ctx
 	def one
 		[thing*]
 
-	Inner: accum<one>
+	Inner: weak<accum<one>>
 
 	lex
 		ignore /[ \t]+/

@@ -1,0 +1,12 @@
+# A def whose attribute holds a parser of the def: the parser holds its
+# trees.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def d
+	P: parser<d>
+	[id]
+##### COMP_ERR #####
+9:2: strong references make a cycle: d.P, a parser's trees; declare a field or attribute in it weak

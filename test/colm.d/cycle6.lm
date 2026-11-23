@@ -1,0 +1,16 @@
+# A struct whose str field holds a tree, and a def's attribute that holds the
+# struct. Any tree can be one of any type, so the str can hold a d.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+struct s
+	Name: str
+end
+
+def d
+	S: s
+	[id]
+##### COMP_ERR #####
+9:2: strong references make a cycle: s.Name, d.S; declare a field or attribute in it weak

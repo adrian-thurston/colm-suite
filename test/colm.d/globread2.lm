@@ -2,12 +2,14 @@
 # holds in place, though the tree's L attribute holds a list: a str, the
 # list's length and its values. The program pushes onto the list between
 # sends, and P backs up from A1 to A2, so its actions run again and see it.
+# L is weak: a list of trees in a tree's attribute makes a cycle, so a
+# variable, Held, holds the list.
 lex
 	literal `h
 end
 
 def holder
-	L: list<str>
+	L: weak<list<str>>
 	S: str
 	[`h]
 
@@ -36,7 +38,8 @@ def start
 |	[A2 item* `; NL]
 
 parse H: holder[ "h" ]
-H.L = new list<str>()
+Held: list<str> = new list<str>()
+H.L = Held
 H.S = "s"
 G = H
 G.L->push_tail( "a" )

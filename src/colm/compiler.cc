@@ -1132,5 +1132,9 @@ void Compiler::compile()
 	
 	/* Parse constructors and patterns. */
 	parsePatterns();
+
+	/* Refuse struct types that can hold themselves. It needs the make_token
+	 * arguments, so it comes once all the code is compiled. */
+	checkStrongCycles();
 }
 

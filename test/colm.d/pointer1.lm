@@ -16,7 +16,7 @@ struct undo
 	|	[`( item* `)]
 
 	def start 
-		Foo: foo
+		Foo: weak<foo>
 		[item* `; NL]
 
 end
@@ -25,7 +25,8 @@ Undo: undo = new undo()
 
 parse Input: undo::start(Undo)[ stdin ]
 
-Input.Foo = new undo::foo()
+Held: undo::foo = new undo::foo()
+Input.Foo = Held
 Input.Foo->Start = Input
 print[ @Input.Foo->Start ]
 ###### IN ######

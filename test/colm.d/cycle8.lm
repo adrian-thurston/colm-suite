@@ -1,0 +1,22 @@
+# A struct that a make_token argument puts into a token. The attribute it
+# goes into is weak, so the argument is the only edge back to s: a
+# make_token argument always holds its struct strongly.
+struct s
+	R: r
+end
+
+struct r
+	T: str
+end
+
+lex
+	token t
+		A: weak<s>
+	/'#'/
+	ignore /[ \n]+/
+end
+
+new S: s()
+T: t = make_token( typeid<t>, "#", S )
+##### COMP_ERR #####
+5:2: strong references make a cycle: s.R, r.T, a make_token argument; declare a field or attribute in it weak

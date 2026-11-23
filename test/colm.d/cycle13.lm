@@ -1,0 +1,16 @@
+# A struct that holds an input, which holds the trees sent to it, and a def's
+# attribute that holds the struct.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+struct s
+	I: _input
+end
+
+def d
+	S: s
+	[id]
+##### COMP_ERR #####
+9:2: strong references make a cycle: s.I, an input's trees, d.S; declare a field or attribute in it weak

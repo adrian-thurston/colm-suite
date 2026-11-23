@@ -1,0 +1,6 @@
+# A struct that holds itself through a list's value.
+struct node
+	Kids: list<node>
+end
+##### COMP_ERR #####
+3:2: strong references make a cycle: node.Kids, a list's value; declare a field or attribute in it weak

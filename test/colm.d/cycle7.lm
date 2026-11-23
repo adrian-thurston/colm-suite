@@ -1,0 +1,12 @@
+# A def whose attribute is a list<str>: the list's values are trees, and a
+# tree can be a d.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def d
+	L: list<str>
+	[id]
+##### COMP_ERR #####
+9:2: strong references make a cycle: d.L, a list's value; declare a field or attribute in it weak

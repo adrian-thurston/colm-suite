@@ -1,0 +1,16 @@
+# Two cycles give two errors, in the order of the fields they start at: b is
+# declared before a.
+struct b
+	A: a
+end
+
+struct a
+	B: b
+end
+
+struct n
+	Next: n
+end
+##### COMP_ERR #####
+4:2: strong references make a cycle: b.A, a.B; declare a field or attribute in it weak
+12:2: strong references make a cycle: n.Next; declare a field or attribute in it weak

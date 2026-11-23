@@ -1,27 +1,31 @@
 # A stop on a route: its name, the minutes from the stop before, and the next
-# stop.
+# stop. A stop can't hold a stop, so Next is weak, and the route's list holds
+# the stops.
 struct stop
 	Name: str
 	Minutes: int
-	Next: stop
+	Next: weak<stop>
 end
 
-# Adds a stop after After, and returns it.
-stop add( After: stop, Name: str, Minutes: int )
+# Adds a stop to Route after After, and returns it.
+stop add( Route: list<stop>, After: stop, Name: str, Minutes: int )
 {
 	new S: stop()
 	S->Name = Name
 	S->Minutes = Minutes
+	Route->push_tail( S )
 	After->Next = S
 	return S
 }
 
+Route: list<stop> = new list<stop>()
 new Home: stop()
 Home->Name = "home"
+Route->push_tail( Home )
 print( "a new stop: ", Home->Minutes, "\n" )
 
-Last: stop = add( Home, "bridge", 5 )
-Last = add( Last, "park", 12 )
+Last: stop = add( Route, Home, "bridge", 5 )
+Last = add( Route, Last, "park", 12 )
 
 Total: int = 0
 S: stop = Home

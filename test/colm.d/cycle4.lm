@@ -1,0 +1,7 @@
+# A struct that holds itself through a map's key. A key can't be weak, so
+# breaking the cycle takes a weak map (cycleweak1).
+struct node
+	M: map<node, int>
+end
+##### COMP_ERR #####
+4:2: strong references make a cycle: node.M, a map's key; declare a field or attribute in it weak

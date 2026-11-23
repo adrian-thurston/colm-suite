@@ -1,0 +1,6 @@
+# A struct that holds itself through a map's value.
+struct node
+	M: map<str, node>
+end
+##### COMP_ERR #####
+3:2: strong references make a cycle: node.M, a map's value; declare a field or attribute in it weak

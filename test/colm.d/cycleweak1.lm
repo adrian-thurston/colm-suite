@@ -1,0 +1,191 @@
+# The programs that cycle1 to cycle14 refuse, with a place on each cycle
+# declared weak, compile and run. A weak place reads as its target, which a
+# variable holds. A def with an attribute that holds a tree, and fields that
+# hold an int, a bool or a stream, make no cycle.
+
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+lex
+	token t8
+		A: weak<s8>
+	/'#'/
+end
+
+# cycle1, cycle10: a field of the struct's own type.
+struct n1
+	N: int
+	Next: weak<n1>
+end
+
+# cycle2, cycle9, cycle11: two structs that refer to each other.
+struct a2
+	N: int
+	B: b2
+	W: weak<b2>
+end
+
+struct b2
+	A: weak<a2>
+end
+
+# cycle3: a list's value.
+struct n3
+	Kids: weak<list<n3>>
+end
+
+# cycle4: a map's key.
+struct n4
+	M: weak<map<n4, int>>
+end
+
+# cycle5: a context's own parser.
+context ctx5
+	P: weak<parser<ctx5::start>>
+
+	def start
+		[id*]
+end
+
+# cycle6: a str field, and an attribute that holds the struct.
+struct s6
+	Name: str
+end
+
+def d6
+	S: weak<s6>
+	[id]
+
+# cycle7: an attribute that holds a list<str>.
+def d7
+	L: weak<list<str>>
+	[id]
+
+# cycle8: a make_token argument, into a weak attribute.
+struct s8
+	R: weak<r8>
+end
+
+struct r8
+	T: str
+end
+
+# cycle12: an attribute that holds a parser of its own def.
+def d12
+	P: weak<parser<d12>>
+	[id]
+
+# cycle13: an input field, and an attribute that holds the struct.
+struct s13
+	I: weak<_input>
+end
+
+def d13
+	S: s13
+	[id]
+
+# cycle14: a map's value.
+struct n14
+	N: int
+	M: map<str, weak<n14>>
+end
+
+# No cycle: a tree attribute, and fields that hold no struct.
+def dtree
+	T: any
+	[id]
+
+struct plain
+	I: int
+	B: bool
+	S: stream
+end
+
+new X1: n1()
+X1->N = 1
+X1->Next = X1
+print( "n1 ", X1->Next->Next->N, "\n" )
+
+new X2: a2()
+X2->N = 2
+X2->B = new b2()
+X2->W = X2->B
+X2->B->A = X2
+print( "a2 ", X2->W->A->N, "\n" )
+
+new X3: n3()
+L3: list<n3> = new list<n3>()
+X3->Kids = L3
+X3->Kids->push_tail( X3 )
+print( "n3 ", X3->Kids->length, "\n" )
+
+new X4: n4()
+M4: map<n4, int> = new map<n4, int>()
+X4->M = M4
+print( "n4 ", X4->M->length, "\n" )
+
+C5: ctx5 = new ctx5()
+C5->P = new parser<ctx5::start>( new ctx5() )
+parse S5: ctx5::start( C5 )[ "a b" ]
+print( "ctx5 ", S5, "\n" )
+
+parse D6: d6[ "x" ]
+S6: s6 = new s6()
+S6->Name = "six"
+D6.S = S6
+print( "d6 ", D6.S->Name, "\n" )
+
+parse D7: d7[ "x" ]
+L7: list<str> = new list<str>()
+D7.L = L7
+D7.L->push_tail( "seven" )
+print( "d7 ", D7.L->length, "\n" )
+
+R8: r8 = new r8()
+R8->T = "eight"
+S8: s8 = new s8()
+S8->R = R8
+T8: t8 = make_token( typeid<t8>, "#", S8 )
+print( "t8 ", T8.A->R->T, "\n" )
+
+parse D12: d12[ "x" ]
+P12: parser<d12> = new parser<d12>()
+D12.P = P12
+send P12 "y" eos
+print( "d12 ", D12.P->tree, "\n" )
+
+Q13: parser<d13> = new parser<d13>()
+S13: s13 = new s13()
+I13: _input = Q13->gets()
+S13->I = I13
+parse D13: d13[ "x" ]
+D13.S = S13
+print( "d13\n" )
+
+new X14: n14()
+X14->N = 14
+X14->M = new map<str, weak<n14>>()
+X14->M->insert( "self", X14 )
+F14: n14 = X14->M->find( "self" )
+print( "n14 ", F14->N, "\n" )
+
+parse DT: dtree[ "x" ]
+DT.T = DT
+new PL: plain()
+PL->S = stdout
+print( "dtree ", DT.T, "\n" )
+##### EXP #####
+n1 1
+a2 2
+n3 1
+n4 0
+ctx5 a b
+d6 six
+d7 1
+t8 eight
+d12 y
+d13
+n14 14
+dtree x

@@ -8,6 +8,9 @@
 # which keeps the reductions of item, "back" without, which backs up over
 # them.
 #
+# L is weak: a list of trees in a tree's attribute makes a cycle, so the
+# context's Held holds the list.
+#
 
 lex
 	literal `h
@@ -15,13 +18,14 @@ end
 
 def holder
 	N: int
-	L: list<str>
+	L: weak<list<str>>
 	[`h]
 
 global Run: str = argv->pop()
 
 context ctx
 	T: holder
+	Held: list<str>
 
 	lex
 		ignore /[ \t]+/
@@ -37,7 +41,8 @@ context ctx
 		[`h]
 		{
 			T = cons holder [ "h" ]
-			T.L = new list<str>()
+			Held = new list<str>()
+			T.L = Held
 		}
 
 	# A1 is tried first: the action runs, then the parser backs up to A2.

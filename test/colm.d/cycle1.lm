@@ -1,0 +1,12 @@
+# A struct that holds a struct of its own type through a field: a cycle of
+# strong references, which colm refuses. Declaring Next weak<node> breaks it
+# (cycleweak1).
+struct node
+	N: int
+	Next: node
+end
+
+new N: node()
+N->Next = N
+##### COMP_ERR #####
+6:2: strong references make a cycle: node.Next; declare a field or attribute in it weak

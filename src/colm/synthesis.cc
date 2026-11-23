@@ -3458,6 +3458,15 @@ UniqueType *LangTerm::evaluateMakeToken( Compiler *pd, CodeVect &code ) const
 		if ( pe.pos() == 1 && exprUT != pd->uniqueTypeStr )
 			error(loc) << "second arg, length, must be a string" << endp;
 
+		/* A struct or a generic put into an attribute is held strongly,
+		 * whatever the attribute's type: checkStrongCycles() counts it. */
+		if ( pe.pos() >= 2 && exprUT->ptr() ) {
+			Compiler::MakeTokenArg arg;
+			arg.loc = loc;
+			arg.ut = exprUT;
+			pd->makeTokenArgs.append( arg );
+		}
+
 		/* The rest are attributes. A value goes into one wrapped, as an
 		 * assignment stores it. */
 		if ( pe.pos() >= 2 && ( exprUT->ptr() || exprUT->scalar() ) ) {
@@ -4953,4 +4962,391 @@ void Compiler::reportGlobalUses( CodeBlock *block, Function *func )
 	else
 		out << "an action of a restartable parser";
 	out << ": keep the data in a context" << endp;
+}
+
+/*
+ * The check that a program can't build a cycle of strong references between
+ * structs. See doc/colm/design/struct-cycle-check-design.md.
+ */
+
+struct CycleNode;
+
+/* A strong reference that a thing of one type can hold to a thing of another.
+ * A field, an attribute and a make_token argument are places, where an error
+ * can be. The rest are what the runtime holds for a list, a map, a parser or
+ * an input. */
+struct CycleEdge
+{
+	enum Kind
+	{
+		Field, Attr, MakeToken, ListValue, MapKey, MapValue,
+		ParserContext, ParserInput, ParserTrees, InputTrees
+	};
+
+	CycleEdge( Kind kind, CycleNode *from, CycleNode *to )
+	:
+		kind(kind), from(from), to(to),
+		structEl(0), langEl(0), field(0)
+	{}
+
+	Kind kind;
+	CycleNode *from;
+	CycleNode *to;
+
+	/* A field's struct, an attribute's def or token, the field or the
+	 * attribute, and where a place is. */
+	StructEl *structEl;
+	LangEl *langEl;
+	ObjectField *field;
+	InputLoc loc;
+};
+
+/* A type that can hold a struct: a struct, a generic, or all the tree types
+ * as one. */
+struct CycleNode
+{
+	CycleNode( GenericType *generic )
+	:
+		generic(generic), index(-1), lowLink(-1), onStack(false), comp(-1)
+	{}
+
+	GenericType *generic;
+
+	/* The edges out, in the order the design lists them. */
+	Vector<CycleEdge*> edges;
+
+	/* Tarjan's algorithm, and the component it puts the node in. */
+	long index;
+	long lowLink;
+	bool onStack;
+	long comp;
+};
+
+struct CycleGraph
+{
+	CycleGraph();
+	~CycleGraph();
+
+	CycleNode *treeNode;
+	BstMap<StructEl*, CycleNode*> structNodes;
+	BstMap<GenericType*, CycleNode*> genericNodes;
+
+	/* Every node, in the order it was made, and every edge. */
+	Vector<CycleNode*> nodes;
+	Vector<CycleEdge*> edges;
+
+	/* The fields, attributes and make_token arguments, in the order an
+	 * error's place is chosen. */
+	Vector<CycleEdge*> places;
+
+	Vector<CycleNode*> stack;
+	long nextIndex;
+	long nextComp;
+
+	CycleNode *newNode( GenericType *generic );
+	CycleNode *structNode( StructEl *structEl );
+	CycleNode *genericNode( GenericType *generic );
+	CycleNode *typeNode( UniqueType *ut );
+	CycleEdge *addEdge( CycleEdge::Kind kind, CycleNode *from, CycleNode *to );
+	CycleEdge *addPlace( CycleEdge::Kind kind, CycleNode *from, CycleNode *to,
+			const InputLoc &loc );
+	void strongConnect( CycleNode *v );
+	void pathBack( CycleEdge *anchor, Vector<CycleEdge*> &path );
+};
+
+CycleGraph::CycleGraph()
+:
+	nextIndex(0), nextComp(0)
+{
+	treeNode = newNode( 0 );
+}
+
+CycleGraph::~CycleGraph()
+{
+	for ( Vector<CycleEdge*>::Iter e = edges; e.lte(); e++ )
+		delete *e;
+	for ( Vector<CycleNode*>::Iter n = nodes; n.lte(); n++ )
+		delete *n;
+}
+
+CycleNode *CycleGraph::newNode( GenericType *generic )
+{
+	CycleNode *node = new CycleNode( generic );
+	nodes.append( node );
+	return node;
+}
+
+CycleNode *CycleGraph::structNode( StructEl *structEl )
+{
+	BstMapEl<StructEl*, CycleNode*> *el = structNodes.find( structEl );
+	if ( el == 0 )
+		el = structNodes.insert( structEl, newNode( 0 ) );
+	return el->value;
+}
+
+CycleNode *CycleGraph::genericNode( GenericType *generic )
+{
+	BstMapEl<GenericType*, CycleNode*> *el = genericNodes.find( generic );
+	if ( el == 0 )
+		el = genericNodes.insert( generic, newNode( generic ) );
+	return el->value;
+}
+
+/* The node that a place of type ut holds strongly, or 0. Every tree type is
+ * the tree node, since an any can be put into a place of any tree type. A
+ * weak reference, an int, a bool and a ref hold nothing. */
+CycleNode *CycleGraph::typeNode( UniqueType *ut )
+{
+	switch ( ut->typeId ) {
+		case TYPE_STRUCT:
+			return structNode( ut->structEl );
+		case TYPE_GENERIC:
+			return genericNode( ut->generic );
+		case TYPE_TREE:
+			return treeNode;
+		default:
+			return 0;
+	}
+}
+
+CycleEdge *CycleGraph::addEdge( CycleEdge::Kind kind, CycleNode *from, CycleNode *to )
+{
+	if ( to == 0 )
+		return 0;
+
+	CycleEdge *edge = new CycleEdge( kind, from, to );
+	edges.append( edge );
+	from->edges.append( edge );
+	return edge;
+}
+
+CycleEdge *CycleGraph::addPlace( CycleEdge::Kind kind, CycleNode *from,
+		CycleNode *to, const InputLoc &loc )
+{
+	CycleEdge *edge = addEdge( kind, from, to );
+	if ( edge != 0 ) {
+		edge->loc = loc;
+		places.append( edge );
+	}
+	return edge;
+}
+
+/* Tarjan's algorithm, from v. */
+void CycleGraph::strongConnect( CycleNode *v )
+{
+	v->index = v->lowLink = nextIndex++;
+	stack.append( v );
+	v->onStack = true;
+
+	for ( Vector<CycleEdge*>::Iter e = v->edges; e.lte(); e++ ) {
+		CycleNode *w = (*e)->to;
+		if ( w->index < 0 ) {
+			strongConnect( w );
+			if ( w->lowLink < v->lowLink )
+				v->lowLink = w->lowLink;
+		}
+		else if ( w->onStack && w->index < v->lowLink ) {
+			v->lowLink = w->index;
+		}
+	}
+
+	/* The root of a component: the nodes above it on the stack are in it. */
+	if ( v->lowLink == v->index ) {
+		CycleNode *w;
+		do {
+			w = stack[stack.length() - 1];
+			stack.remove( stack.length() - 1 );
+			w->onStack = false;
+			w->comp = nextComp;
+		}
+		while ( w != v );
+		nextComp += 1;
+	}
+}
+
+/* The shortest path inside the anchor's component, from the type it holds
+ * back to its owner, found breadth first, each node's edges tried in order.
+ * An edge to its own node has none. */
+void CycleGraph::pathBack( CycleEdge *anchor, Vector<CycleEdge*> &path )
+{
+	if ( anchor->to == anchor->from )
+		return;
+
+	/* The edge that first reached each node. */
+	BstMap<CycleNode*, CycleEdge*> reachedBy;
+	Vector<CycleNode*> queue;
+	queue.append( anchor->to );
+	for ( long q = 0; q < queue.length() && reachedBy.find( anchor->from ) == 0; q++ ) {
+		for ( Vector<CycleEdge*>::Iter e = queue[q]->edges; e.lte(); e++ ) {
+			CycleNode *w = (*e)->to;
+			if ( w->comp == anchor->to->comp && w != anchor->to &&
+					reachedBy.insert( w, *e ) != 0 )
+				queue.append( w );
+		}
+	}
+
+	for ( CycleNode *v = anchor->from; v != anchor->to; ) {
+		CycleEdge *edge = reachedBy.find( v )->value;
+		path.prepend( edge );
+		v = edge->from;
+	}
+}
+
+/* How an error names an edge. */
+static String cycleStep( CycleEdge *edge )
+{
+	switch ( edge->kind ) {
+		case CycleEdge::Field:
+			return edge->structEl->name + "." + edge->field->name;
+		case CycleEdge::Attr:
+			return edge->langEl->name + "." + edge->field->name;
+		case CycleEdge::MakeToken:
+			return "a make_token argument";
+		case CycleEdge::ListValue:
+			return "a list's value";
+		case CycleEdge::MapKey:
+			return "a map's key";
+		case CycleEdge::MapValue:
+			return "a map's value";
+		case CycleEdge::ParserContext:
+			return "a parser's context";
+		case CycleEdge::ParserInput:
+			return "a parser's input";
+		case CycleEdge::ParserTrees:
+			return "a parser's trees";
+		case CycleEdge::InputTrees:
+			return "an input's trees";
+	}
+	return String();
+}
+
+/* A program that compiles can't build a cycle of strong references
+ * (requirement 14 of doc/colm/design/struct-lifetime-requirements.md). Refuse
+ * each struct type that can hold itself through strong references alone. A
+ * node is a type that can hold a struct, and an edge says a thing of one
+ * type can hold one of another strongly. A component of the graph with a
+ * field, an attribute or a make_token argument inside it is a cycle, given
+ * one error at the first such place. See
+ * doc/colm/design/struct-cycle-check-design.md. */
+void Compiler::checkStrongCycles()
+{
+	CycleGraph graph;
+
+	/* The fields of each struct and context. Nothing can hold the globals. */
+	for ( StructElList::Iter sel = structEls; sel.lte(); sel++ ) {
+		if ( sel == globalSel )
+			continue;
+
+		CycleNode *from = graph.structNode( sel );
+		ObjectDef *objectDef = sel->structDef->objectDef;
+		for ( FieldList::Iter f = objectDef->fieldList; f.lte(); f++ ) {
+			ObjectField *field = f->value;
+			if ( field->type != ObjectField::StructFieldType )
+				continue;
+
+			CycleNode *to = graph.typeNode( field->typeRef->resolveType( this ) );
+			CycleEdge *edge = graph.addPlace( CycleEdge::Field, from, to, field->loc );
+			if ( edge != 0 ) {
+				edge->structEl = sel;
+				edge->field = field;
+			}
+		}
+	}
+
+	/* The attributes of each def and token. A terminal wrapper comes after
+	 * its def and shares its object, so each object is walked once. */
+	BstSet<ObjectDef*> objectDefs;
+	for ( LelList::Iter lel = langEls; lel.lte(); lel++ ) {
+		if ( lel->objectDef == 0 || !objectDefs.insert( lel->objectDef ) )
+			continue;
+
+		for ( FieldList::Iter f = lel->objectDef->fieldList; f.lte(); f++ ) {
+			ObjectField *field = f->value;
+			if ( field->type != ObjectField::UserFieldType )
+				continue;
+
+			CycleNode *to = graph.typeNode( field->typeRef->resolveType( this ) );
+			if ( to == graph.treeNode )
+				continue;
+
+			CycleEdge *edge = graph.addPlace( CycleEdge::Attr,
+					graph.treeNode, to, field->loc );
+			if ( edge != 0 ) {
+				edge->langEl = lel;
+				edge->field = field;
+			}
+		}
+	}
+
+	/* What make_token puts into a token's attributes, whatever their types,
+	 * in the order the calls were compiled. */
+	for ( Vector<MakeTokenArg>::Iter arg = makeTokenArgs; arg.lte(); arg++ ) {
+		graph.addPlace( CycleEdge::MakeToken, graph.treeNode,
+				graph.typeNode( arg->ut ), arg->loc );
+	}
+
+	/* What a list, a map or a parser holds. An edge can make a generic node,
+	 * as for a list<list<node>>, so the walk goes on over the nodes it adds. */
+	for ( long n = 0; n < graph.nodes.length(); n++ ) {
+		CycleNode *from = graph.nodes[n];
+		GenericType *generic = from->generic;
+		if ( generic == 0 )
+			continue;
+
+		switch ( generic->typeId ) {
+			case GEN_LIST:
+				graph.addEdge( CycleEdge::ListValue, from,
+						graph.typeNode( generic->valueUt ) );
+				break;
+			case GEN_MAP:
+				graph.addEdge( CycleEdge::MapKey, from,
+						graph.typeNode( generic->keyUt ) );
+				graph.addEdge( CycleEdge::MapValue, from,
+						graph.typeNode( generic->valueUt ) );
+				break;
+			case GEN_PARSER: {
+				StructDef *context = generic->elUt->langEl->contextIn;
+				if ( context != 0 ) {
+					graph.addEdge( CycleEdge::ParserContext, from,
+							graph.structNode( context->structEl ) );
+				}
+				graph.addEdge( CycleEdge::ParserInput, from,
+						graph.structNode( inputSel ) );
+				graph.addEdge( CycleEdge::ParserTrees, from, graph.treeNode );
+				break;
+			}
+		}
+	}
+
+	/* An input holds the trees sent to it. A stream holds no tree or
+	 * struct. */
+	graph.addEdge( CycleEdge::InputTrees, graph.structNode( inputSel ), graph.treeNode );
+
+	for ( long n = 0; n < graph.nodes.length(); n++ ) {
+		if ( graph.nodes[n]->index < 0 )
+			graph.strongConnect( graph.nodes[n] );
+	}
+
+	/* Each component with a place inside it is a cycle, reported at the first
+	 * such place. No place runs from the tree node to itself, so the tree
+	 * node alone is never one. */
+	BstSet<long> reported;
+	for ( Vector<CycleEdge*>::Iter p = graph.places; p.lte(); p++ ) {
+		CycleEdge *anchor = *p;
+		if ( anchor->from->comp != anchor->to->comp ||
+				!reported.insert( anchor->from->comp ) )
+			continue;
+
+		Vector<CycleEdge*> path;
+		graph.pathBack( anchor, path );
+
+		std::ostream &out = error( anchor->loc ) <<
+				"strong references make a cycle: " << cycleStep( anchor );
+		for ( Vector<CycleEdge*>::Iter e = path; e.lte(); e++ )
+			out << ", " << cycleStep( *e );
+		out << "; declare a field or attribute in it weak" << endl;
+	}
+
+	if ( reported.length() > 0 )
+		exit( 1 );
 }

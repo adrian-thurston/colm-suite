@@ -148,6 +148,21 @@ EXTRA_DIST = \
 	ctxtype6.lm \
 	ctxvar1.lm \
 	ctxvarmsg1.lm \
+	cycle1.lm \
+	cycle2.lm \
+	cycle3.lm \
+	cycle4.lm \
+	cycle5.lm \
+	cycle6.lm \
+	cycle7.lm \
+	cycle8.lm \
+	cycle9.lm \
+	cycle10.lm \
+	cycle11.lm \
+	cycle12.lm \
+	cycle13.lm \
+	cycle14.lm \
+	cycleweak1.lm \
 	decl1.lm \
 	decl2.lm \
 	decl3.lm \

@@ -7,7 +7,9 @@ context undo
 		token id /[a-zA-Z_]+/
 	end
 
-	Out: parser<out>
+	# Weak: a parser holds its context, so a context can't hold a parser of its
+	# own types strongly.
+	Out: weak<parser<out>>
 
 	def out_item
 		[id]

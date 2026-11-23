@@ -1,0 +1,18 @@
+# A cycle, and a pattern that doesn't parse. The pattern's error comes first,
+# and colm stops there.
+struct node
+	Next: node
+end
+
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def start
+	[id*]
+
+S: start = parse start[ "a" ]
+match S [ "1" ]
+##### COMP_ERR #####
+16:1: relative error: <input>:1:1: parse error

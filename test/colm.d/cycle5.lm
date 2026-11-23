@@ -1,0 +1,14 @@
+# A context that holds a parser of its own: the parser holds its context.
+context ctx
+	P: parser<ctx::start>
+
+	lex
+		token id /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[id*]
+end
+##### COMP_ERR #####
+3:2: strong references make a cycle: ctx.P, a parser's context; declare a field or attribute in it weak

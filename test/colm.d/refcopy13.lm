@@ -4,6 +4,8 @@
 # an attribute isn't copied with the tree, so a push to it through the ref
 # reaches the global's list. A literal or an expression gets a copy the
 # function can change: what it writes there is lost, and nothing else sees it.
+# L is weak: a list of trees in a tree's attribute makes a cycle, so a
+# variable, Held, holds the list.
 lex
 	token id /[a-z]+/
 	token num /[0-9]+/
@@ -11,7 +13,7 @@ lex
 	ignore /[ \n]+/
 end
 def assign
-	L: list<str>
+	L: weak<list<str>>
 	[Name: id `= Val: num]
 struct s
 	T: assign
@@ -27,7 +29,8 @@ void push( X: ref<assign> ) { X.L->push_tail( "pushed" ) }
 void change( X: ref<str> ) { X = "changed" print( "change ", X, "\n" ) }
 
 global G: assign = parse assign[ "g = 1" ]
-G.L = new list<str>()
+Held: list<str> = new list<str>()
+G.L = Held
 global GS: str = "gs"
 S: s = new s()
 S->T = parse assign[ "t = 2" ]

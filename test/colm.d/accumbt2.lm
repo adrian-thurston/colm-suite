@@ -7,7 +7,9 @@ context accum_bt
 		def one [ id1* ]
 	end
 
-	OneParser: accum<one>
+	# Weak: a parser holds its context, so a context can't hold a parser of its
+	# own types strongly.
+	OneParser: weak<accum<one>>
 
 	lex
 		ignore /[ \t]+/

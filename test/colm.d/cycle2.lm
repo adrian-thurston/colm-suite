@@ -1,0 +1,11 @@
+# Two structs that hold each other. The error is at the first of the fields
+# in order, a.B, and goes on with the path back from b to a.
+struct a
+	B: b
+end
+
+struct b
+	A: a
+end
+##### COMP_ERR #####
+4:2: strong references make a cycle: a.B, b.A; declare a field or attribute in it weak

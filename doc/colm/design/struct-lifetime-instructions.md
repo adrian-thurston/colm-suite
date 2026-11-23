@@ -529,9 +529,11 @@ other designs' Validation, with `COLM_LEAK_CHECK` and `--valgrind` clean:
 
 This, [#667]'s runtime and [#669]'s backing up are built together, as
 [#667] says: once a struct can be freed, every holder must count its
-reference. Weak references come after, on [#670]'s compiler part. When
-this is built, [the access instructions](access-instructions.md) gain the
-strong and the weak instructions in their tables.
+reference. Weak references come after, on [#670]'s compiler part, but for
+the cell and its calls, which [#669]'s design builds with these for a
+context object's hold. When this is built,
+[the access instructions](access-instructions.md) gain the strong and the
+weak instructions in their tables.
 
 [#456]: https://github.com/adrian-thurston/colm-suite/issues/456
 [#477]: https://github.com/adrian-thurston/colm-suite/issues/477

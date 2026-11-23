@@ -37,8 +37,8 @@ or the write goes through a pointer: a change to a local's tree isn't
 undone. Each `WV` instruction records its `_BKT` in the reverse code. A load
 records one that loads the same object again, and a set records the old
 value and ends the unit (`rcode_unit_term()`). Backing up runs the unit: the
-loads, then the set back to the old value. When the parse commits, the
-`_BKT`s are freed, and the old values with them.
+loads, then the set back to the old value. When the parser is freed, the
+`_BKT`s it never ran are freed, and the old values with them ([#669]).
 
 A load for writing splits the tree it loads: a tree that something else
 shares (`refs` above 1) is copied, and the copy stored back where the tree

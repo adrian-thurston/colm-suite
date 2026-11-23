@@ -46,9 +46,10 @@ says what, and leaves how to them.
 
 7. Backing up over an action leaves the structs as if the undone change had
    never run:
-   - A struct whose last strong reference a change dropped is kept while the
-     change can still be undone. Once it can't, the struct is freed if
-     nothing else holds it.
+   - A struct whose last strong reference a change dropped is kept, so that
+     backing up can put it back, until the parser that ran the change is
+     freed, as a tree that a change dropped is, even past a commit point.
+     Then the struct is freed if nothing else holds it.
    - A struct that only an undone change held is freed when the change is
      undone.
    - Undoing a write to a weak reference gives it back its old target, or nil

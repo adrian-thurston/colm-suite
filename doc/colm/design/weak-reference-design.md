@@ -203,7 +203,8 @@ A weak write that the parser can back up over (`_WV`) never moves a cell:
   reverse code keeps the old cell, still on its old target's list.
 - Backing up frees the slot's cell and puts the old one back. The old cell
   reads its old target, or nil if that target was freed since (7).
-- When the parse commits, the reverse code frees the old cell.
+- When the parser is freed, the reverse code frees the old cell, unless
+  backing up has put it back ([#669]).
 
 The old cell counts nothing, so the reverse code keeps no old target alive
 (7), unlike what a strong write's undo keeps, which [#669] counts. A weak
@@ -244,8 +245,9 @@ reference has a freed target, and each behaves as the requirements say.
 - `type.h`: `TYPE_WEAK` (`0x0c`), which a list's or a map's `generic_info`
   has as its `value_type`.
 
-The runtime part, the cell, its calls and the instructions that use them, is
-built with [#667], [#668] and [#669].
+The cell and its calls are built with [#667], [#668] and [#669], for a
+context object's hold ([#669]). The rest of the runtime part, the
+instructions that use them among it, comes after.
 
 ## Public interface
 
@@ -275,7 +277,7 @@ built with [#667], [#668] and [#669].
   written.** Only trees share a value, and they already share the pointer
   tree. Every other copy reads the target and makes a cell of its own.
 - **The undo keeping its old target**: a weak write would then keep its old
-  target alive until the parse commits, against (10).
+  target alive until the parser is freed, against (10).
 - **A singly linked list**: taking a cell off would walk the target's list,
   as long as the target's weak references are many.
 
@@ -292,7 +294,8 @@ Validation, with `COLM_LEAK_CHECK` and `--valgrind` clean:
 - A slot set to a target, to nil and to another target frees its old cells:
   no `lost weak`.
 - Backing up a weak write gives back the old target, and nil when it was
-  freed in between, and a parse that commits frees the old cell.
+  freed in between, and the old cell is freed when the parser is, even
+  past a commit point.
 - A struct that a million weak references point at is freed, and each of
   them reads nil.
 

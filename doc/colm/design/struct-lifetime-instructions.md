@@ -254,8 +254,14 @@ beside. `IN_PTRS_TO_VALS` takes none.
   the argument's type, a struct with `IN_PTR_TO_POINTER`, and a weak
   attribute that `make_token` gives a struct holds it strongly.
   `FN_GET_FIELD_WEAK_R` reads such an attribute as the struct it holds
-  (above). Wrapping by the slot's kind instead would need a table of each
-  attribute's kind at run time, which the runtime doesn't keep.
+  (above). This is an exception to (10) and (12): the attribute keeps its
+  target alive while the tree holds it, and never reads nil, as [#671]'s
+  check already counts it, since that check takes every `make_token`
+  argument as a strong reference. Colm knows the slot when it compiles the
+  call only for an id written out as `typeid<T>`. For an id computed at
+  run time, wrapping by the slot's kind would need a table of each
+  attribute's kind, which the runtime doesn't keep. So this design keeps
+  one rule for both.
 - [#745] checks the tree's type in every instruction that reads or sets
   an attribute, against the id of the object of the type that declares
   the attribute. Each new attribute instruction checks it as the `_VAL_`
@@ -512,7 +518,8 @@ other designs' Validation, with `COLM_LEAK_CHECK` and `--valgrind` clean:
 - A weak reference in each place reads its target, and nil once it is
   freed. A weak parameter given a new struct reads nil.
 - A weak token attribute that `make_token` gave a struct reads that
-  struct.
+  struct, and still reads it once the program has dropped its other
+  references to it.
 - A loop over a weak list or map local, parameter or attribute reads its
   target's values, and stops on a nil or a freed target.
 
@@ -532,6 +539,7 @@ strong and the weak instructions in their tables.
 [#668]: https://github.com/adrian-thurston/colm-suite/issues/668
 [#669]: https://github.com/adrian-thurston/colm-suite/issues/669
 [#670]: https://github.com/adrian-thurston/colm-suite/issues/670
+[#671]: https://github.com/adrian-thurston/colm-suite/issues/671
 [#710]: https://github.com/adrian-thurston/colm-suite/issues/710
 [#712]: https://github.com/adrian-thurston/colm-suite/issues/712
 [#715]: https://github.com/adrian-thurston/colm-suite/issues/715

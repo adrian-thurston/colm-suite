@@ -63,7 +63,10 @@ says what, and leaves how to them.
    key: a key that turned nil inside a map would break the map's order,
    and no program can write the key of an element a map holds.
 9. A weak reference can refer to any struct a strong reference can.
-10. A weak reference doesn't keep its target alive.
+10. A weak reference doesn't keep its target alive. The one exception is a
+    weak token attribute that `make_token` gives a struct: it holds the
+    struct strongly, as [#668]'s design says, so storing a strong reference
+    there doesn't make a weak one (12).
 11. Once its target is freed, a weak reference reads nil, never a dangling
     pointer. Reading or setting a field through it then stops the program,
     as it does through any nil struct.

@@ -1,0 +1,36 @@
+# A list's or a map's element whose value or key is a struct. A pop, a
+# remove, an insert of a key the map has and a set free an element, and
+# release nothing for the struct in it, which nothing counts until #668's
+# instructions count what a list or a map holds.
+
+struct s
+	N: int
+end
+
+S: s = new s()
+S->N = 7
+
+L: list<s> = new list<s>()
+L->push_tail( S )
+L->push_head( S )
+T: s = L->pop_tail()
+T = L->pop_head()
+print( "popped ", T->N, ", length ", L->length, "\n" )
+
+M: map<str, s> = new map<str, s>()
+M->insert( "k", S )
+M->insert( "k", S )
+M->set( "k", S )
+M->set( "j", S )
+R: s = M->remove( "k" )
+print( "removed ", R->N, ", length ", M->length, "\n" )
+
+K: map<s, int> = new map<s, int>()
+K->insert( S, 1 )
+K->insert( S, 2 )
+K->remove( S )
+print( "S ", S->N, ", length ", K->length, "\n" )
+##### EXP #####
+popped 7, length 0
+removed 7, length 1
+S 7, length 0

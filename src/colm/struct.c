@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #include <colm/program.h>
 #include <colm/struct.h>
@@ -49,6 +50,23 @@ void colm_struct_add( program_t *prg, struct colm_struct *item )
 	}
 }
 
+/* Takes a struct off the program's heap list, the inverse of
+ * colm_struct_add(). */
+static void heap_unlink( program_t *prg, struct colm_struct *s )
+{
+	if ( s->prev == 0 )
+		prg->heap.head = s->next;
+	else
+		s->prev->next = s->next;
+
+	if ( s->next == 0 )
+		prg->heap.tail = s->prev;
+	else
+		s->next->prev = s->prev;
+
+	s->prev = s->next = 0;
+}
+
 struct colm_struct *colm_struct_new_size( program_t *prg, int size )
 {
 	size_t memsize = sizeof(struct colm_struct) + ( sizeof(tree_t*) * size );
@@ -67,7 +85,8 @@ struct colm_struct *colm_struct_new( program_t *prg, int id )
 }
 
 /* A list's or a map's element, made as colm_struct_new() makes a struct but
- * kept off the heap list. Only its list or map holds it, and frees it. */
+ * kept off the heap list. Only its list or map holds it, and frees it, so it
+ * isn't counted: its refs stays 0. */
 struct colm_struct *colm_struct_new_el( program_t *prg, int id )
 {
 	size_t memsize = sizeof(struct colm_struct) + ( sizeof(tree_t*) *
@@ -81,6 +100,56 @@ struct colm_struct *colm_struct_new_el( program_t *prg, int id )
 static struct struct_el_info *colm_sel_info( program_t *prg, int id )
 {
 	return &prg->rtd->sel_info[id - prg->rtd->num_lang_els];
+}
+
+void colm_struct_upref( program_t *prg, struct colm_struct *s )
+{
+	if ( s != 0 ) {
+		assert( s->id >= prg->rtd->first_struct_el_id );
+		s->refs += 1;
+	}
+}
+
+/* Step 1 of freeing a struct: its weak references are set to nil, so that
+ * none reads it from here on. Nothing makes a weak reference yet. #670's
+ * colm_weak_clear() (weak-reference-design.md) replaces this when weak
+ * references are built. */
+static void weak_clear( program_t *prg, struct colm_struct *s )
+{
+}
+
+/* Releases a strong reference to s. The last one frees it: s goes on the list
+ * of structs to free, and the outermost downref frees what is on the list,
+ * one at a time, each releasing what it holds. */
+void colm_struct_downref( program_t *prg, tree_t **sp, struct colm_struct *s )
+{
+	/* At exit colm_clear_heap() frees every struct in turn, and may have
+	 * freed s already. */
+	if ( s == 0 || prg->clearing_heap )
+		return;
+
+	assert( s->id >= prg->rtd->first_struct_el_id );
+	assert( s->refs > 0 );
+	s->refs -= 1;
+	if ( s->refs > 0 )
+		return;
+
+	weak_clear( prg, s );
+	heap_unlink( prg, s );
+	s->next = prg->free_structs;
+	prg->free_structs = s;
+
+	/* A teardown that takes another struct to 0 puts it on the list, and
+	 * this loop frees it, so freeing never recurses from struct to struct. */
+	if ( !prg->freeing_structs ) {
+		prg->freeing_structs = 1;
+		while ( prg->free_structs != 0 ) {
+			struct colm_struct *f = prg->free_structs;
+			prg->free_structs = f->next;
+			colm_struct_delete( prg, sp, f );
+		}
+		prg->freeing_structs = 0;
+	}
 }
 
 void colm_struct_delete( program_t *prg, tree_t **sp, struct colm_struct *el )
@@ -99,6 +168,13 @@ void colm_struct_delete( program_t *prg, tree_t **sp, struct colm_struct *el )
 			tree_t *tree = colm_struct_get_field( el, tree_t*, sel->trees[tree_i] );
 			colm_tree_downref( prg, sp, tree );
 		}
+
+		int struct_i;
+		for ( struct_i = 0; struct_i < sel->structs_len; struct_i++ ) {
+			struct colm_struct *s = colm_struct_get_field( el,
+					struct colm_struct*, sel->structs[struct_i] );
+			colm_struct_downref( prg, sp, s );
+		}
 	}
 	free( el );
 }
@@ -107,12 +183,21 @@ static void colm_parser_destroy( program_t *prg, tree_t **sp, struct colm_struct
 {
 	struct colm_parser *parser = (struct colm_parser*) s;
 
+	/* The context, taken before its PDA run goes. */
+	struct colm_struct *context = parser->pda_run->context;
+
 	/* Free the PDA run. */
 	colm_pda_clear( prg, sp, parser->pda_run );
 	free( parser->pda_run );
 
 	/* Free the result. */
 	colm_tree_downref( prg, sp, parser->result );
+
+	/* Release the context and the input. Nothing counts either until #668
+	 * counts a parser's context and input, so until then this runs only at
+	 * exit, where the downref does nothing. */
+	colm_struct_downref( prg, sp, context );
+	colm_struct_downref( prg, sp, (struct colm_struct*)parser->input );
 }
 
 parser_t *colm_parser_new( program_t *prg, struct generic_info *gi, int stop_id, int reducer )

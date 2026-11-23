@@ -162,6 +162,14 @@ struct colm_program
 
 	struct heap_list heap;
 
+	/* The structs waiting to be freed, linked through next, and whether a
+	 * downref is freeing them (colm_struct_downref()). */
+	struct colm_struct *free_structs;
+	int freeing_structs;
+
+	/* Set by colm_clear_heap(), which frees every struct left at exit. */
+	int clearing_heap;
+
 	stream_t *stdin_val;
 	stream_t *stdout_val;
 	stream_t *stderr_val;

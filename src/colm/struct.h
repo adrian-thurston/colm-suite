@@ -30,9 +30,19 @@ extern "C" {
 typedef void (*colm_destructor_t)( struct colm_program *prg,
 		tree_t **sp, struct colm_struct *s );
 
+/* A weak reference's cell, which #670's weak references define. */
+struct colm_weak;
+
+/* refs counts the strong references to the struct, as a tree's refs does.
+ * weak_head is the first of its weak references, nil until they are built.
+ * prev and next link it on the program's heap list while it lives, and on
+ * the list of structs to free while it is freed. A list's or a map's element
+ * is on neither, and isn't counted. */
 struct colm_struct
 {
 	short id;
+	long refs;
+	struct colm_weak *weak_head;
 	struct colm_struct *prev, *next;
 };
 
@@ -40,6 +50,8 @@ struct colm_struct
 struct colm_inbuilt
 {
 	short id;
+	long refs;
+	struct colm_weak *weak_head;
 	struct colm_struct *prev, *next;
 	colm_destructor_t destructor;
 };
@@ -48,6 +60,8 @@ struct colm_inbuilt
 typedef struct colm_parser
 {
 	short id;
+	long refs;
+	struct colm_weak *weak_head;
 	struct colm_struct *prev, *next;
 	colm_destructor_t destructor;
 
@@ -60,6 +74,8 @@ typedef struct colm_parser
 typedef struct colm_input
 {
 	short id;
+	long refs;
+	struct colm_weak *weak_head;
 	struct colm_struct *prev, *next;
 	colm_destructor_t destructor;
 
@@ -70,6 +86,8 @@ typedef struct colm_input
 typedef struct colm_stream
 {
 	short id;
+	long refs;
+	struct colm_weak *weak_head;
 	struct colm_struct *prev, *next;
 	colm_destructor_t destructor;
 
@@ -87,6 +105,8 @@ typedef struct colm_list_el
 typedef struct colm_list
 {
 	short id;
+	long refs;
+	struct colm_weak *weak_head;
 	struct colm_struct *prev, *next;
 	colm_destructor_t destructor;
 
@@ -113,6 +133,8 @@ typedef struct colm_map_el
 typedef struct colm_map
 {
 	short id;
+	long refs;
+	struct colm_weak *weak_head;
 	struct colm_struct *prev, *next;
 	colm_destructor_t destructor;
 
@@ -127,6 +149,9 @@ typedef struct colm_map
 struct colm_struct *colm_struct_new_size( struct colm_program *prg, int size );
 struct colm_struct *colm_struct_new( struct colm_program *prg, int id );
 struct colm_struct *colm_struct_new_el( struct colm_program *prg, int id );
+void colm_struct_upref( struct colm_program *prg, struct colm_struct *s );
+void colm_struct_downref( struct colm_program *prg, tree_t **sp,
+		struct colm_struct *s );
 void colm_struct_add( struct colm_program *prg, struct colm_struct *item );
 void colm_struct_delete( struct colm_program *prg, struct colm_tree **sp,
 		struct colm_struct *el );

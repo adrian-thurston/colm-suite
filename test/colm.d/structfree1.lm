@@ -1,0 +1,56 @@
+# A chain of a million structs, each holding the next in a field, is freed
+# in full when the reference to its head goes, without exhausting the C
+# stack. No instruction counts a struct reference yet (#668), so the host
+# functions count them: hold() counts the reference that the next node's
+# field, or the program, holds to N, and drop() releases it. heap_structs()
+# counts the structs on the program's heap list.
+
+struct node
+	Next: node
+end
+
+int hold( N: node ) = c_hold
+int drop( N: node ) = c_drop
+int heap_structs() = c_heap_structs
+
+Head: node
+I: int = 0
+while ( I < 1000000 ) {
+	N: node = new node()
+	hold( N )
+	N->Next = Head
+	Head = N
+	I = I + 1
+}
+Before: int = heap_structs()
+drop( Head )
+Head = nil
+print( "freed ", Before - heap_structs(), "\n" )
+##### CALL #####
+#include <colm/tree.h>
+#include <colm/bytecode.h>
+#include <colm/program.h>
+#include <colm/struct.h>
+
+value_t c_hold( program_t *prg, tree_t **sp, value_t a1 )
+{
+	colm_struct_upref( prg, (struct colm_struct*)a1 );
+	return 0;
+}
+
+value_t c_drop( program_t *prg, tree_t **sp, value_t a1 )
+{
+	colm_struct_downref( prg, sp, (struct colm_struct*)a1 );
+	return 0;
+}
+
+value_t c_heap_structs( program_t *prg, tree_t **sp )
+{
+	long count = 0;
+	struct colm_struct *s;
+	for ( s = prg->heap.head; s != 0; s = s->next )
+		count += 1;
+	return (value_t)count;
+}
+##### EXP #####
+freed 1000000

@@ -292,6 +292,17 @@ UniqueType *Compiler::findUniqueType( enum TYPE typeId, GenericType *generic )
 	return uniqueType;
 }
 
+UniqueType *Compiler::findUniqueType( enum TYPE typeId, UniqueType *target )
+{
+	UniqueType searchKey( typeId, target );
+	UniqueType *uniqueType = uniqeTypeMap.find( &searchKey );
+	if ( uniqueType == 0 ) {
+		uniqueType = new UniqueType( typeId, target );
+		uniqeTypeMap.insert( uniqueType );
+	}
+	return uniqueType;
+}
+
 /* 0-based. */
 ObjectField *ObjectDef::findFieldNum( long offset )
 {
@@ -407,7 +418,7 @@ UniqueType *LangVarRef::loadField( Compiler *pd, CodeVect &code,
 
 	UniqueType *elUT = el->typeRef->uniqueType;
 
-	if ( elUT->ptr() || elUT->scalar() ) {
+	if ( elUT->ptr() || elUT->scalar() || elUT->weak() ) {
 		if ( forWriting ) {
 			/* The instruction, depends on whether or not we are reverting. */
 			if ( pd->revertOn && revert )
@@ -480,7 +491,8 @@ UniqueType *LangVarRef::loadField( Compiler *pd, CodeVect &code,
 	if ( elUT->typeId == TYPE_ITER )
 		elUT = el->typeRef->searchUniqueType;
 
-	return elUT;
+	/* A weak reference is read as its target. */
+	return elUT->readType();
 }
 
 /* The qualification must start at a local frame. There cannot be any pointer. */
@@ -594,6 +606,9 @@ void Compiler::endReachableSetups()
  * code holding it could change, and that a context object can hold. */
 static bool ctxHeldRef( UniqueType *ut )
 {
+	/* A weak reference is held as its target. */
+	ut = ut->readType();
+
 	if ( ut->typeId == TYPE_GENERIC )
 		return true;
 	if ( ut->typeId == TYPE_STRUCT && !ut->structEl->structDef->isContext )
@@ -1061,6 +1076,11 @@ bool castAssignment( Compiler *pd, CodeVect &code, UniqueType *destUT,
 	if ( destUT->typeId == TYPE_GENERIC && srcUT->typeId == TYPE_NIL )
 		return true;
 
+	/* Setting a weak reference from its target type, or nil. */
+	if ( destUT->typeId == TYPE_WEAK &&
+			( srcUT == destUT->target || srcUT->typeId == TYPE_NIL ) )
+		return true;
+
 	if ( destUT->typeId == TYPE_TREE && srcUT->typeId == TYPE_TREE &&
 			srcUT->langEl == pd->anyLangEl )
 		return true;
@@ -1091,7 +1111,7 @@ void LangVarRef::setField( Compiler *pd, CodeVect &code,
 	 * struct, list or map field replaces a pointer, which isn't released as
 	 * a tree. */
 	UniqueType *destUT = el->typeRef->uniqueType;
-	if ( destUT->ptr() || destUT->scalar() ) {
+	if ( destUT->ptr() || destUT->scalar() || destUT->weak() ) {
 		if ( pd->revertOn && revert )
 			code.append( el->inSetValWV );
 		else
@@ -1711,8 +1731,9 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	if ( func != 0 && !func->inHost )
 		code.append( IN_LOAD_RETVAL );
 
-	/* Return the type to the expression. */
-	return lookup.uniqueType;
+	/* Return the type to the expression. A weak result is read as its
+	 * target. */
+	return lookup.uniqueType->readType();
 }
 
 /* Can match on a tree or a ref. A tree always comes back. */
@@ -1950,7 +1971,8 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 		code.appendHalf( 0 ); // stopId
 
 		if ( newUT->generic->typeId == GEN_PARSER ) {
-
+			code.append( IN_SET_PARSER_OWNER );
+			code.append( PARSER_NEW );
 		}
 	}
 	else if ( newUT->typeId == TYPE_STRUCT && newUT->structEl == pd->streamSel ) {
@@ -2228,6 +2250,12 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 		code.appendHalf( stopId );
 	}
 
+	/* Who holds what the parser is given. A parse with an item after the
+	 * first that runs other code is marked so below. */
+	code.append( IN_SET_PARSER_OWNER );
+	long madeForPos = code.length();
+	code.append( PARSER_PARSE );
+
 	/*
 	 * First load the context into the parser.
 	 */
@@ -2243,6 +2271,16 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 			else if ( argUT->typeId == TYPE_STRUCT && targetUT->langEl->contextIn != 0 ) {
 				checkParserContext( fieldInitArgs->data[i], argUT,
 						targetUT->langEl );
+
+				/* One context, as new parser takes: a second would replace
+				 * the first, which would stay held. */
+				if ( contextGiven ) {
+					const FieldInit *arg = fieldInitArgs->data[i];
+					const InputLoc &argLoc = arg->expr->type == LangExpr::TermType ?
+							arg->expr->term->loc : arg->expr->loc;
+					error(argLoc) << "parse command requires just context and input" << endp;
+				}
+
 				code.append( IN_SET_PARSER_CONTEXT );
 				contextGiven = true;
 			}
@@ -2300,8 +2338,10 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 				 * parser can back up over what was sent before it. */
 				long runs = pd->otherCodeRuns;
 				UniqueType *ut = item->expr->evaluate( pd, code );
-				if ( item.ptr != parserText->list->head && pd->otherCodeRuns != runs )
+				if ( item.ptr != parserText->list->head && pd->otherCodeRuns != runs ) {
 					pd->restartTypes.insert( targetUT->langEl );
+					code.data[madeForPos] = PARSER_RESTART_PARSE;
+				}
 
 				if ( ut->typeId == TYPE_VOID ) {
 					/* Clear it away if return type is void. */
@@ -2355,6 +2395,10 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 		code.append( IN_SEND_EOF_W );
 		parseFrag( pd, code, stopId );
 	}
+
+	/* The parse is over: if it held for itself, outside an action it lets
+	 * what it holds go, and in one it hands it to the action's owner. */
+	code.append( IN_RELEASE_PARSER_CONTEXT );
 
 	if ( parserText->reduce ) {
 		code.append( IN_REDUCE_COMMIT );
@@ -3460,13 +3504,23 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 
 		generic = argUT->generic;
 
+		/* The loop gives each value or key as a strong reference: a weak
+		 * value's is its target. So the variable has that type, over keys and
+		 * strong values as over weak values. */
+		if ( searchUT->weak() ) {
+			error(loc) << "loop variable " << objField->name <<
+					" can't be weak: the loop gives each value as a strong reference" << endp;
+		}
+
 		if ( iterImpl->type == IterImpl::MapKey ) {
 			if ( !castAssignment( pd, unused, searchUT, 0, generic->keyUt ) ) {
 				error(loc) << "loop variable " << objField->name <<
 						" must have the map's key type" << endp;
 			}
 		}
-		else if ( !castAssignment( pd, unused, searchUT, 0, generic->valueUt ) ) {
+		else if ( !castAssignment( pd, unused, searchUT, 0,
+				generic->valueUt->readType() ) )
+		{
 			error(loc) << "loop variable " << objField->name <<
 					" must have the " << kind << "'s value type" << endp;
 		}

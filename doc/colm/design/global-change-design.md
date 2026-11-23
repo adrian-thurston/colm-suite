@@ -128,7 +128,9 @@ them. `globread1` runs what stays: reads in place and a send to a stream in
 a restartable parser, and a change undone in a parse whose only item that
 runs code is its first. `globread2` reads such a tree's attributes in place.
 `nilset2` and `undomap10` became parses that aren't restartable, and
-`sendown1`–`sendown4` keep their parsers in a context.
+`sendown1`–`sendown4` kept their parsers in a context, until [#718] made a
+parser hold its context object: now each parser reaches another through an
+attribute of a tree sent to it.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#683]: https://github.com/adrian-thurston/colm-suite/issues/683

@@ -73,8 +73,7 @@ Colm's keywords are reserved: using one as a name is a parse error. They are:
 `parse_tree`, `parser`, `preeof`, `print`, `prints`, `ptr`, `read_reduce`,
 `redef`, `reduce`, `reducefirst`, `reduction`, `ref`, `reject`, `require`,
 `return`, `right`, `rl`, `send`, `send_tree`, `struct`, `switch`, `token`,
-`true`, `typeid`, `void`, `while`
-and `yield`.
+`true`, `typeid`, `void`, `weak`, `while` and `yield`.
 
 `cons` and `construct` are one keyword, and so are `parser` and `accum`. The
 keywords are all lower case, so a name that starts with a capital letter

@@ -1,0 +1,13 @@
+# A loop over a map's keys can't have a weak variable either: the loop gives
+# each key as a strong reference.
+struct node
+	Name: str
+end
+N: node = new node()
+N->Name = "k"
+M: map<node, int> = new map<node, int>()
+M->insert( N, 1 )
+for K: weak<node> in map_keys( M )
+	print( "key ", K->Name, "\n" )
+##### COMP_ERR #####
+10:5: loop variable K can't be weak: the loop gives each value as a strong reference

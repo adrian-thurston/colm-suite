@@ -1,0 +1,7 @@
+# A host function's parameter can't be weak: the host gets C values.
+struct node
+	N: int
+end
+int f( W: weak<node> ) = c_f
+##### COMP_ERR #####
+5:8: a host function's parameter can't be weak

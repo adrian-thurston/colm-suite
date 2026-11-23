@@ -1,0 +1,16 @@
+# A parse of a type in a context, given more than its context: a second
+# context object, which would replace the first.
+
+context c
+	I: int
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+	def start [id*]
+end
+C: c = new c()
+D: c = new c()
+parse S: c::start( C D )[ "a" ]
+##### COMP_ERR #####
+14:22: parse command requires just context and input

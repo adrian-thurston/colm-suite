@@ -1,93 +1,77 @@
 # A send to a parser while one of its actions runs stops the program: from a
 # production's action, with each kind of send (text, a tree, a stream,
-# nothing, and finish()), from a token action, from a preeof block, from a
-# function a production's action calls, and from the action of a second
-# parser that a production's action sends to. The parsers are in a context,
-# since a restartable parser's actions can't send to a parser that a global
-# holds. The action of drive sends to P and finishes it, as the program would,
-# and its token action makes Q. The host sends standard error to standard
-# output, so the message is in the output, after what the program printed
-# before it. The stop ends the host too: it never gets back from
-# colm_run_program.
-context ctx
-	lex
-		token word /[a-z]+/
-		{
-			if ( A == "token" )
-				send P [" xy "]
-			input->push( make_token( typeid<word>, input->pull( match_length ) ) )
-		}
-		ignore /space+/
-
-		preeof {
-			if ( A == "preeof" )
-				send P [" xy "]
-		}
-	end
-
-	A: str
-	P: parser<ctx::start>
-	Q: parser<ctx::qstart>
-
-	void more()
-	{
-		send P [" xy "]
-	}
-
-	def item
-		[word]
-		{
-			if ( A == "text" )
-				send P [" xy "]
-			elsif ( A == "tree" )
-				send_tree P [$r1]
-			elsif ( A == "stream" )
-				send P [open( "/dev/null", "r" )]
-			elsif ( A == "nothing" )
-				send P []
-			elsif ( A == "finish" )
-				T: start = P->finish()
-			elsif ( A == "function" )
-				more()
-			elsif ( A == "other" )
-				send Q [$r1 " "]
-		}
-
-	def start
-		[item*]
-
-	def qitem
-		[word]
-		{
-			send P [" xy "]
-		}
-
-	def qstart
-		[qitem*]
-
-	lex
-		token go /'go'/
-		{
-			Q = new parser<ctx::qstart>( this )
-			input->push( make_token( typeid<go>, input->pull( match_length ) ) )
-		}
-	end
-
-	def drive
-		[go]
-		{
-			send P ["ab cd"]
-			S: start = P->finish()
-			print( "parsed: ", S, "\n" )
-		}
+# nothing, and finish()), from a function a production's action calls, and
+# from the action of a second parser that a production's action sends to.
+# Each action reaches the parser through an attribute of a tree the program
+# sends: two parsers can't share a context object, which a parser holds, and
+# a restartable parser's actions can't send to a parser that a global holds.
+# The host sends standard error to standard output, so the message is in the
+# output, after what the program printed before it. The stop ends the host
+# too: it never gets back from colm_run_program.
+lex
+	token word /[a-z]+/
+	literal `@
+	ignore /space+/
 end
 
-C: ctx = new ctx()
-C->A = argv->pop()
-C->P = new parser<ctx::start>( C )
+def hold
+	P: parser<start>
+	Q: parser<qstart>
+	[`@]
+
+global A: str = argv->pop()
+
+void more( P: parser<start> )
+{
+	send P [" xy "]
+}
+
+def item
+	[hold word]
+	{
+		if ( A == "text" )
+			send r1.P [" xy "]
+		elsif ( A == "tree" )
+			send_tree r1.P [$r2]
+		elsif ( A == "stream" )
+			send r1.P [open( "/dev/null", "r" )]
+		elsif ( A == "nothing" )
+			send r1.P []
+		elsif ( A == "finish" )
+			T: start = r1.P->finish()
+		elsif ( A == "function" )
+			more( r1.P )
+		elsif ( A == "other" ) {
+			send_tree r1.Q [r1]
+			send r1.Q [" " $r2 " "]
+		}
+	}
+
+def start
+	[item*]
+
+def qitem
+	[hold word]
+	{
+		send r1.P [" xy "]
+	}
+
+def qstart
+	[qitem*]
+
+parse H: hold[ "@" ]
+P: parser<start> = new parser<start>()
+Q: parser<qstart> = new parser<qstart>()
+H.P = P
+H.Q = Q
 
 print( "before\n" )
-parse D: ctx::drive( C )[ "go" ]
+send_tree P [H]
+send P [" ab "]
+send_tree P [H]
+send P [" cd"]
+S: start = P->finish()
+print( "parsed: ", S, "\n" )
 ##### HOST #####
 
 #include <colm/colm.h>
@@ -137,20 +121,6 @@ fatal: send to a parser while one of its actions runs
 1
 ##### ARGS #####
 finish
-##### EXP #####
-before
-fatal: send to a parser while one of its actions runs
-##### EXIT #####
-1
-##### ARGS #####
-token
-##### EXP #####
-before
-fatal: send to a parser while one of its actions runs
-##### EXIT #####
-1
-##### ARGS #####
-preeof
 ##### EXP #####
 before
 fatal: send to a parser while one of its actions runs

@@ -414,9 +414,13 @@ void GenericType::declare( Compiler *pd, Namespace *nspace )
 /* A redef's [...] takes a def's production into the redef's lang el, whose
  * object is the redef's. Give that object the names of the production's
  * children, as cflDef() does for a def's own productions: an element's label,
- * or its type's name if it has none. A name the object has already gets the
- * child too, as for two productions of one def. */
-static void declareKeptCaptures( ObjectDef *objectDef, Production *prod )
+ * or its type's name if it has none. A name the redef's object has already
+ * gets this child too, as cflDef() does for two productions of one def. But a
+ * name that is a child in the def's object and an attribute of the redef is
+ * refused: the kept production's action read the child through it, and would
+ * read the attribute. */
+static void declareKeptCaptures( ObjectDef *defObject, ObjectDef *objectDef,
+		Production *prod )
 {
 	if ( prod->prodElList == 0 )
 		return;
@@ -426,6 +430,15 @@ static void declareKeptCaptures( ObjectDef *objectDef, Production *prod )
 			continue;
 
 		ObjectField *of = objectDef->rootScope->checkRedecl( pel->captureField->name );
+		ObjectField *old = defObject->rootScope->checkRedecl( pel->captureField->name );
+		if ( of != 0 && of->type != ObjectField::RhsNameType &&
+				old != 0 && old->type == ObjectField::RhsNameType )
+		{
+			error( pel->captureField->loc ) << pel->captureField->name <<
+					" is a child of a production kept with [...] and an "
+					"attribute of the redef" << endp;
+		}
+
 		if ( of == 0 ) {
 			of = ObjectField::cons( pel->captureField->loc, ObjectField::RhsNameType,
 					pel->typeRef, pel->captureField->name );
@@ -531,7 +544,7 @@ void Namespace::declare( Compiler *pd )
 						Production *prod = langEl->prodList.detachFirst();
 						prod->prodNum = combined.length();
 						combined.append( prod );
-						declareKeptCaptures( n->objectDef, prod );
+						declareKeptCaptures( langEl->objectDef, n->objectDef, prod );
 					}
 				}
 				else {

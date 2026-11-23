@@ -687,7 +687,8 @@ EXTRA_DIST = \
 	redef13.lm \
 	redef14.lm \
 	redef15.lm \
-	redef16.lm
+	redef16.lm \
+	redef17.lm
 
 # Out of tree the harness links the case files into the build directory, as
 # the cases open their inputs and includes relative to it.

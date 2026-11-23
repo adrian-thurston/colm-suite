@@ -1,0 +1,25 @@
+# A redef declares an attribute with the name of a child of a production it
+# keeps with [...]. The kept production's action read the child through
+# lhs.Name. Since the action's lhs is the redef's, it read the redef's
+# attribute instead, with no word. Such a redef is now refused.
+
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def d
+	[Name: id]
+	{
+		print( "kept action: lhs.Name is [lhs.Name]\n" )
+	}
+
+redef d
+	Name: id
+	[id id]
+|	[...]
+
+parse D: d[ "x" ]
+print( "D.Name is [D.Name]\n" )
+##### COMP_ERR #####
+12:3: Name is a child of a production kept with [...] and an attribute of the redef

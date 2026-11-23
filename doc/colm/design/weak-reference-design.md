@@ -245,8 +245,9 @@ reference has a freed target, and each behaves as the requirements say.
 - `type.h`: `TYPE_WEAK` (`0x0c`), which a list's or a map's `generic_info`
   has as its `value_type`.
 
-The runtime part, the cell, its calls and the instructions that use them, is
-built with [#667], [#668] and [#669].
+The cell and its calls are built with [#667], [#668] and [#669], for a
+context object's hold ([#669]). The rest of the runtime part, the
+instructions that use them among it, comes after.
 
 ## Public interface
 

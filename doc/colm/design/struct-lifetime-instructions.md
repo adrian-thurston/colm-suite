@@ -65,8 +65,10 @@ that dropped the stream (15).
 
 ## Weak slots
 
-A weak slot keeps a cell ([#670]). Nothing on the VM stack is weak: no
-expression has a weak type (12).
+A weak slot keeps a cell ([#670]), but for a weak attribute that
+`make_token` gave a struct, which holds the struct as a strong one does
+(below). Nothing on the VM stack is weak: no expression has a weak type
+(12).
 
 - A read gives the cell's target, counted, or nil: `colm_weak_get()`,
   then `colm_struct_upref()`.
@@ -151,10 +153,14 @@ beside. `IN_PTRS_TO_VALS` takes none.
 
 ### Weak
 
-- `FN_GET_LOCAL_WEAK_R`, `FN_GET_STRUCT_WEAK_R` and `FN_GET_FIELD_WEAK_R`:
-  read a weak local, field or attribute as the strong ones do, and push its
-  target, counted, or nil. A weak attribute's pointer tree has
-  `AF_WEAK_PTR` and the cell ([#670]).
+- `FN_GET_LOCAL_WEAK_R` and `FN_GET_STRUCT_WEAK_R`: read a weak local or
+  field as the strong ones do, and push its target, counted, or nil.
+- `FN_GET_FIELD_WEAK_R`: reads a weak attribute as `IN_GET_FIELD_PTR_R`
+  reads a strong one, but by its pointer tree's flag. A pointer tree with
+  `AF_WEAK_PTR` holds a cell ([#670]), and gives the cell's target, through
+  `colm_weak_get()`, or nil. One with `AF_STRUCT_PTR` holds the struct
+  itself, as `make_token` puts one in (below), and gives that struct.
+  Either way it counts what it pushes.
 - `FN_SET_LOCAL_WEAK_WC`, `FN_SET_STRUCT_WEAK_WC` and
   `FN_SET_FIELD_WEAK_WC`: write a weak local, field or attribute as the
   strong ones do: a local or a field with `colm_weak_set()`, and an
@@ -247,6 +253,9 @@ beside. `IN_PTRS_TO_VALS` takes none.
   time, whatever its type ([#477]). So `evaluateMakeToken()` wraps it by
   the argument's type, a struct with `IN_PTR_TO_POINTER`, and a weak
   attribute that `make_token` gives a struct holds it strongly.
+  `FN_GET_FIELD_WEAK_R` reads such an attribute as the struct it holds
+  (above). Wrapping by the slot's kind instead would need a table of each
+  attribute's kind at run time, which the runtime doesn't keep.
 - [#745]'s check of the type of a struct read out of an attribute goes in
   the instructions that read one, `IN_GET_FIELD_PTR_R` and
   `FN_GET_FIELD_WEAK_R`. Whichever of the two lands second moves it there
@@ -485,6 +494,8 @@ other designs' Validation, with `COLM_LEAK_CHECK` and `--valgrind` clean:
   a struct it made, lose nothing.
 - A weak reference in each place reads its target, and nil once it is
   freed. A weak parameter given a new struct reads nil.
+- A weak token attribute that `make_token` gave a struct reads that
+  struct.
 
 ## Building it
 

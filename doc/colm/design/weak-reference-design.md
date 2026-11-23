@@ -203,7 +203,8 @@ A weak write that the parser can back up over (`_WV`) never moves a cell:
   reverse code keeps the old cell, still on its old target's list.
 - Backing up frees the slot's cell and puts the old one back. The old cell
   reads its old target, or nil if that target was freed since (7).
-- When the parse commits, the reverse code frees the old cell.
+- When the parser is freed, the reverse code frees the old cell, unless
+  backing up has put it back ([#669]).
 
 The old cell counts nothing, so the reverse code keeps no old target alive
 (7), unlike what a strong write's undo keeps, which [#669] counts. A weak

@@ -2440,11 +2440,6 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 		code.append( IN_CONS_GENERIC );
 		code.appendHalf( newUT->generic->id );
 		code.appendHalf( 0 ); // stopId
-
-		if ( newUT->generic->typeId == GEN_PARSER ) {
-			code.append( IN_SET_PARSER_OWNER );
-			code.append( PARSER_NEW );
-		}
 	}
 	else if ( newUT->typeId == TYPE_STRUCT && newUT->structEl == pd->streamSel ) {
 		code.append( IN_NEW_STREAM );
@@ -2761,12 +2756,6 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 		code.appendHalf( stopId );
 	}
 
-	/* Who holds what the parser is given. A parse with an item after the
-	 * first that runs other code is marked so below. */
-	code.append( IN_SET_PARSER_OWNER );
-	long madeForPos = code.length();
-	code.append( PARSER_PARSE );
-
 	/* The parser waits under its context, its items, and the parses. */
 	long words = pd->exprWords.length();
 	pushExprWord( pd, Compiler::ExprWord::Parser );
@@ -2865,10 +2854,8 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 				 * parser can back up over what was sent before it. */
 				long runs = pd->otherCodeRuns;
 				UniqueType *ut = item->expr->evaluate( pd, code );
-				if ( item.ptr != parserText->list->head && pd->otherCodeRuns != runs ) {
+				if ( item.ptr != parserText->list->head && pd->otherCodeRuns != runs )
 					pd->restartTypes.insert( targetUT->langEl );
-					code.data[madeForPos] = PARSER_RESTART_PARSE;
-				}
 
 				if ( ut->typeId == TYPE_VOID ) {
 					/* Clear it away if return type is void. */
@@ -2926,10 +2913,6 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 	/* The parse is over: the code has its object again. */
 	if ( lent )
 		pd->removeOwn( lentRoot );
-
-	/* The parse is over: if it held for itself, outside an action it lets
-	 * what it holds go, and in one it hands it to the action's owner. */
-	code.append( IN_RELEASE_PARSER_CONTEXT );
 
 	if ( parserText->reduce ) {
 		code.append( IN_REDUCE_COMMIT );

@@ -1,0 +1,51 @@
+# A parse given the object after the parser made with new that was lent it
+# is finished, by a send that ends with eos. The object is the program's
+# again, and the parse pops what the parser's action pushed.
+context ctx
+	L: list<str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `; `-
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			L->push_tail( "x" )
+		}
+
+	def popper
+		[`-]
+		{
+			L->pop_tail()
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+
+	lex
+		token go /'go'/
+		{
+			Q: parser<ctx::popper> = new parser<ctx::popper>( this )
+			input->push( make_token( typeid<go>, input->pull( match_length ) ) )
+		}
+	end
+
+	def drive
+		[go]
+end
+
+C: ctx = new ctx()
+C->L = new list<str>()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ; ^\n" eos
+parse X: ctx::popper( C )[ "-" ]
+print( "C ", C->L->length, "\n" )
+##### EXP #####
+C 0

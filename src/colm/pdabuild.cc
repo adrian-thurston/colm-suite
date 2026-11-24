@@ -1568,10 +1568,7 @@ void Compiler::makeRuntimeData()
 	StructElList::Iter sel = structEls;
 	for ( int i = 0; i < count; i++, sel++ ) {
 		int treesLen;
-		/* A context has one slot more, past its fields, which is set while a
-		 * parser holds the object (IN_SET_PARSER_CONTEXT). */
-		runtimeData->sel_info[i].size = sel->structDef->objectDef->size() +
-				( sel->structDef->isContext ? 1 : 0 );
+		runtimeData->sel_info[i].size = sel->structDef->objectDef->size();
 		runtimeData->sel_info[i].trees = makeTrees( sel->structDef->objectDef, treesLen );
 		runtimeData->sel_info[i].trees_len = treesLen;
 

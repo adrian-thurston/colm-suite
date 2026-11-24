@@ -1,0 +1,53 @@
+# A parser made with new gives its object back when it is finished, by
+# finish() or by a send that ends with eos, when its variable is given
+# another parser, and when the statement list its variable is declared in
+# ends. Each time the program can use the object again.
+context ctx
+	N: int
+
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def item
+		[w]
+		{
+			N = N + 1
+		}
+
+	def start
+		[item*]
+end
+
+A: str = argv->pop()
+C: ctx = new ctx()
+
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "a b"
+T: ctx::start = P->finish()
+print( "finish: ", T, ", N ", C->N, "\n" )
+
+Q: parser<ctx::start> = new parser<ctx::start>( C )
+send Q "c" eos
+print( "eos: ", Q->tree, ", N ", C->N, "\n" )
+
+Q = new parser<ctx::start>( C )
+send Q "d"
+Q = nil
+C->N = C->N + 10
+print( "another: N ", C->N, "\n" )
+
+if ( A == "x" ) {
+	R: parser<ctx::start> = new parser<ctx::start>( C )
+	send R "e"
+}
+C->N = C->N + 100
+print( "list end: N ", C->N, "\n" )
+##### ARGS #####
+x
+##### EXP #####
+finish: a b, N 2
+eos: c, N 3
+another: N 13
+list end: N 113

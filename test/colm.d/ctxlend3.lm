@@ -1,0 +1,107 @@
+# #757's programs: an outer parse's action parses one sub-context object, a
+# context variable, with an item after the first that runs code (a call that
+# does nothing). Each parse is lent the running context for its statement,
+# and gives it back at its end. For each item (rr1), after a parse with no
+# such item (rr2), and in an action the outer parse backs up over and then in
+# another (rr4), whose undo takes the first inner parse's push back.
+context inner
+	N: int
+	L: list<str>
+
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+
+	def start
+		[id id]
+		{
+			N = N + 1
+			L->push_tail( $r1 )
+		}
+end
+
+str nothing()
+{
+	return ""
+}
+
+context outer
+	Sub: inner
+
+	lex
+		token word /[a-z]+/
+		literal `; `!
+		ignore /space+/
+	end
+
+	def item
+		[word]
+		{
+			parse X: inner::start( Sub )[ $r1 " " nothing() "x" ]
+		}
+
+	def items
+		[item*]
+
+	def first
+		[word]
+		{
+			parse X: inner::start( Sub )[ "p q" ]
+		}
+
+	def second
+		[word]
+		{
+			parse Z: inner::start( Sub )[ "r " nothing() "s" ]
+		}
+
+	def pair
+		[first second]
+
+	def item1
+		[word]
+		{
+			parse X: inner::start( Sub )[ "one " nothing() "x" ]
+		}
+
+	def item2
+		[word]
+		{
+			parse X: inner::start( Sub )[ "two " nothing() "x" ]
+		}
+
+	def choice
+		[item1 word `;]
+	|	[item2 word `!]
+end
+
+A: str = argv->pop()
+C: outer = new outer()
+C->Sub = new inner()
+C->Sub->L = new list<str>()
+
+if ( A == "rr1" ) {
+	parse P: outer::items( C )[ "a b c" ]
+	print( P, ": N ", C->Sub->N, "\n" )
+}
+elsif ( A == "rr2" ) {
+	parse P: outer::pair( C )[ "a b" ]
+	print( P, ": N ", C->Sub->N, "\n" )
+}
+elsif ( A == "rr4" ) {
+	parse P: outer::choice( C )[ "a b !" ]
+	print( P, ": L ", C->Sub->L->length, "\n" )
+}
+##### ARGS #####
+rr1
+##### EXP #####
+a b c: N 3
+##### ARGS #####
+rr2
+##### EXP #####
+a b: N 2
+##### ARGS #####
+rr4
+##### EXP #####
+a b !: L 1

@@ -301,8 +301,6 @@ typedef unsigned char uchar;
 #define IN_LOAD_CONTEXT_BKT      0xcb
 
 #define IN_SET_PARSER_CONTEXT    0xd0
-#define IN_SET_PARSER_OWNER      0x6d
-#define IN_RELEASE_PARSER_CONTEXT 0x6c
 #define IN_SET_PARSER_INPUT      0x96
 
 #define IN_GET_RHS_VAL_R         0xd7
@@ -411,12 +409,6 @@ typedef unsigned char uchar;
 #define TRIM_DEFAULT 0x01
 #define TRIM_YES     0x02
 #define TRIM_NO      0x03
-
-/* The parser IN_SET_PARSER_OWNER is given: one made with new, a parse's, or
- * the parser of a parse with an item after the first that runs code. */
-#define PARSER_NEW           0x01
-#define PARSER_PARSE         0x02
-#define PARSER_RESTART_PARSE 0x03
 
 /* Types of Generics. */
 enum GEN {

@@ -1,0 +1,49 @@
+# A parser made with new in a token action, given this, which the action's
+# parse is lent. The parser is lent this until the end of the action, where
+# nothing can send to it any more, so it runs.
+context ctx
+	L: list<str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `; `-
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			L->push_tail( "x" )
+		}
+
+	def popper
+		[`-]
+		{
+			L->pop_tail()
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+
+	lex
+		token go /'go'/
+		{
+			Q: parser<ctx::popper> = new parser<ctx::popper>( this )
+			input->push( make_token( typeid<go>, input->pull( match_length ) ) )
+		}
+	end
+
+	def drive
+		[go]
+end
+
+C: ctx = new ctx()
+C->L = new list<str>()
+parse X: ctx::drive( C )[ "go" ]
+print( X, "\n" )
+##### EXP #####
+go

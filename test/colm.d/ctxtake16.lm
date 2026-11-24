@@ -1,6 +1,8 @@
 # Matching a context's tree whose attribute holds a list uses the tree as a
 # value, which takes it out. ctxtake10's program, matching the tree between
 # two sends.
+# Between the sends, C is lent to P, so the use of C is refused before the
+# take is.
 lex
 	literal `h
 end
@@ -44,4 +46,4 @@ if ( match C->T [`h] )
 send P "\n"
 print( P->finish(), "\n" )
 ##### COMP_ERR #####
-42:15: cannot take T out of C, a context object
+44:12: cannot use C: it is lent to P (42:25) until P->finish()

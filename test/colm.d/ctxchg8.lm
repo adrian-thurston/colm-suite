@@ -1,12 +1,14 @@
-# Giving the object to a function ends the setup at once.
+# Giving the object to a function lends it for the call, which ends before
+# the change.
 include 'ctxrule.lmi'
 
 int count( O: ctx )
 {
-	return O->N
+	return O->N + 1
 }
 
 C: ctx = new ctx()
 C->N = count( C )
-##### COMP_ERR #####
-10:1: cannot change C, a context object, outside its setup
+print( C->N, "\n" )
+##### EXP #####
+1

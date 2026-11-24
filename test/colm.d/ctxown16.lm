@@ -1,0 +1,18 @@
+# A parser given the object that holds it (#756): it takes C with it for
+# good, so the store through C can't follow.
+context ctx
+	X: weak<parser<ctx::start>>
+
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+
+	def start
+		[id*]
+end
+
+C: ctx = new ctx()
+C->X = new parser<ctx::start>( C )
+##### COMP_ERR #####
+16:1: cannot use C: it went with the parser made at 16:8

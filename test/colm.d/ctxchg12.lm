@@ -1,4 +1,4 @@
-# A context's function, through a parameter.
+# A context's function changes the object its caller lends it.
 context ctx
 	N: int
 
@@ -15,5 +15,10 @@ context ctx
 	def start
 		[w*]
 end
-##### COMP_ERR #####
-12:3: cannot change O, a context object, outside its setup
+
+C: ctx = new ctx()
+C->N = 5
+ctx::reset( C )
+print( C->N, "\n" )
+##### EXP #####
+0

@@ -1,0 +1,16 @@
+# Nothing moves out of this: the parse lends it to the action.
+context t
+	lex
+		token w /[a-z]+/
+		{
+			X: t = this
+			input->push( make_token( typeid<w>, input->pull( match_length ) ) )
+		}
+		ignore /space+/
+	end
+
+	def start
+		[w*]
+end
+##### COMP_ERR #####
+6:11: cannot move this: the parse lends it for the action

@@ -564,48 +564,135 @@ long LangVarRef::loadQualificationRefs( Compiler *pd, CodeVect &code,
 	return count;
 }
 
-/* The window of a variable whose context object is being set up, if a change
- * through the variable compiles here: not in a loop that the setup is outside
- * of. */
-Compiler::SetupWindow *Compiler::findSetupWindow( ObjectField *var )
+/* The entry of a root, or of a parser variable, or 0. */
+Compiler::Own *Compiler::findOwn( ObjectField *var )
 {
-	for ( int i = 0; i < setupWindows.length(); i++ ) {
-		if ( setupWindows[i].var == var && setupWindows[i].loopDepth == loopDepth )
-			return &setupWindows[i];
+	for ( int i = 0; i < owns.length(); i++ ) {
+		if ( owns[i].var == var )
+			return &owns[i];
 	}
 	return 0;
 }
 
-/* Using the variable other than through -> ends the setup of its object, as
- * does giving the variable another value. A new parser runs nothing, so given
- * to one as its context, the object's setup ends with the statement, or
- * before, where other code runs. */
-void Compiler::closeSetupWindow( ObjectField *var, bool atStmtEnd )
+void Compiler::removeOwn( ObjectField *var )
 {
-	for ( int i = setupWindows.length() - 1; i >= 0; i-- ) {
-		if ( setupWindows[i].var == var ) {
-			if ( atStmtEnd )
-				setupWindows[i].closing = true;
-			else
-				setupWindows.remove( i );
+	for ( int i = owns.length() - 1; i >= 0; i-- ) {
+		if ( owns[i].var == var )
+			owns.remove( i );
+	}
+}
+
+void Compiler::addOwn( ObjectField *var, Own::Kind kind, const InputLoc &loc,
+		ObjectField *parser )
+{
+	removeOwn( var );
+	Own own;
+	own.var = var;
+	own.kind = kind;
+	own.loc = loc;
+	own.parser = parser;
+	own.field = false;
+	owns.append( own );
+}
+
+/* A root is lent to the parser variable. */
+bool Compiler::lentToParser( ObjectField *parser )
+{
+	for ( int i = 0; i < owns.length(); i++ ) {
+		if ( owns[i].kind == Own::LentToParser && owns[i].parser == parser )
+			return true;
+	}
+	return false;
+}
+
+/* Nothing can send to the parser the variable holds any more: it was given
+ * another, or is out of scope. What it was lent is the code's again. */
+void Compiler::releaseParser( ObjectField *parser )
+{
+	for ( int i = owns.length() - 1; i >= 0; i-- ) {
+		if ( ( owns[i].kind == Own::LentToParser && owns[i].parser == parser ) ||
+				( owns[i].kind == Own::Finished && owns[i].var == parser ) )
+			owns.remove( i );
+	}
+}
+
+static bool sameOwn( const Compiler::Own &a, const Compiler::Own &b )
+{
+	return a.var == b.var && a.kind == b.kind && a.parser == b.parser;
+}
+
+/* After an if, what either side did holds: a root lent or moved on either
+ * side is lent or moved, and a parser finished on either can't be sent to,
+ * and gives back only what both sides gave back. */
+void Compiler::mergeOwns( const Vector<Own> &other )
+{
+	for ( int i = 0; i < other.length(); i++ ) {
+		Own *own = findOwn( other[i].var );
+		if ( own == 0 )
+			owns.append( other[i] );
+		else if ( !sameOwn( *own, other[i] ) ) {
+			bool otherMoved = other[i].kind == Own::Moved ||
+					other[i].kind == Own::MovedWithParser;
+			bool ownMoved = own->kind == Own::Moved ||
+					own->kind == Own::MovedWithParser;
+			if ( otherMoved && !ownMoved )
+				*own = other[i];
+			else if ( !otherMoved && !ownMoved ) {
+				/* Lent to one parser on one side, another on the other. */
+				own->kind = Own::MovedWithParser;
+				own->parser = 0;
+			}
 		}
 	}
 }
 
-/* Other code can reach a variable that isn't a local, give its object to a
- * parser and send to it, and it can send to a new parser the statement gave
- * an object to. So running any ends the setup of such an object: a call, a
- * parse, a send to a parser, a finish, a user iterator's loop or a yield.
- * Each is counted, for a parse's items, as is a call that changes what it is
- * called on (evaluateCall()). */
-void Compiler::endReachableSetups()
+static void ownPlace( std::ostream &out, const InputLoc &loc )
+{
+	out << loc.line << ":" << loc.col;
+}
+
+/* A loop's body runs again after its end: what it lends, moves or finishes
+ * of what is outside it can't be as the next pass expects. */
+void Compiler::checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc )
+{
+	for ( int i = 0; i < owns.length(); i++ ) {
+		const Own &own = owns[i];
+		bool same = false;
+		for ( int j = 0; j < start.length(); j++ ) {
+			if ( sameOwn( own, start[j] ) )
+				same = true;
+		}
+		if ( same )
+			continue;
+
+		String name = own.var != 0 ? own.var->name : String( "the context object" );
+		std::ostream &out = error( loopLoc ) << name;
+		switch ( own.kind ) {
+			case Own::LentToParse: case Own::LentToParser: case Own::LentToLoop:
+				out << " is lent in the loop's body (";
+				ownPlace( out, own.loc );
+				out << "), and isn't back by its end" << endp;
+				break;
+			case Own::Moved: case Own::MovedWithParser:
+				out << " is moved in the loop's body (";
+				ownPlace( out, own.loc );
+				out << "), and isn't given another object by its end" << endp;
+				break;
+			case Own::Finished:
+				out << " is finished in the loop's body (";
+				ownPlace( out, own.loc );
+				out << "), and the next pass can't send to it" << endp;
+				break;
+		}
+	}
+}
+
+/* Other code runs: a call, a parse, a send to a parser, a finish, a user
+ * iterator's loop or a yield. A parse's item after the first that runs other
+ * code makes the parser restartable. */
+void Compiler::countOtherCode()
 {
 	otherCodeRuns += 1;
-
-	for ( int i = setupWindows.length() - 1; i >= 0; i-- ) {
-		if ( setupWindows[i].global || setupWindows[i].closing )
-			setupWindows.remove( i );
-	}
 }
 
 /* A list, map, parser, stream or struct other than a context: a value that
@@ -736,26 +823,92 @@ static void checkTreeIntoParse( Compiler *pd, LangExpr *expr, UniqueType *ut,
 			"stream or struct" << where << ": " << instead << endp;
 }
 
-/* Outside its parse's actions, a context object is changed only while it is
- * set up, through the variable it was put into. A parser backing up over its
- * actions assumes the object is as they left it: see
- * doc/colm/design/context-change-design.md. */
-void LangVarRef::checkContextChange( Compiler *pd, const VarRefLookup &lookup ) const
+/* The root the reference starts at, as the ownership state keys it: a local
+ * variable or a parameter, or 0 for the running context, which this and the
+ * context's variables named alone reach. False for a global, and for input. */
+bool LangVarRef::ownRoot( Compiler *pd, ObjectField *&root ) const
 {
-	if ( lookup.firstCtxPart < 0 )
-		return;
+	if ( isNspaceQual() )
+		return false;
 
-	/* Through the variable being set up, the change can go no further into
-	 * another context object. */
-	int part = lookup.firstCtxPart;
-	if ( part == 0 && pd->findSetupWindow( lookup.rootField ) != 0 ) {
-		part = lookup.secondCtxPart;
-		if ( part < 0 )
-			return;
+	/* A child named on its own in a case starts where the switch's variable
+	 * does. */
+	const LangVarRef *var = caseVar( pd );
+	if ( var != 0 )
+		return var->ownRoot( pd, root );
+
+	const String &first = qual->length() > 0 ? qual->data[0].data : name;
+	if ( isInbuiltObject() ) {
+		ObjectField *field = scope->findField( first );
+		UniqueType *ut = field->typeRef->uniqueType;
+		if ( ut->typeId == TYPE_STRUCT && ut->structEl->structDef->isContext ) {
+			root = 0;
+			return true;
+		}
+		return false;
 	}
 
-	error(qual->data[part].loc) << "cannot change " << qual->data[part].data <<
-			", a context object, outside its setup" << endp;
+	if ( isLocalRef() ) {
+		root = scope->findField( first );
+		return root != 0;
+	}
+
+	if ( isStructRef() ) {
+		root = 0;
+		return true;
+	}
+
+	return false;
+}
+
+/* A use of a root that is lent or moved: see the ownership state in
+ * doc/colm/design/context-ownership-design.md. */
+void LangVarRef::checkOwnedUse( Compiler *pd ) const
+{
+	ObjectField *root;
+	if ( !ownRoot( pd, root ) )
+		return;
+
+	if ( root == 0 && pd->revertOn && pd->curBlock != 0 )
+		pd->curBlock->namesContext = true;
+
+	Compiler::Own *own = pd->findOwn( root );
+	if ( own == 0 || own->kind == Compiler::Own::Finished )
+		return;
+
+	const String &use = qual->length() > 0 ? qual->data[0].data : name;
+	const InputLoc &useLoc = qual->length() > 0 ? qual->data[0].loc : loc;
+	std::ostream &out = error(useLoc) << "cannot use " << use << ": ";
+	out << ( root == 0 ? "the context object" : "it" );
+	switch ( own->kind ) {
+		case Compiler::Own::LentToParse:
+			out << " is lent to the parse (";
+			ownPlace( out, own->loc );
+			out << ") for its statement" << endp;
+			break;
+		case Compiler::Own::LentToParser:
+			out << " is lent to " << own->parser->name << " (";
+			ownPlace( out, own->loc );
+			out << ") until " << own->parser->name << "->finish()" << endp;
+			break;
+		case Compiler::Own::LentToLoop:
+			out << " is lent to " << own->iter << " (";
+			ownPlace( out, own->loc );
+			out << ") until its loop ends" << endp;
+			break;
+		case Compiler::Own::Moved:
+			out << " was moved at ";
+			ownPlace( out, own->loc );
+			out << endp;
+			break;
+		case Compiler::Own::MovedWithParser:
+			out << " went with the parser made at ";
+			ownPlace( out, own->loc );
+			out << endp;
+			break;
+		case Compiler::Own::Finished:
+			break;
+	}
 }
 
 /* Outside its parse's actions, what a context object holds that could be
@@ -817,38 +970,29 @@ void LangVarRef::noteGlobalUse( Compiler *pd, GlobalUse::Kind kind,
 	pd->curBlock->globalUses.append( use );
 }
 
-/* The variable a change through it sets up the object of, or 0. */
-ObjectField *LangVarRef::setupVar( Compiler *pd, const VarRefLookup &lookup ) const
-{
-	if ( lookup.firstCtxPart == 0 && lookup.secondCtxPart < 0 &&
-			pd->findSetupWindow( lookup.rootField ) != 0 )
-		return lookup.rootField;
-	return 0;
-}
-
-/* What a change puts into an object being set up, through var: a new object,
- * nil, or something read out of the object, through var. Anything else
- * could be held elsewhere too, and changed from there. A tree that shares
- * such a value is never new: a cons or a parse can put into it what is held
- * elsewhere. So the object gets one from its parse's actions. */
+/* What goes into a context object through a context reference: a new object,
+ * nil, or something read through the same root. Anything else could be held
+ * elsewhere too, and changed from there while a parser the object is lent to
+ * can back up. A tree that shares such a value is never new: a cons or a
+ * parse can put into it what is held elsewhere. So the object gets one from
+ * its parse's actions. */
 static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *expr )
 {
-	ObjectField *var = pd->setupStoreVar;
-	pd->setupStoreVar = 0;
-
-	if ( var == 0 )
+	if ( !pd->ctxStore )
 		return expr->evaluate( pd, code );
+
+	ObjectField *root = pd->ctxStoreRoot;
+	String name = pd->ctxStoreName;
+	pd->ctxStore = false;
 
 	LangTerm *term = expr->type == LangExpr::TermType ? expr->term : 0;
 	bool fresh = term != 0 && ( term->type == LangTerm::NewType ||
 			term->type == LangTerm::NilType );
 	bool through = false;
+	ObjectField *valueRoot;
 	if ( term != 0 && term->type == LangTerm::VarRefType &&
-			term->varRef->qual->length() > 0 )
-	{
-		VarRefLookup lookup = term->varRef->lookupField( pd );
-		through = term->varRef->setupVar( pd, lookup ) == var;
-	}
+			term->varRef->ownRoot( pd, valueRoot ) )
+		through = valueRoot == root;
 
 	pd->ctxValueInPlace = through;
 	UniqueType *ut = expr->evaluate( pd, code );
@@ -856,20 +1000,34 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 
 	if ( sharesRef( pd, ut ) && !fresh && !through ) {
 		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
-		error(loc) << "only nil or what " << var->name << " holds can go into " <<
-				var->name << " as it is set up: " << article( ut->langEl->xmlTag ) <<
+		error(loc) << "only nil or what " << name << " holds can go into " <<
+				name << ": " << article( ut->langEl->xmlTag ) <<
 				" " << ut->langEl->xmlTag << " can hold a list, map, parser, "
 				"stream or struct" << endp;
 	}
 
 	if ( ctxHeldRef( ut ) && !fresh && !through ) {
 		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
-		error(loc) << "only a new object, nil or what " << var->name <<
-				" holds can go into " << var->name << " as it is set up" << endp;
+		error(loc) << "only a new object, nil or what " << name <<
+				" holds can go into " << name << endp;
 	}
 
-	pd->setupStoreVar = var;
+	pd->ctxStore = true;
+	pd->ctxStoreRoot = root;
+	pd->ctxStoreName = name;
 	return ut;
+}
+
+/* A store through lookup goes into a context object: note it for
+ * evaluateSetupValue(). */
+static void setCtxStore( Compiler *pd, const LangVarRef *varRef,
+		const VarRefLookup &lookup )
+{
+	pd->ctxStore = false;
+	if ( lookup.firstCtxPart >= 0 && varRef->ownRoot( pd, pd->ctxStoreRoot ) ) {
+		pd->ctxStore = true;
+		pd->ctxStoreName = varRef->qual->data[lookup.firstCtxPart].data;
+	}
 }
 
 void LangVarRef::loadQualification( Compiler *pd, CodeVect &code, 
@@ -1028,6 +1186,10 @@ void LangVarRef::loadLocalObj( Compiler *pd, CodeVect &code,
 void LangVarRef::loadObj( Compiler *pd, CodeVect &code, 
 		int lastPtrInQual, bool forWriting ) const
 {
+	/* The root is read to reach what the qualification names. */
+	if ( qual->length() > 0 )
+		checkOwnedUse( pd );
+
 	if ( isNspaceQual() )
 		loadScopedObj( pd, code, qualNspace( pd )->rootScope, lastPtrInQual, forWriting );
 	else if ( isInbuiltObject() )
@@ -1147,15 +1309,48 @@ void LangVarRef::setField( Compiler *pd, CodeVect &code,
 }
 
 
+/* A parser variable lent an object is used only through ->, and sent to.
+ * Used as a value, the parser can go anywhere, and what it was lent goes
+ * with it for good. Once finished, it can't be sent to again. */
+static void parserValueUse( Compiler *pd, ObjectField *var, const InputLoc &loc )
+{
+	Compiler::Own *fin = pd->findOwn( var );
+	if ( fin != 0 && fin->kind == Compiler::Own::Finished ) {
+		std::ostream &out = error(loc) << "cannot use " << var->name <<
+				" as a value: it was finished at ";
+		ownPlace( out, fin->loc );
+		out << endp;
+	}
+	for ( int i = 0; i < pd->owns.length(); i++ ) {
+		Compiler::Own &own = pd->owns[i];
+		if ( own.kind == Compiler::Own::LentToParser && own.parser == var ) {
+			if ( own.var == 0 || own.var->isParam() || own.field ) {
+				std::ostream &out = error(loc) << "cannot use " << var->name <<
+						" as a value: what it is lent (";
+				ownPlace( out, own.loc );
+				out << ") can't go with it" << endp;
+			}
+			if ( pd->throwaway == 0 ) {
+				own.kind = Compiler::Own::MovedWithParser;
+				own.parser = 0;
+			}
+		}
+	}
+}
+
 UniqueType *LangVarRef::evaluate( Compiler *pd, CodeVect &code, bool forWriting ) const
 {
 	bool inPlace = pd->ctxValueInPlace;
-	bool newParser = pd->newParserContext;
+	bool sendTarget = pd->sendTarget;
 	pd->ctxValueInPlace = false;
-	pd->newParserContext = false;
+	pd->sendTarget = false;
 
 	/* Lookup the loadObj. */
 	VarRefLookup lookup = lookupField( pd );
+
+	/* A variable used as a value is read itself. */
+	if ( qual->length() == 0 )
+		checkOwnedUse( pd );
 
 	/* Load the object, if any. */
 	loadObj( pd, code, lookup.lastPtrInQual, forWriting );
@@ -1169,9 +1364,8 @@ UniqueType *LangVarRef::evaluate( Compiler *pd, CodeVect &code, bool forWriting 
 	if ( !inPlace && pd->revertOn && heldRef( pd, ut ) )
 		noteGlobalUse( pd, GlobalUse::Take, qual->length() > 0 ? name : String() );
 
-	/* Used as a value, the variable gives its object away: the setup ends. */
-	if ( qual->length() == 0 )
-		pd->closeSetupWindow( lookup.objField, newParser );
+	if ( qual->length() == 0 && !sendTarget && isLocalRef() )
+		parserValueUse( pd, lookup.objField, loc );
 
 	return ut;
 }
@@ -1305,7 +1499,9 @@ IterImpl *LangVarRef::chooseTriterCall( Compiler *pd,
 		CodeVect unused;
 		CallArgVect::Iter pe = *args;
 		pd->ctxValueInPlace = forInPlace( pd, searchUT, args );
+		pd->throwaway += 1;
 		UniqueType *exprUT = (*pe)->expr->evaluate( pd, unused );
+		pd->throwaway -= 1;
 		pd->ctxValueInPlace = false;
 
 		if ( exprUT->typeId == TYPE_GENERIC && exprUT->generic->typeId == GEN_LIST )
@@ -1502,7 +1698,9 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 			if ( expression->canTakeRef( pd ) ) {
 				if ( checkRefArg ) {
 					CodeVect unused;
+					pd->throwaway += 1;
 					UniqueType *argUT = expression->evaluate( pd, unused );
+					pd->throwaway -= 1;
 					if ( !refArgTypeOk( pd, paramUT, argUT ) ) {
 						error(loc) << "arg " << pe.pos()+1 <<
 								" is of the wrong type" << endp;
@@ -1842,6 +2040,11 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	if ( func != 0 && pd->curFunction != 0 )
 		pd->refFlow( &func->yieldWrite, &pd->curFunction->yieldWrite );
 
+	/* What it is called on is used before its arguments are, as the error
+	 * says, though callOperation() loads it after them. */
+	if ( qual->length() > 0 )
+		checkOwnedUse( pd );
+
 	/* A call that changes what it is called on. A parser's finish parses. */
 	bool change = func == 0 && ( !lookup.objMethod->isConst ||
 			lookup.objMethod->type == ObjectMethod::ParseFinish );
@@ -1856,21 +2059,56 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 		pushExprArea( pd, func->paramListSize );
 	}
 
-	/* Evaluate and push the arguments. A change through an object being set
-	 * up puts them into it. */
-	pd->setupStoreVar = change ? setupVar( pd, lookup ) : 0;
+	/* The parser variable a finish() or a gets() is called on, if it is lent
+	 * an object. */
+	ObjectField *parserVar = 0;
+	bool gets = lookup.objMethod->opcodeWC == IN_GET_PARSER_STREAM;
+	if ( qual->length() == 1 && isLocalRef() &&
+			( lookup.objMethod->type == ObjectMethod::ParseFinish || gets ) )
+	{
+		ObjectField *var = scope->findField( qual->data[0].data );
+		if ( var != 0 && var->typeRef->uniqueType->parser() )
+			parserVar = var;
+	}
+
+	if ( parserVar != 0 ) {
+		Compiler::Own *fin = pd->findOwn( parserVar );
+		if ( fin != 0 && fin->kind == Compiler::Own::Finished ) {
+			std::ostream &out = error(loc) << ( gets ?
+					"cannot get the input of " : "cannot finish " ) <<
+					parserVar->name << ": it was finished at ";
+			ownPlace( out, fin->loc );
+			out << endp;
+		}
+		if ( gets && pd->lentToParser( parserVar ) ) {
+			error(loc) << "cannot get the input of " << parserVar->name <<
+					": it is lent a context object until " << parserVar->name <<
+					"->finish()" << endp;
+		}
+	}
+
+	/* A call made while the running context is lent can't be of a function
+	 * that names the context, which checkLentCalls() finds. */
+	Compiler::Own *running = pd->findOwn( 0 );
+	if ( func != 0 && running != 0 && pd->revertOn && pd->curBlock != 0 ) {
+		CodeBlock::LentCall call;
+		call.func = func;
+		call.loc = loc;
+		call.lentLoc = running->loc;
+		pd->curBlock->lentCalls.append( call );
+	}
+
+	/* Evaluate and push the arguments. A change through a context reference
+	 * puts them into the object. */
+	if ( change )
+		setCtxStore( pd, this, lookup );
 	ObjectField **paramRefs = evaluateArgs( pd, code, lookup, args );
-	pd->setupStoreVar = 0;
+	pd->ctxStore = false;
 
 	/* The instruction of a built-in or a host function takes its arguments.
 	 * What popRefQuals() pops after it lies under no call. */
 	if ( func == 0 || func->inHost )
 		popExprWords( pd, words );
-
-	/* The change is made after the arguments, which may end the setup, and
-	 * gives its result after that. */
-	if ( change )
-		checkContextChange( pd, lookup );
 
 	checkContextValue( pd, lookup, lookup.uniqueType, false );
 
@@ -1883,7 +2121,7 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	}
 
 	if ( func != 0 || lookup.objMethod->type == ObjectMethod::ParseFinish )
-		pd->endReachableSetups();
+		pd->countOtherCode();
 
 	/* A call that changes what it is called on is the program's own code,
 	 * for a parse's items, as a call of a function is. */
@@ -1895,6 +2133,14 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 
 	/* Write the call opcode. */
 	callOperation( pd, code, lookup );
+
+	/* A finished parser gives back what it was lent. */
+	if ( parserVar != 0 && lookup.objMethod->type == ObjectMethod::ParseFinish &&
+			pd->lentToParser( parserVar ) && pd->throwaway == 0 )
+	{
+		pd->releaseParser( parserVar );
+		pd->addOwn( parserVar, Compiler::Own::Finished, loc );
+	}
 
 	popRefQuals( pd, code, lookup, args, true );
 
@@ -2110,6 +2356,51 @@ static void checkGrammarContext( const InputLoc &loc, LangEl *root )
 	}
 }
 
+/* A context object leaves the place varRef names, which root is the root of.
+ * A local's moves. Nothing moves out of a parameter, which the caller lends,
+ * of this, or of a field, which is given another object in its place. */
+static void moveOut( Compiler *pd, const LangVarRef *varRef, ObjectField *root )
+{
+	if ( varRef->qual->length() > 0 ) {
+		error(varRef->loc) << "cannot move " << varRef->name << " out of " <<
+				varRef->qual->data[varRef->qual->length()-1].data <<
+				": give the field another object in its place" << endp;
+	}
+	if ( root == 0 && varRef->isInbuiltObject() )
+		error(varRef->loc) << "cannot move this: the parse lends it for the action" << endp;
+	if ( root == 0 ) {
+		error(varRef->loc) << "cannot move " << varRef->name <<
+				" out of the context object: give the field another object "
+				"in its place" << endp;
+	}
+	if ( root->isParam() ) {
+		error(varRef->loc) << "cannot move " << varRef->name <<
+				": the caller lends it for the call" << endp;
+	}
+}
+
+/* A value of a context type that a local, a parameter, this or a field holds,
+ * put into another place or returned, moves. */
+static void noteMove( Compiler *pd, LangExpr *expr )
+{
+	if ( expr == 0 || expr->type != LangExpr::TermType ||
+			expr->term->type != LangTerm::VarRefType )
+		return;
+
+	LangVarRef *varRef = expr->term->varRef;
+	UniqueType *ut = varRef->lookup( pd );
+	if ( ut->typeId != TYPE_STRUCT || !ut->structEl->structDef->isContext )
+		return;
+
+	ObjectField *root;
+	if ( !varRef->ownRoot( pd, root ) )
+		return;
+
+	moveOut( pd, varRef, root );
+	if ( pd->throwaway == 0 )
+		pd->addOwn( root, Compiler::Own::Moved, varRef->loc );
+}
+
 UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 {
 	/* What is being newstructed. */
@@ -2163,6 +2454,10 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 		code.appendHalf( newUT->structEl->id );
 	}
 
+	/* The parser variable the new parser goes into, if any. */
+	ObjectField *parserVar = pd->newParserVar;
+	pd->newParserVar = 0;
+
 	/*
 	 * First load the context into the parser, which waits under it.
 	 */
@@ -2172,18 +2467,37 @@ UniqueType *LangTerm::evaluateNew( Compiler *pd, CodeVect &code ) const
 
 		bool contextGiven = false;
 		for ( int i = 0; fieldInitArgs != 0 && i < fieldInitArgs->length(); i++ ) {
-			/* Eval what we are initializing with. A new parser runs nothing,
-			 * so its context's setup goes on to the end of the statement, or
-			 * to other code that runs before then. */
-			pd->newParserContext = true;
-			UniqueType *argUT = fieldInitArgs->data[i]->expr->evaluate( pd, code );
-			pd->newParserContext = false;
+			/* Eval what we are initializing with. */
+			LangExpr *argExpr = fieldInitArgs->data[i]->expr;
+			UniqueType *argUT = argExpr->evaluate( pd, code );
 
 			if ( argUT->typeId == TYPE_STRUCT ) {
 				checkParserContext( fieldInitArgs->data[i], argUT,
 						newUT->generic->elUt->langEl );
 				code.append( IN_SET_PARSER_CONTEXT );
 				contextGiven = true;
+
+				/* The root of the object is lent to the parser variable
+				 * the parser goes into, once the assignment has ended what
+				 * the variable had. Anywhere else, the object goes with
+				 * the parser for good. */
+				LangVarRef *argRef = argExpr->type == LangExpr::TermType &&
+						argExpr->term->type == LangTerm::VarRefType ?
+						argExpr->term->varRef : 0;
+				ObjectField *root;
+				if ( argRef != 0 && argRef->ownRoot( pd, root ) ) {
+					if ( parserVar != 0 ) {
+						pd->newParserLent = true;
+						pd->newParserRoot = root;
+						pd->newParserLoc = loc;
+						pd->newParserField = argRef->qual->length() > 0;
+					}
+					else {
+						moveOut( pd, argRef, root );
+						if ( pd->throwaway == 0 )
+							pd->addOwn( root, Compiler::Own::MovedWithParser, loc );
+					}
+				}
 			}
 			else {
 				error(loc) << "new parser<" << newUT->generic->elUt->langEl->declName <<
@@ -2406,7 +2720,7 @@ static void checkSendItem( Compiler *pd, const ConsItem *item, UniqueType *ut,
 UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 		bool tree, bool stop ) const
 {
-	pd->endReachableSetups();
+	pd->countOtherCode();
 
 	UniqueType *parserUT = typeRef->uniqueType;
 	UniqueType *targetUT = parserUT->generic->elUt;
@@ -2461,6 +2775,8 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 	 * First load the context into the parser.
 	 */
 	bool contextGiven = false;
+	bool lent = false;
+	ObjectField *lentRoot = 0;
 	if ( context ) {
 		for ( int i = 0; i < fieldInitArgs->length(); i++ ) {
 			/* Eval what we are initializing with. */
@@ -2484,6 +2800,16 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 
 				code.append( IN_SET_PARSER_CONTEXT );
 				contextGiven = true;
+
+				/* The parse is lent its context object for its statement. */
+				LangExpr *argExpr = fieldInitArgs->data[i]->expr;
+				if ( argExpr->type == LangExpr::TermType &&
+						argExpr->term->type == LangTerm::VarRefType &&
+						argExpr->term->varRef->ownRoot( pd, lentRoot ) )
+				{
+					lent = true;
+					pd->addOwn( lentRoot, Compiler::Own::LentToParse, loc );
+				}
 			}
 			else {
 				error(loc) << "cannot initialize parser with this type, context or input only" << endp;
@@ -2597,6 +2923,10 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 		parseFrag( pd, code, stopId );
 	}
 
+	/* The parse is over: the code has its object again. */
+	if ( lent )
+		pd->removeOwn( lentRoot );
+
 	/* The parse is over: if it held for itself, outside an action it lets
 	 * what it holds go, and in one it hands it to the action's owner. */
 	code.append( IN_RELEASE_PARSER_CONTEXT );
@@ -2701,8 +3031,10 @@ void LangTerm::evaluateSendStream( Compiler *pd, CodeVect &code ) const
 
 void LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) const
 {
-	/* A send changes the parser. */
+	/* A send changes the parser. Sending to a parser variable isn't a use of
+	 * it as a value. */
 	pd->ctxValueInPlace = true;
+	pd->sendTarget = true;
 	UniqueType *varUt = varRef->evaluate( pd, code );
 
 	if ( varUt->parser() ) {
@@ -2810,17 +3142,46 @@ void LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) 
 	popExprWords( pd, words );
 }
 
-/* A send changes what it goes to, once its items are made, which may end the
- * setup of a context object holding it. A send to a parser runs its actions. */
+/* A send to a parser runs its actions. */
 void LangTerm::checkSendChange( Compiler *pd, UniqueType *varUt ) const
 {
-	VarRefLookup lookup = varRef->lookupField( pd );
-	varRef->checkContextChange( pd, lookup );
-
 	/* What is sent to a stream isn't undone. */
 	if ( varUt->parser() ) {
 		varRef->noteGlobalUse( pd, GlobalUse::Change, String() );
-		pd->endReachableSetups();
+		pd->countOtherCode();
+	}
+}
+
+/* A send that ends with eos finishes the parser. A send's value is the
+ * parser: kept, it is a use of the parser as a value. */
+void LangTerm::sendFinish( Compiler *pd, bool dropped ) const
+{
+	if ( varRef->qual->length() > 0 || !varRef->isLocalRef() )
+		return;
+	ObjectField *var = varRef->scope->findField( varRef->name );
+	if ( var != 0 && !dropped )
+		parserValueUse( pd, var, varRef->loc );
+	if ( !eof )
+		return;
+	if ( var != 0 && pd->lentToParser( var ) && pd->throwaway == 0 ) {
+		pd->releaseParser( var );
+		pd->addOwn( var, Compiler::Own::Finished, varRef->loc );
+	}
+}
+
+/* Nothing is sent to a parser after its finish(). */
+void LangTerm::checkSendTarget( Compiler *pd ) const
+{
+	if ( varRef->qual->length() > 0 || !varRef->isLocalRef() )
+		return;
+
+	ObjectField *var = varRef->scope->findField( varRef->name );
+	Compiler::Own *fin = var != 0 ? pd->findOwn( var ) : 0;
+	if ( fin != 0 && fin->kind == Compiler::Own::Finished ) {
+		std::ostream &out = error(varRef->loc) << "cannot send to " << var->name <<
+				": it was finished at ";
+		ownPlace( out, fin->loc );
+		out << endp;
 	}
 }
 
@@ -2832,8 +3193,13 @@ UniqueType *LangTerm::evaluateSend( Compiler *pd, CodeVect &code ) const
 		evaluateSendStream( pd, code );
 	else if ( varUt->listOf( pd->uniqueTypeStream ) )
 		evaluateSendStream( pd, code );
-	else if ( varUt->parser() )
+	else if ( varUt->parser() ) {
+		bool dropped = pd->sendDropped;
+		pd->sendDropped = false;
+		checkSendTarget( pd );
 		evaluateSendParser( pd, code, true );
+		sendFinish( pd, dropped );
+	}
 	else
 		error(loc) << "can only send to parsers and streams" << endl;
 
@@ -2846,8 +3212,13 @@ UniqueType *LangTerm::evaluateSendTree( Compiler *pd, CodeVect &code ) const
 {
 	UniqueType *varUt = varRef->lookup( pd );
 
-	if ( varUt->parser() )
+	if ( varUt->parser() ) {
+		bool dropped = pd->sendDropped;
+		pd->sendDropped = false;
+		checkSendTarget( pd );
 		evaluateSendParser( pd, code, false );
+		sendFinish( pd, dropped );
+	}
 	else
 		error(loc) << "can only send_tree to parsers" << endl;
 
@@ -3393,8 +3764,12 @@ void LangVarRef::assignValue( Compiler *pd, CodeVect &code,
 	if ( lookup.objField->isConst )
 		error(loc) << "field \"" << name << "\" is const" << endp;
 
-	checkContextChange( pd, lookup );
 	noteGlobalUse( pd, GlobalUse::Change, String() );
+
+	/* A context variable named alone is a field of the running context. A
+	 * local or a parameter given another object isn't used. */
+	if ( qual->length() == 0 && !isLocalRef() )
+		checkOwnedUse( pd );
 
 	/* input and this, in a token action or a preeof block, are the parse's
 	 * input and context. Nothing sets them: they have no set instructions. A
@@ -3535,27 +3910,41 @@ UniqueType *LangTerm::evaluateMakeTree( Compiler *pd, CodeVect &code ) const
 	return pd->uniqueTypeAny;
 }
 
-/* A list of statements. The setup of an object that starts in the list ends
- * with it. */
-static void compileStmtList( Compiler *pd, CodeVect &code, StmtList *stmtList )
+/* A list of statements, whose variables are declared in scope. What is
+ * recorded of them goes with the list: nothing can send to a parser a
+ * variable of the list holds once the list has ended. */
+static void compileStmtList( Compiler *pd, CodeVect &code, StmtList *stmtList,
+		NameScope *scope )
 {
-	pd->stmtListDepth += 1;
 	for ( StmtList::Iter stmt = *stmtList; stmt.lte(); stmt++ )
 		stmt->compile( pd, code );
 
-	for ( int i = pd->setupWindows.length() - 1; i >= 0; i-- ) {
-		if ( pd->setupWindows[i].listDepth == pd->stmtListDepth )
-			pd->setupWindows.remove( i );
+	if ( scope == 0 )
+		return;
+
+	Vector<ObjectField*> ended;
+	for ( int i = 0; i < pd->owns.length(); i++ ) {
+		Compiler::Own &own = pd->owns[i];
+		if ( own.var != 0 && own.var->scope == scope )
+			ended.append( own.var );
+		if ( own.kind == Compiler::Own::LentToParser && own.parser->scope == scope )
+			ended.append( own.parser );
 	}
-	pd->stmtListDepth -= 1;
+	for ( int i = 0; i < ended.length(); i++ ) {
+		pd->releaseParser( ended[i] );
+		pd->removeOwn( ended[i] );
+	}
 }
 
-/* A loop's body runs again after what follows it in the body, so a setup
- * outside the loop doesn't reach into it. */
-static void compileLoopBody( Compiler *pd, CodeVect &code, StmtList *stmtList )
+/* A loop's body runs again after its end. What is outside the loop must be
+ * as the body found it: start, taken before the body, and a while loop's
+ * condition. */
+static void compileLoopBody( Compiler *pd, CodeVect &code, StmtList *stmtList,
+		NameScope *scope, const Vector<Compiler::Own> &start, const InputLoc &loopLoc )
 {
 	pd->loopDepth += 1;
-	compileStmtList( pd, code, stmtList );
+	compileStmtList( pd, code, stmtList, scope );
+	pd->checkLoopOwns( start, loopLoc );
 	pd->loopDepth -= 1;
 }
 
@@ -3596,7 +3985,8 @@ void LangStmt::compileForIterBody( Compiler *pd,
 	ObjectField *outerLoop = pd->unwindLoop;
 	pd->unwindLoop = objField;
 
-	compileLoopBody( pd, code, stmtList );
+	Vector<Compiler::Own> start = pd->owns;
+	compileLoopBody( pd, code, stmtList, scope, start, loc );
 
 	pd->unwindLoop = outerLoop;
 	pd->unwindCode.remove( 0, pd->unwindCode.length() - lcLen );
@@ -3700,7 +4090,17 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 
 	/* A user iterator is other code. */
 	if ( func != 0 )
-		pd->endReachableSetups();
+		pd->countOtherCode();
+
+	/* A call made while the running context is lent. */
+	Compiler::Own *running = pd->findOwn( 0 );
+	if ( func != 0 && running != 0 && pd->revertOn && pd->curBlock != 0 ) {
+		CodeBlock::LentCall call;
+		call.func = func;
+		call.loc = iterCall->langTerm->varRef->loc;
+		call.lentLoc = running->loc;
+		pd->curBlock->lentCalls.append( call );
+	}
 
 	if ( func != 0 && pd->revertOn && pd->curBlock != 0 )
 		pd->curBlock->calls.append( func );
@@ -3721,8 +4121,10 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	{
 		LangVarRef *iterRef = iterCall->langTerm->varRef;
 		CodeVect unused;
+		pd->throwaway += 1;
 		UniqueType *argUT =
 				iterCall->langTerm->args->data[0]->expr->evaluate( pd, unused );
+		pd->throwaway -= 1;
 		if ( !argUT->treeValue() ) {
 			if ( iterCall->wasExpr ) {
 				error(iterRef->loc) << "can only loop over a tree, "
@@ -3769,8 +4171,10 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 		LangVarRef *iterRef = iterCall->langTerm->varRef;
 		CodeVect unused;
 		pd->ctxValueInPlace = inPlace;
+		pd->throwaway += 1;
 		UniqueType *argUT =
 				iterCall->langTerm->args->data[0]->expr->evaluate( pd, unused );
+		pd->throwaway -= 1;
 		pd->ctxValueInPlace = false;
 		if ( argUT->typeId != TYPE_GENERIC ||
 				argUT->generic->typeId != ( overMap ? GEN_MAP : GEN_LIST ) )
@@ -3838,7 +4242,31 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 		code.setHalf( asLoc, func->paramListSize );
 	}
 
+	/* A user iterator's context argument is lent to it for the loop, whose
+	 * body runs while the iterator is suspended. */
+	Vector<ObjectField*> lentRoots;
+	if ( func != 0 && iterCall->langTerm->args != 0 ) {
+		for ( int a = 0; a < iterCall->langTerm->args->length(); a++ ) {
+			UniqueType *paramUT = lookup.objMethod->paramUTs[a];
+			LangExpr *argExpr = iterCall->langTerm->args->data[a]->expr;
+			ObjectField *root;
+			if ( paramUT->typeId == TYPE_STRUCT && paramUT->structEl->structDef->isContext &&
+					argExpr->type == LangExpr::TermType &&
+					argExpr->term->type == LangTerm::VarRefType &&
+					argExpr->term->varRef->ownRoot( pd, root ) )
+			{
+				pd->addOwn( root, Compiler::Own::LentToLoop,
+						iterCall->langTerm->varRef->loc );
+				pd->findOwn( root )->iter = iterCall->langTerm->varRef->name;
+				lentRoots.append( root );
+			}
+		}
+	}
+
 	compileForIterBody( pd, code, iterUT, under );
+
+	for ( int r = 0; r < lentRoots.length(); r++ )
+		pd->removeOwn( lentRoots[r] );
 
 	iterCall->langTerm->varRef->resetActiveRefs( pd, lookup, paramRefs );
 	delete[] paramRefs;
@@ -3847,12 +4275,11 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 {
 	/* Generate code for the while test. Remember the top. The test runs
-	 * again after the body, so a setup outside the loop doesn't reach into
-	 * it either. */
+	 * again after the body, so what is outside the loop must be as the test
+	 * found it. */
 	long top = code.length();
-	pd->loopDepth += 1;
+	Vector<Compiler::Own> start = pd->owns;
 	UniqueType *eut = expr->evaluate( pd, code );
-	pd->loopDepth -= 1;
 
 	/* Jump past the while block if false. Note that we don't have the
 	 * distance yet. */
@@ -3865,7 +4292,7 @@ void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 	LongVect outerBreaks = pd->breakJumps;
 	pd->breakJumps.empty();
 
-	compileLoopBody( pd, code, stmtList );
+	compileLoopBody( pd, code, stmtList, scope, start, loc );
 
 	/* Jump back to the top to retest. */
 	long retestDist = code.length() - top + 3;
@@ -3891,8 +4318,13 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 
 	switch ( type ) {
 		case ExprType: {
-			/* Evaluate the exrepssion, then pop it immediately. */
+			/* Evaluate the exrepssion, then pop it immediately. A send's
+			 * value, its parser, goes nowhere. */
+			pd->sendDropped = expr->type == LangExpr::TermType &&
+					( expr->term->type == LangTerm::SendType ||
+					expr->term->type == LangTerm::SendTreeType );
 			UniqueType *exprUt = expr->evaluate( pd, code );
+			pd->sendDropped = false;
 			if ( exprUt->treeValue() )
 				code.append( IN_POP_TREE );
 			else
@@ -3915,8 +4347,9 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			code.append( jinstr );
 			code.appendHalf( 0 );
 
-			/* Compile the if true branch. */
-			compileStmtList( pd, code, stmtList );
+			/* Compile the if true branch, from what the test left. */
+			Vector<Compiler::Own> before = pd->owns;
+			compileStmtList( pd, code, stmtList, scope );
 
 			if ( elsePart != 0 ) {
 				/* Jump past the else code for the if true branch. */
@@ -3929,6 +4362,10 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			distance = code.length() - jumpFalse - 3;
 			code.setHalf( jumpFalse+1, distance );
 
+			/* The else branch starts from what the test left too. After
+			 * the if, what either branch did holds. */
+			Vector<Compiler::Own> afterThen = pd->owns;
+			pd->owns = before;
 			if ( elsePart != 0 ) {
 				/* Compile the else branch. */
 				elsePart->compile( pd, code );
@@ -3937,12 +4374,13 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 				distance = code.length() - jumpPastElse - 3;
 				code.setHalf( jumpPastElse+1, distance );
 			}
+			pd->mergeOwns( afterThen );
 
 			break;
 		}
 		case ElseType: {
 			/* Compile the else branch. */
-			compileStmtList( pd, code, stmtList );
+			compileStmtList( pd, code, stmtList, scope );
 			break;
 		}
 		case RejectType: {
@@ -3971,34 +4409,43 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			break;
 		}
 		case AssignType: {
-			/* Evaluate the exrepssion. A change through an object being set
-			 * up puts it into the object. */
-			pd->setupStoreVar = varRef->setupVar( pd, varRef->lookupField( pd ) );
+			/* The local variable assigned to, if that is what it is. */
+			VarRefLookup lookup = varRef->lookupField( pd );
+			ObjectField *var = varRef->qual->length() == 0 && varRef->isLocalRef() ?
+					lookup.objField : 0;
+
+			/* A new parser that goes into a parser variable is lent its
+			 * context there. */
+			bool newParser = var != 0 && var->typeRef->uniqueType->parser() &&
+					expr->type == LangExpr::TermType &&
+					expr->term->type == LangTerm::NewType;
+			pd->newParserVar = newParser ? var : 0;
+			pd->newParserLent = false;
+
+			/* Evaluate the exrepssion. A change through a context reference
+			 * puts it into the object. */
+			setCtxStore( pd, varRef, lookup );
 			UniqueType *exprUT = evaluateSetupValue( pd, code, expr );
-			pd->setupStoreVar = 0;
+			pd->ctxStore = false;
+			pd->newParserVar = 0;
+
+			noteMove( pd, expr );
 
 			/* Do the assignment. */
 			varRef->assignValue( pd, code, exprUT );
 
-			/* A variable given a new object of a context starts its setup.
-			 * Given anything else, it ends the setup of the one it had. */
-			if ( varRef->qual->length() == 0 ) {
-				ObjectField *var = varRef->lookupField( pd ).objField;
-				UniqueType *varUT = var->typeRef->uniqueType;
-				if ( varUT->typeId == TYPE_STRUCT && varUT->structEl->structDef->isContext ) {
-					pd->closeSetupWindow( var, false );
-					if ( expr->type == LangExpr::TermType &&
-							expr->term->type == LangTerm::NewType )
-					{
-						Compiler::SetupWindow window;
-						window.var = var;
-						window.loopDepth = pd->loopDepth;
-						window.listDepth = pd->stmtListDepth;
-						window.closing = false;
-						window.global = !varRef->isLocalRef();
-						pd->setupWindows.append( window );
-					}
-				}
+			/* The variable given another value ends what was recorded of
+			 * the one it had. */
+			if ( var != 0 ) {
+				pd->releaseParser( var );
+				pd->removeOwn( var );
+			}
+
+			if ( newParser && pd->newParserLent ) {
+				pd->addOwn( pd->newParserRoot, Compiler::Own::LentToParser,
+						pd->newParserLoc, var );
+				pd->findOwn( pd->newParserRoot )->field = pd->newParserField;
+				pd->newParserLent = false;
 			}
 			break;
 		}
@@ -4028,6 +4475,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 
 			/* Evaluate the exrepssion. */
 			UniqueType *exprUT = expr->evaluate( pd, code );
+			noteMove( pd, expr );
 
 			if ( pd->curFunction == 0 ) {
 				/* In the main function */
@@ -4088,8 +4536,8 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 					break;
 			}
 
-			/* A yield runs the loop's body, which can reach a global. */
-			pd->endReachableSetups();
+			/* A yield runs the loop's body. */
+			pd->countOtherCode();
 
 			/* take a reference and yield it. Immediately reset the referece. */
 			ObjectField *objField = varRef->preEvaluateRef( pd, code );
@@ -4143,32 +4591,24 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 		}
 	}
 
-	/* A statement that gave an object being set up to a new parser ends its
-	 * setup. */
-	for ( int i = pd->setupWindows.length() - 1; i >= 0; i-- ) {
-		if ( pd->setupWindows[i].closing )
-			pd->setupWindows.remove( i );
-	}
-
 	assert( pd->exprWords.length() == words );
 }
 
 void CodeBlock::compile( Compiler *pd, CodeVect &code ) const
 {
-	/* A code block's setups and loops are its own. */
-	Vector<Compiler::SetupWindow> outer = pd->setupWindows;
-	int outerLoopDepth = pd->loopDepth, outerListDepth = pd->stmtListDepth;
+	/* A code block's ownership state and loops are its own. A function or an
+	 * iterator starts with none: its caller lends its parameters. */
+	Vector<Compiler::Own> outer = pd->owns;
+	int outerLoopDepth = pd->loopDepth;
 	ObjectField *outerLoop = pd->unwindLoop;
-	pd->setupWindows.empty();
+	pd->owns.empty();
 	pd->loopDepth = 0;
-	pd->stmtListDepth = 0;
 	pd->unwindLoop = 0;
 
-	compileStmtList( pd, code, stmtList );
+	compileStmtList( pd, code, stmtList, 0 );
 
-	pd->setupWindows = outer;
+	pd->owns = outer;
 	pd->loopDepth = outerLoopDepth;
-	pd->stmtListDepth = outerListDepth;
 	pd->unwindLoop = outerLoop;
 }
 
@@ -4804,6 +5244,59 @@ void Compiler::compileByteCode()
 
 	/* What a restartable parser runs is known once all the code is. */
 	checkRestartable();
+
+	/* So is what a function calls. */
+	checkLentCalls();
+}
+
+/* A call made while the running context is lent, of a function or an
+ * iterator that names the context, or calls one that does. */
+void Compiler::checkLentCalls()
+{
+	bool grew = true;
+	while ( grew ) {
+		grew = false;
+		for ( FunctionList::Iter func = functionList; func.lte(); func++ ) {
+			CodeBlock *block = func->codeBlock;
+			if ( block->namesContext )
+				continue;
+			for ( Vector<Function*>::Iter c = block->calls; c.lte(); c++ ) {
+				if ( (*c)->codeBlock != 0 && (*c)->codeBlock->namesContext ) {
+					block->namesContext = true;
+					grew = true;
+					break;
+				}
+			}
+		}
+	}
+
+	Vector<CodeBlock*> blocks;
+	for ( FunctionList::Iter func = functionList; func.lte(); func++ )
+		blocks.append( func->codeBlock );
+	for ( ProdList::Iter prod = prodList; prod.lte(); prod++ ) {
+		if ( prod->redBlock != 0 )
+			blocks.append( prod->redBlock );
+	}
+	for ( LelList::Iter lel = langEls; lel.lte(); lel++ ) {
+		if ( lel->transBlock != 0 )
+			blocks.append( lel->transBlock );
+	}
+	for ( RegionList::Iter region = regionList; region.lte(); region++ ) {
+		if ( region->preEofBlock != 0 )
+			blocks.append( region->preEofBlock );
+	}
+
+	for ( int b = 0; b < blocks.length(); b++ ) {
+		for ( int c = 0; c < blocks[b]->lentCalls.length(); c++ ) {
+			CodeBlock::LentCall &call = blocks[b]->lentCalls[c];
+			if ( call.func->codeBlock != 0 && call.func->codeBlock->namesContext ) {
+				std::ostream &out = error( call.loc ) << "cannot call " <<
+						call.func->name << " while the context object is lent (";
+				ownPlace( out, call.lentLoc );
+				out << "): " << call.func->name << " uses the context's variables" << endp;
+			}
+		}
+	}
 }
 
 void Compiler::refFlow( bool *from, bool *to )

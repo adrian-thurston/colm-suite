@@ -1,0 +1,16 @@
+# An iterator is lent its argument until its loop ends, since the body runs
+# while the iterator is suspended.
+include 'ctxrule.lmi'
+
+iter each( O: ctx )
+{
+	S: str = "x"
+	yield S
+}
+
+C: ctx = new ctx()
+for X: str in each( C ) {
+	print( C->N, "\n" )
+}
+##### COMP_ERR #####
+13:9: cannot use C: it is lent to each (12:15) until its loop ends

@@ -1,0 +1,9 @@
+# Put into another variable, the object moves: the local can't be used until
+# it is given another object.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+D: ctx = C
+print( C->N, "\n" )
+##### COMP_ERR #####
+7:8: cannot use C: it was moved at 6:10

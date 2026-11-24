@@ -1,8 +1,8 @@
 # Two parsers given one object: the second's action would pop what the
 # first's pushed, between the first's sends, and the first would then back
-# up over its push onto the empty list. A parser holds the object it is
-# given, so giving it to the second stops the program. This is #718's
-# program.
+# up over its push onto the empty list. The first is lent the object until
+# its finish(), so giving it to the second is a use of a lent object, which
+# doesn't compile. This is #718's program.
 context ctx
 	L: list<str>
 
@@ -42,7 +42,5 @@ send Q "-" eos
 send P "\n"
 print( P->finish(), "\n" )
 print( "after\n" )
-##### EXP #####
-before
-##### EXIT #####
-1
+##### COMP_ERR #####
+39:51: cannot use C: it is lent to P (37:25) until P->finish()

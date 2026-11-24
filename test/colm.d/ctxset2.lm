@@ -1,9 +1,9 @@
 #
 # What stays of a context object's tree whose attribute holds a list. The
 # object gets the tree from its parse's actions, never from the program, and
-# the program reads the tree's attributes in place, between two sends and
-# after the parse: the list's length, a loop over its values, and an int
-# attribute. When the parser backs up over the item actions, the pushes they
+# the program reads the tree's attributes in place once the parser is
+# finished: the list's length, a loop over its values, and an int
+# attribute. Between the sends the object is lent to the parser. When the parser backs up over the item actions, the pushes they
 # made come off, and the length goes back. "keep" ends the input with "^",
 # which keeps the reductions of item, "back" without, which backs up over
 # them.
@@ -62,28 +62,24 @@ C: ctx = new ctx()
 C->T = nil
 P: parser<ctx::start> = new parser<ctx::start>( C )
 send P "h * ;"
-print( "between: N ", C->T.N, ", length ", C->T.L->length, "\n" )
-for S: str in C->T.L
-	print( "value ", S, "\n" )
 if Run == 'keep'
 	send P " ^\n"
 else
 	send P "\n"
 print( P->finish(), "\n" )
 print( "after: N ", C->T.N, ", length ", C->T.L->length, "\n" )
+for S: str in C->T.L
+	print( "value ", S, "\n" )
 ##### ARGS #####
 keep
 ##### EXP #####
-between: N 1, length 1
-value x
 h * ; ^
 
 after: N 1, length 1
+value x
 ##### ARGS #####
 back
 ##### EXP #####
-between: N 1, length 1
-value x
 h * ;
 
 after: N 0, length 0

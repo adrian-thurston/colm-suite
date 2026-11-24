@@ -5,4 +5,4 @@ L: list<str> = new list<str>()
 C: ctx = new ctx()
 C->L = L
 ##### COMP_ERR #####
-6:8: only a new object, nil or what C holds can go into C as it is set up
+6:8: only a new object, nil or what C holds can go into C

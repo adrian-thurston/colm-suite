@@ -1,0 +1,9 @@
+# The input of a parser lent an object isn't taken: a push onto it is a send
+# that the compiler can't follow.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+I: _input = P->gets()
+##### COMP_ERR #####
+7:16: cannot get the input of P: it is lent a context object until P->finish()

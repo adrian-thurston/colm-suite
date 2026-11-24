@@ -1,0 +1,25 @@
+# A parser made in an action, given a context variable, is lent the running
+# context until its finish(), so the action can't use the context's
+# variables before then.
+include 'ctxrule.lmi'
+
+context outer
+	Sub: ctx
+	N: int
+
+	lex
+		token v /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[v*]
+		{
+			P: parser<ctx::start> = new parser<ctx::start>( Sub )
+			send P "a"
+			N = 1
+			T: ctx::start = P->finish()
+		}
+end
+##### COMP_ERR #####
+20:4: cannot use N: the context object is lent to P (18:28) until P->finish()

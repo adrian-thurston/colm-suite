@@ -89,12 +89,7 @@ EXTRA_DIST = \
 	ctxchg10.lm \
 	ctxchg11.lm \
 	ctxchg12.lm \
-	ctxchg13.lm \
 	ctxchg14.lm \
-	ctxchg15.lm \
-	ctxchg16.lm \
-	ctxchg17.lm \
-	ctxchg18.lm \
 	ctxgram1.lm \
 	ctxgram2.lm \
 	ctxgram3.lm \
@@ -111,7 +106,31 @@ EXTRA_DIST = \
 	ctxhold7.lm \
 	ctxhold8.lm \
 	ctxhold9.lm \
-	ctxholdmsg1.lm \
+	ctxhold10.lm \
+	ctxhold11.lm \
+	ctxlend1.lm \
+	ctxown1.lm \
+	ctxown2.lm \
+	ctxown3.lm \
+	ctxown4.lm \
+	ctxown5.lm \
+	ctxown6.lm \
+	ctxown7.lm \
+	ctxown8.lm \
+	ctxown9.lm \
+	ctxown10.lm \
+	ctxown11.lm \
+	ctxown12.lm \
+	ctxown13.lm \
+	ctxown14.lm \
+	ctxown15.lm \
+	ctxown16.lm \
+	ctxown17.lm \
+	ctxown18.lm \
+	ctxown19.lm \
+	ctxown20.lm \
+	ctxown21.lm \
+	ctxown22.lm \
 	ctxplace1.lm \
 	ctxplace2.lm \
 	ctxplace3.lm \

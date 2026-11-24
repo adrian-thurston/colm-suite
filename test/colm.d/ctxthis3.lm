@@ -1,5 +1,6 @@
 # this is an object of the context, not a stream, so it can't be sent to a
-# parser as its input.
+# parser as its input. The parse is given an object of its own: given this,
+# it would be lent this, and its items couldn't use it.
 context c
 	N: int
 	lex
@@ -11,7 +12,7 @@ context c
 		token word /[a-z]+/
 		{
 			W: str = input->pull( match_length )
-			parse_stop T: rest( this )[ this ]
+			parse_stop T: rest( new c() )[ this ]
 			input->push( make_token( typeid<word>, W ) )
 		}
 		ignore /space+/
@@ -22,4 +23,4 @@ C: c = new c()
 parse S: c::start( C )[ "a x b" ]
 print( S, "\n" )
 ##### COMP_ERR #####
-14:32: only a tree, str, int, bool or stream can be sent to a parser
+15:35: only a tree, str, int, bool or stream can be sent to a parser

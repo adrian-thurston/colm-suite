@@ -1,0 +1,7 @@
+# A parse's item uses the object the parse is lent for its statement.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+parse S: ctx::start( C )[ "a " C->N " b" ]
+##### COMP_ERR #####
+5:32: cannot use C: it is lent to the parse (5:1) for its statement

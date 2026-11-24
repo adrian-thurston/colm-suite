@@ -45,4 +45,4 @@ W.holder.L->pop_tail()
 send P "\n"
 print( P->finish(), "\n" )
 ##### COMP_ERR #####
-41:8: only nil or what C holds can go into C as it is set up: a wrap can hold a list, map, parser, stream or struct
+41:8: only nil or what C holds can go into C: a wrap can hold a list, map, parser, stream or struct

@@ -1,9 +1,9 @@
 # A parse that a token action starts, given the action's context, with an
 # item after the first that runs code. The item would pop what the inner
 # parse's action pushed, and the item after it would make the inner parse
-# back up over the push onto the empty list. Only a parse with no such item
-# can be given the context the action's parse holds: giving it to this one
-# stops the program.
+# back up over the push onto the empty list. Given this, the parse is lent
+# the running context for its statement, and its items can't use the
+# context's variables.
 context ctx
 	L: list<str>
 
@@ -43,7 +43,5 @@ C->L = new list<str>()
 print( "before\n" )
 parse S: ctx::start( C )[ "go" ]
 print( S, "\n" )
-##### EXP #####
-before
-##### EXIT #####
-1
+##### COMP_ERR #####
+32:39: cannot use L: the context object is lent to the parse (32:4) for its statement

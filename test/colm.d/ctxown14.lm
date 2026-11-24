@@ -1,0 +1,14 @@
+# A loop's body lends an object from outside the loop to a parser that it
+# doesn't finish: the next pass would use the object while it is lent.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+P: parser<ctx::start>
+I: int = 0
+while ( I < 2 ) {
+	P = new parser<ctx::start>( C )
+	send P "a "
+	I = I + 1
+}
+##### COMP_ERR #####
+8:1: C is lent in the loop's body (9:6), and isn't back by its end

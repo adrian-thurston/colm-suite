@@ -1,5 +1,7 @@
 # What find gives from a context's map of trees whose attribute holds a list
 # is a copy that shares the list.
+# Between the sends, C is lent to P, so the use of C is refused before the
+# take is.
 lex
 	literal `h
 end
@@ -46,4 +48,4 @@ X.L->pop_tail()
 send P "\n"
 print( P->finish(), "\n" )
 ##### COMP_ERR #####
-44:19: cannot take what find gives out of C, a context object
+46:13: cannot use C: it is lent to P (44:25) until P->finish()

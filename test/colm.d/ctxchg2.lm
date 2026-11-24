@@ -8,4 +8,4 @@ send P "a "
 C->M->remove( "d" )
 send P "b"
 ##### COMP_ERR #####
-8:1: cannot change C, a context object, outside its setup
+8:1: cannot use C: it is lent to P (6:25) until P->finish()

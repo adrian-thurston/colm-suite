@@ -2849,12 +2849,12 @@ struct LangVarRef
 
 	bool isFinishCall( VarRefLookup &lookup ) const;
 
-	void checkContextChange( Compiler *pd, const VarRefLookup &lookup ) const;
+	bool ownRoot( Compiler *pd, ObjectField *&root ) const;
+	void checkOwnedUse( Compiler *pd ) const;
 	bool isGlobalRef( Compiler *pd ) const;
 	void noteGlobalUse( Compiler *pd, GlobalUse::Kind kind, const String &what ) const;
 	void checkContextValue( Compiler *pd, const VarRefLookup &lookup,
 			UniqueType *ut, bool inPlace ) const;
-	ObjectField *setupVar( Compiler *pd, const VarRefLookup &lookup ) const;
 
 	InputLoc loc;
 	Namespace *nspace;
@@ -3126,6 +3126,8 @@ struct LangTerm
 	void evaluateSendStream( Compiler *pd, CodeVect &code ) const;
 	void evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) const;
 	void checkSendChange( Compiler *pd, UniqueType *varUt ) const;
+	void checkSendTarget( Compiler *pd ) const;
+	void sendFinish( Compiler *pd, bool dropped ) const;
 	UniqueType *evaluateSend( Compiler *pd, CodeVect &code ) const;
 	UniqueType *evaluateSendTree( Compiler *pd, CodeVect &code ) const;
 	UniqueType *evaluateMatch( Compiler *pd, CodeVect &code ) const;
@@ -3489,7 +3491,8 @@ struct CodeBlock
 	CodeBlock() 
 	:
 		frameId(-1),
-		context(0)
+		context(0),
+		namesContext(false)
 	{}
 
 	static CodeBlock *cons( StmtList *stmtList, ObjectDef *localFrame ) 
@@ -3519,6 +3522,20 @@ struct CodeBlock
 	Vector<GlobalUse> globalUses;
 	Vector<Function*> calls;
 	Vector<LangEl*> parses;
+
+	/* A call of a function or an iterator, made while the running context
+	 * is lent, which the function can't make if it names the context: the
+	 * function, where the call is, and where the context was lent. Whether
+	 * the block names a context variable or this, and, once closed over
+	 * calls, whether a function it calls does. */
+	struct LentCall
+	{
+		Function *func;
+		InputLoc loc;
+		InputLoc lentLoc;
+	};
+	Vector<LentCall> lentCalls;
+	bool namesContext;
 };
 
 struct Function

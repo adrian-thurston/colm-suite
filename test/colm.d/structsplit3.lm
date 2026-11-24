@@ -1,57 +1,27 @@
 #
-# Backing up over an action that set an attribute of a context's variable's
-# tree, after the main program copied the tree between two sends, splits the
-# tree again before putting the old attribute back: the copy keeps the new
-# one. Setting a child of a global's tree, or the data of a global token,
-# that a local shares copies the tree first, and the local keeps the old
-# one. The argument picks the program. On main the first aborted in
-# colm_tree_set_field(), and the other two changed the local's tree too
+# Setting a child of a global's tree, or the data of a global token, that a
+# local shares copies the tree first, and the local keeps the old one. The
+# argument picks the program. On main both changed the local's tree too
 # (#628).
 #
 
 lex
 	token id /[a-z]+/
 	token num /[0-9]+/
-	literal `; `!
 	ignore /[ \n]+/
 end
 
 def pair
-	T: id
 	[L: id R: num]
 
 def wrap
 	[P: pair]
 
-context ctx
-	C: pair
-
-	def item
-		[id num]
-		{
-			C.T = C.L
-		}
-
-	def start
-		[item id `;]
-	|	[id num id `!]
-end
-
 global A: str = argv->pop()
 global W: wrap = parse wrap[ "w 1" ]
 global G: id = make_token( typeid<id>, "abc" )
 
-if A == 'context' {
-	Ctx: ctx = new ctx()
-	Ctx->C = parse pair[ "c 3" ]
-	SP: parser<ctx::start> = new parser<ctx::start>( Ctx )
-	send SP "y 3 u "
-	QC: pair = Ctx->C
-	send SP "!" eos
-	print( "S [SP->tree]\n" )
-	print( "C <[Ctx->C.T]> <[QC.T]>\n" )
-}
-elsif A == 'child' {
+if A == 'child' {
 	QW: wrap = W
 	W.P = parse pair[ "z 9" ]
 	print( "W [W] QW [QW]\n" )
@@ -61,11 +31,6 @@ else {
 	G.data = 'z'
 	print( "G [G] Q [Q]\n" )
 }
-##### ARGS #####
-context
-##### EXP #####
-S y 3 u !
-C <NIL> <c >
 ##### ARGS #####
 child
 ##### EXP #####

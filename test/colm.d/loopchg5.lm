@@ -1,79 +1,57 @@
-# A send in the body of a for loop over a context's list or map runs a
-# parser's action that changes it: a push or a pop, or an insert, a set or a
-# remove. The change stops the program. The host sends standard error to
-# standard output.
-context ctx
-	Mode: str
-	L: list<str>
-	M: map<str, str>
+# A parse in the body of a for loop over a global's list or map runs an
+# action that changes it: a push or a pop, or an insert, a set or a remove.
+# The change stops the program. The parse isn't restartable, so its actions
+# can change a global. The host sends standard error to standard output.
+global Mode: str = argv->pop()
+global L: list<str> = new list<str>()
+global M: map<str, str> = new map<str, str>()
 
-	lex
-		ignore /[ \t\n]+/
-		literal `*
-	end
-
-	# The first item gives the list the value a loop over it visits.
-	def first
-		[`*]
-		{
-			L->push_tail( "x" )
-		}
-
-	# Each item after it makes the change Mode names.
-	def item
-		[`*]
-		{
-			if ( Mode == "push_tail" )
-				L->push_tail( "x" )
-			elsif ( Mode == "push_head" )
-				L->push_head( "x" )
-			elsif ( Mode == "pop_head" )
-				L->pop_head()
-			elsif ( Mode == "pop_tail" )
-				L->pop_tail()
-			elsif ( Mode == "insert" )
-				M->insert( "d", "4" )
-			elsif ( Mode == "set" )
-				M->set( "d", "4" )
-			elsif ( Mode == "remove" )
-				M->remove( "a" )
-		}
-
-	def start
-		[first item*]
+lex
+	ignore /[ \t\n]+/
+	literal `*
 end
 
-C: ctx = new ctx()
-C->Mode = argv->pop()
-C->L = new list<str>()
-C->M = new map<str, str>()
-C->M->insert( "a", "1" )
-C->M->insert( "b", "2" )
-C->M->insert( "c", "3" )
-P: parser<ctx::start> = new parser<ctx::start>( C )
+# Each item makes the change Mode names.
+def item
+	[`*]
+	{
+		if ( Mode == "push_tail" )
+			L->push_tail( "x" )
+		elsif ( Mode == "push_head" )
+			L->push_head( "x" )
+		elsif ( Mode == "pop_head" )
+			L->pop_head()
+		elsif ( Mode == "pop_tail" )
+			L->pop_tail()
+		elsif ( Mode == "insert" )
+			M->insert( "d", "4" )
+		elsif ( Mode == "set" )
+			M->set( "d", "4" )
+		elsif ( Mode == "remove" )
+			M->remove( "a" )
+	}
 
-# The first item reduces when the second comes, before the loop. The second
-# reduces when the loop sends the third.
-send P "* * "
-I: int = 0
-if ( C->Mode == "insert" || C->Mode == "set" || C->Mode == "remove" ) {
-	for V: str in C->M {
+def start
+	[item*]
+
+L->push_tail( "x" )
+M->insert( "a", "1" )
+M->insert( "b", "2" )
+M->insert( "c", "3" )
+
+if ( Mode == "insert" || Mode == "set" || Mode == "remove" ) {
+	for V: str in M {
 		print( "v [V]\n" )
-		I = I + 1
-		if ( I < 5 )
-			send P "* "
+		parse S: start[ "* " ]
 	}
 }
 else {
-	for V: str in C->L {
+	for V: str in L {
 		print( "v [V]\n" )
-		I = I + 1
-		if ( I < 5 )
-			send P "* "
+		parse S: start[ "* " ]
 	}
 }
-print( P->finish(), "\n" )
-print( "after: L [C->L->length], M [C->M->length]\n" )
+print( "after: L [L->length], M [M->length]\n" )
 ##### HOST #####
 
 #include <colm/colm.h>

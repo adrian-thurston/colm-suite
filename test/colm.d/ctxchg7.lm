@@ -1,4 +1,6 @@
-# The setup doesn't reach into a loop's body.
+# A change in a loop's body, with a parse of the object after it: the parse
+# is lent the object for its statement, and gives it back, so each pass
+# finds it as the last left it.
 include 'ctxrule.lmi'
 
 C: ctx = new ctx()
@@ -8,5 +10,6 @@ while ( I < 2 ) {
 	parse S: ctx::start( C )[ "a" ]
 	I = I + 1
 }
-##### COMP_ERR #####
-7:2: cannot change C, a context object, outside its setup
+print( C->N, "\n" )
+##### EXP #####
+1

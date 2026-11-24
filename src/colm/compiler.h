@@ -974,31 +974,74 @@ struct Compiler
 	 * loop. The words of an expression lie on what its iterator left. */
 	ObjectField *unwindLoop;
 
-	/* The variables of the code block being compiled whose context objects
-	 * are being set up: each was given a new object, and hasn't yet been used
-	 * other than through ->. A change through one compiles. Other code can
-	 * reach a variable that isn't a local. */
-	struct SetupWindow
+	/* What the code being compiled has done to a context object, held by a
+	 * root, and to a parser variable lent one: see
+	 * doc/colm/design/context-ownership-design.md. A root is a local
+	 * variable or a parameter, or the running context (var 0), which this
+	 * and the context's variables named alone reach. A root or a parser
+	 * variable with no entry is the code's to use. */
+	struct Own
 	{
-		ObjectField *var;
-		int loopDepth;
-		int listDepth;
-		bool closing;
-		bool global;
-	};
-	Vector<SetupWindow> setupWindows;
-	int loopDepth;
-	int stmtListDepth;
+		enum Kind
+		{
+			/* The root, lent to a parse for its statement, to the parser
+			 * variable parser until its finish(), or to a user iterator for
+			 * its loop. */
+			LentToParse, LentToParser, LentToLoop,
 
-	/* The variable being set up that a change puts the value being compiled
-	 * into; the value is a new parser's context; the value is read in place. */
-	ObjectField *setupStoreVar;
-	bool newParserContext;
+			/* The root, its object put into another place, or gone with a
+			 * parser for good. */
+			Moved, MovedWithParser,
+
+			/* The parser variable var, finished. */
+			Finished
+		};
+
+		/* The root or the parser variable, and where it was lent, moved or
+		 * finished. LentToParser: the parser variable, and whether what was
+		 * lent is a field of the root. LentToLoop: the iterator. */
+		ObjectField *var;
+		Kind kind;
+		InputLoc loc;
+		ObjectField *parser;
+		bool field;
+		String iter;
+	};
+	Vector<Own> owns;
+	int loopDepth;
+
+	/* The parser variable that the new parser being compiled goes into, and
+	 * what its new lends it, once the assignment has ended what the variable
+	 * had. */
+	ObjectField *newParserVar;
+	bool newParserLent;
+	ObjectField *newParserRoot;
+	InputLoc newParserLoc;
+	bool newParserField;
+
+	/* A store through a context reference is being compiled: the root of
+	 * the reference, and the context object it goes into. */
+	bool ctxStore;
+	ObjectField *ctxStoreRoot;
+	String ctxStoreName;
+
+	/* A send's target is being loaded; the send's value, its parser, goes
+	 * nowhere; the code being compiled is thrown away, so nothing it does is
+	 * recorded; the value is read in place. */
+	bool sendTarget;
+	bool sendDropped;
+	int throwaway;
 	bool ctxValueInPlace;
 
-	SetupWindow *findSetupWindow( ObjectField *var );
-	void closeSetupWindow( ObjectField *var, bool atStmtEnd );
-	void endReachableSetups();
+	Own *findOwn( ObjectField *var );
+	void removeOwn( ObjectField *var );
+	void addOwn( ObjectField *var, Own::Kind kind, const InputLoc &loc,
+			ObjectField *parser = 0 );
+	bool lentToParser( ObjectField *parser );
+	void releaseParser( ObjectField *parser );
+	void mergeOwns( const Vector<Own> &other );
+	void checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc );
+	void checkLentCalls();
 
 	ObjectField *makeDataEl();
 	ObjectField *makeFileEl();
@@ -1054,11 +1097,12 @@ struct Compiler
 	/* The block being compiled, if it is an action's, a preeof block's, a
 	 * function's or an iterator's. The types that restartable parsers
 	 * parse, and the count of the places compiled so far where other code
-	 * runs (endReachableSetups()), or a call changes what it is called on
+	 * runs (countOtherCode()), or a call changes what it is called on
 	 * (evaluateCall()). */
 	CodeBlock *curBlock;
 	LangElSet restartTypes;
 	long otherCodeRuns;
+	void countOtherCode();
 
 	/* The tree types that an attribute of theirs, or of a tree below them,
 	 * can hold a list, map, parser, stream or struct in. */

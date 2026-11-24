@@ -1,7 +1,7 @@
 # The map form of #718's program. The second parser's action would remove
 # what the first's inserted, and the first's undo of the insert would then
 # take the element out a second time, leaving the map's length at -1. Giving
-# the object to the second parser stops the program.
+# the object to the second parser doesn't compile.
 context ctx
 	M: map<str, str>
 
@@ -41,7 +41,5 @@ send Q "-" eos
 send P "\n"
 print( P->finish(), "\n" )
 print( "M ", C->M->length, "\n" )
-##### EXP #####
-before
-##### EXIT #####
-1
+##### COMP_ERR #####
+38:51: cannot use C: it is lent to P (36:25) until P->finish()

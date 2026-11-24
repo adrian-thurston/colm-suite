@@ -1,5 +1,7 @@
 # A loop over a context's list of trees whose attribute holds a list: each
 # value of the loop is a copy that shares the list.
+# Between the sends, C is lent to P, so the use of C is refused before the
+# take is.
 lex
 	literal `h
 end
@@ -46,4 +48,4 @@ for V: holder in C->LH
 send P "\n"
 print( P->finish(), "\n" )
 ##### COMP_ERR #####
-44:21: cannot take LH out of C, a context object
+46:18: cannot use C: it is lent to P (44:25) until P->finish()

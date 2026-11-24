@@ -1,6 +1,8 @@
 # The tree of a parser that a context holds, of a type whose attribute holds
 # a list, is taken out of the context like any such tree. ctxtake10's
 # program, whose action also parses with the context's parser.
+# Between the sends, C is lent to P, so the use of C is refused before the
+# take is.
 lex
 	literal `h
 end
@@ -48,4 +50,4 @@ X: holder = C->HP->tree
 send P "\n"
 print( P->finish(), "\n" )
 ##### COMP_ERR #####
-47:20: cannot take tree out of C, a context object
+49:13: cannot use C: it is lent to P (47:25) until P->finish()

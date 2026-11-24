@@ -1,0 +1,10 @@
+# A parser isn't finished a second time.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "a "
+T: ctx::start = P->finish()
+U: ctx::start = P->finish()
+##### COMP_ERR #####
+8:20: cannot finish P: it was finished at 7:20

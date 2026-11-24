@@ -31,4 +31,4 @@ C->L->pop_tail()
 send P "\n"
 print( P->finish(), "\n" )
 ##### COMP_ERR #####
-30:1: cannot change C, a context object, outside its setup
+30:1: cannot use C: it is lent to P (28:25) until P->finish()

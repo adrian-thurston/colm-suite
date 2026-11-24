@@ -1,0 +1,11 @@
+# A parser lent a parameter can't go anywhere: the object would go with it,
+# and nothing moves out of a parameter.
+include 'ctxrule.lmi'
+
+parser<ctx::start> start( O: ctx )
+{
+	P: parser<ctx::start> = new parser<ctx::start>( O )
+	return P
+}
+##### COMP_ERR #####
+8:9: cannot use P as a value: what it is lent (7:26) can't go with it

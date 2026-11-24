@@ -1,6 +1,8 @@
 # The parse's action makes the context's tree, whose attribute holds a list,
 # and the program takes a copy of it out between two sends. The copy shares
 # the list.
+# Between the sends, C is lent to P, so the use of C is refused before the
+# take is.
 lex
 	literal `h
 end
@@ -45,4 +47,4 @@ X.L->pop_tail()
 send P "\n"
 print( P->finish(), "\n" )
 ##### COMP_ERR #####
-42:16: cannot take T out of C, a context object
+44:13: cannot use C: it is lent to P (42:25) until P->finish()

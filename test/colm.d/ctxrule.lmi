@@ -11,7 +11,7 @@ context ctx
 	T: w
 	M: map<str, rec>
 	Recs: list<rec>
-	Inner: accum<inner>
+	Inner: weak<accum<inner>>
 
 	lex
 		token w /[a-z]+/

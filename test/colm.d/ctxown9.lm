@@ -1,0 +1,20 @@
+# Nothing moves out of a context's variable, named alone in an action: it is
+# a field of the running context.
+include 'ctxrule.lmi'
+
+context outer
+	Sub: ctx
+
+	lex
+		token v /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[v*]
+		{
+			X: ctx = Sub
+		}
+end
+##### COMP_ERR #####
+16:13: cannot move Sub out of the context object: give the field another object in its place

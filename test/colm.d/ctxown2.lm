@@ -1,0 +1,10 @@
+# A read of the object between two sends to the parser it is lent to.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "a "
+print( C->N, "\n" )
+send P "b"
+##### COMP_ERR #####
+7:8: cannot use C: it is lent to P (5:25) until P->finish()

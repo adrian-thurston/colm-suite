@@ -273,11 +273,13 @@ struct LoadColm
 
 			LangExpr *expr = walkCodeExpr( Statement.code_expr() );
 			StmtList *stmtList = walkBlockOrSingle( Statement.block_or_single() );
+			NameScope *scope = curScope();
 
 			popScope();
 
 			LangStmt *elsifList = walkElsifList( Statement.elsif_list() );
 			stmt = LangStmt::cons( LangStmt::IfType, expr, stmtList, elsifList );
+			stmt->scope = scope;
 			break;
 		}
 		case statement::SwitchUnder:
@@ -292,6 +294,8 @@ struct LoadColm
 			LangExpr *expr = walkCodeExpr( Statement.code_expr() );
 			StmtList *stmtList = walkBlockOrSingle( Statement.block_or_single() );
 			stmt = LangStmt::cons( LangStmt::WhileType, expr, stmtList );
+			stmt->loc = Statement.WHILE().loc();
+			stmt->scope = curScope();
 			popScope();
 			break;
 		}
@@ -376,6 +380,7 @@ struct LoadColm
 			StmtList *reqList = walkLangStmtList( langStmtList.opt_require_stmt().lang_stmt_list() );
 
 			LangStmt *stmt = LangStmt::cons( LangStmt::IfType, expr, reqList, 0 );
+			stmt->scope = curScope();
 
 			popScope();
 
@@ -2341,6 +2346,7 @@ struct LoadColm
 		LangExpr *expr = walkCodeExpr( elsifClause.code_expr() );
 		StmtList *stmtList = walkBlockOrSingle( elsifClause.block_or_single() );
 		LangStmt *stmt = LangStmt::cons( LangStmt::IfType, expr, stmtList, 0 );
+		stmt->scope = curScope();
 		popScope();
 		return stmt;
 	}
@@ -2352,6 +2358,7 @@ struct LoadColm
 			pushScope();
 			StmtList *stmtList = walkBlockOrSingle( optionalElse.block_or_single() );
 			stmt = LangStmt::cons( LangStmt::ElseType, stmtList );
+			stmt->scope = curScope();
 			popScope();
 		}
 		return stmt;
@@ -2407,10 +2414,12 @@ struct LoadColm
 		}
 
 		StmtList *stmtList = walkBlockOrSingle( CaseClause.block_or_single() );
+		NameScope *scope = curScope();
 
 		popScope();
 
 		LangStmt *stmt = LangStmt::cons( LangStmt::IfType, expr, stmtList );
+		stmt->scope = scope;
 
 		return stmt;
 	}
@@ -2436,8 +2445,10 @@ struct LoadColm
 				pushScope();
 				StmtList *stmtList = walkBlockOrSingle(
 						CaseClauseList.default_clause().block_or_single() );
+				NameScope *scope = curScope();
 				popScope();
 				stmt = LangStmt::cons( LangStmt::ElseType, stmtList );
+				stmt->scope = scope;
 				break;
 			}
 		}

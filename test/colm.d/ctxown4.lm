@@ -1,0 +1,14 @@
+# A parser that no variable holds, given to a function, takes the object it
+# is given with it for good.
+include 'ctxrule.lmi'
+
+void feed( P: parser<ctx::start> )
+{
+	send P "a"
+}
+
+C: ctx = new ctx()
+feed( new parser<ctx::start>( C ) )
+print( C->N, "\n" )
+##### COMP_ERR #####
+12:8: cannot use C: it went with the parser made at 11:7

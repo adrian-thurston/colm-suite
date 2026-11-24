@@ -1,8 +1,9 @@
 # What a context object can still be given to. Two parses one after the
-# other, the second seeing what the first's actions left: a parse that ends
-# outside any action lets its object go. A parse that a token action starts,
-# given the action's context, while the action's parse holds it. A parser
-# made with new, given the object once the parses of it have ended.
+# other, the second seeing what the first's actions left: a parse is lent
+# its object for its statement. A parse that a token action starts, given
+# the action's context, this. A parser made with new, given the object once
+# the parses of it have ended, and the object read once the parser is
+# finished.
 context ctx
 	L: list<str>
 
@@ -58,7 +59,8 @@ print( "L ", C->L->length, ", D ", D, "\n" )
 P: parser<ctx::start> = new parser<ctx::start>( C )
 send P "* ;"
 send P "\n"
-print( "L ", C->L->length, ", P ", P->finish() )
+F: ctx::start = P->finish()
+print( "L ", C->L->length, ", P ", F )
 ##### EXP #####
 L 2, S * * ; ^
 L 1, T -

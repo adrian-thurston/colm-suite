@@ -1,0 +1,11 @@
+# A send's value is the parser it sends to. Kept, the parser goes with it,
+# and takes the object it is lent with it for good.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+Q: parser<ctx::start> = send P "a "
+T: ctx::start = P->finish()
+print( C->N, "\n" )
+##### COMP_ERR #####
+9:8: cannot use C: it went with the parser made at 6:25

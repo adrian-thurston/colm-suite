@@ -1,0 +1,28 @@
+# A parse given a context variable is lent the running context, so its items
+# can't call a function that uses the context's variables.
+include 'ctxrule.lmi'
+
+context outer
+	Sub: ctx
+
+	lex
+		token v /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	str subn()
+	{
+		return "[Sub->N]"
+	}
+
+	def item
+		[v]
+		{
+			parse X: ctx::start( Sub )[ "a " subn() " b" ]
+		}
+
+	def start
+		[item*]
+end
+##### COMP_ERR #####
+21:37: cannot call subn while the context object is lent (21:4): subn uses the context's variables

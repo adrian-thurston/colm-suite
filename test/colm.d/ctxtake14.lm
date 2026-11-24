@@ -44,4 +44,4 @@ GL->pop_tail()
 send P "\n"
 print( P->finish(), "\n" )
 ##### COMP_ERR #####
-40:8: only nil or what C holds can go into C as it is set up: a holder can hold a list, map, parser, stream or struct
+40:8: only nil or what C holds can go into C: a holder can hold a list, map, parser, stream or struct

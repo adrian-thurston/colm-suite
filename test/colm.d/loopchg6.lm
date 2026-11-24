@@ -1,12 +1,9 @@
-# A parser backs up over an action's change to its context's list or map
-# while a for loop in the main program is over it. Backing up over a change
-# stops the program, as the change would. One that changes nothing goes on.
-# The parser tries A1 first: the action runs on "* ;", and the "\n" sent in
-# the loop makes the parser back up to A2.
+# A for loop over a context's list while a parser lent the object can back
+# up over an action's change to it. The loop is a use of a lent object, so it
+# doesn't compile. The parser tries A1 first: the action runs on "* ;", and
+# the "\n" sent in the loop would make it back up to A2.
 context ctx
-	Mode: str
 	L: list<str>
-	M: map<str, str>
 
 	lex
 		ignore /[ \t]+/
@@ -20,24 +17,7 @@ context ctx
 	def item
 		[`*]
 		{
-			if ( Mode == "push" )
-				L->push_tail( "x" )
-			elsif ( Mode == "pop" )
-				L->pop_head()
-			elsif ( Mode == "push_head" )
-				L->push_head( "x" )
-			elsif ( Mode == "pop_tail" )
-				L->pop_tail()
-			elsif ( Mode == "insert" )
-				M->insert( "x", "9" )
-			elsif ( Mode == "insert_present" )
-				M->insert( "a", "9" )
-			elsif ( Mode == "set" )
-				M->set( "a", "9" )
-			elsif ( Mode == "remove" )
-				M->remove( "a" )
-			elsif ( Mode == "remove_absent" )
-				M->remove( "x" )
+			L->push_tail( "x" )
 		}
 
 	def start
@@ -46,146 +26,14 @@ context ctx
 end
 
 C: ctx = new ctx()
-C->Mode = argv->pop()
 C->L = new list<str>()
 C->L->push_tail( "a" )
-C->L->push_tail( "b" )
-C->M = new map<str, str>()
-C->M->insert( "a", "1" )
-C->M->insert( "b", "2" )
 P: parser<ctx::start> = new parser<ctx::start>( C )
 send P "* ;"
-print( "before\n" )
-
-# The send comes at the last value: in the push and insert runs, the one that
-# backing up takes out. In the push_head run, that one is the first value.
-I: int = 0
-Sent: bool = false
-if ( C->Mode == "push" || C->Mode == "pop" || C->Mode == "push_head" || C->Mode == "pop_tail" ) {
-	for V: str in C->L {
-		print( "v [V]\n" )
-		if ( !Sent && I == C->L->length - 1 ) {
-			Sent = true
-			send P "\n"
-		}
-		I = I + 1
-	}
-}
-else {
-	for V: str in C->M {
-		print( "v [V]\n" )
-		if ( !Sent && I == C->M->length - 1 ) {
-			Sent = true
-			send P "\n"
-		}
-		I = I + 1
-	}
+for V: str in C->L {
+	print( "v [V]\n" )
+	send P "\n"
 }
 print( P->finish(), "\n" )
-print( "after: L [C->L->length], M [C->M->length]\n" )
-##### HOST #####
-
-#include <colm/colm.h>
-#include <stdio.h>
-#include <unistd.h>
-
-extern colm_sections colm_object;
-
-int main( int argc, const char **argv )
-{
-	dup2( 1, 2 );
-
-	colm_program *program = colm_new_program( &colm_object );
-	colm_run_program( program, argc, argv );
-	int status = colm_delete_program( program );
-
-	printf( "host: exit status %d\n", status );
-	return status;
-}
-##### ARGS #####
-push
-##### EXP #####
-before
-v a
-v b
-v x
-fatal: backing up over a change to a list a loop is over
-##### EXIT #####
-1
-##### ARGS #####
-pop
-##### EXP #####
-before
-v b
-fatal: backing up over a change to a list a loop is over
-##### EXIT #####
-1
-##### ARGS #####
-push_head
-##### EXP #####
-before
-v x
-v a
-v b
-fatal: backing up over a change to a list a loop is over
-##### EXIT #####
-1
-##### ARGS #####
-pop_tail
-##### EXP #####
-before
-v a
-fatal: backing up over a change to a list a loop is over
-##### EXIT #####
-1
-##### ARGS #####
-insert
-##### EXP #####
-before
-v 1
-v 2
-v 9
-fatal: backing up over a change to a map a loop is over
-##### EXIT #####
-1
-##### ARGS #####
-insert_present
-##### EXP #####
-before
-v 1
-v 2
-* ;
-
-after: L 2, M 2
-host: exit status 0
-##### EXIT #####
-0
-##### ARGS #####
-set
-##### EXP #####
-before
-v 9
-v 2
-fatal: backing up over a change to a map a loop is over
-##### EXIT #####
-1
-##### ARGS #####
-remove
-##### EXP #####
-before
-v 2
-fatal: backing up over a change to a map a loop is over
-##### EXIT #####
-1
-##### ARGS #####
-remove_absent
-##### EXP #####
-before
-v 1
-v 2
-* ;
-
-after: L 2, M 2
-host: exit status 0
-##### EXIT #####
-0
+##### COMP_ERR #####
+33:15: cannot use C: it is lent to P (31:25) until P->finish()

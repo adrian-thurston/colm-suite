@@ -1,0 +1,10 @@
+# Nothing is sent to a parser after its finish().
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "a "
+T: ctx::start = P->finish()
+send P "b"
+##### COMP_ERR #####
+8:6: cannot send to P: it was finished at 7:20

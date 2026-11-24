@@ -9,4 +9,4 @@ list<str> make()
 C: ctx = new ctx()
 C->L = make()
 ##### COMP_ERR #####
-10:8: only a new object, nil or what C holds can go into C as it is set up
+10:8: only a new object, nil or what C holds can go into C

@@ -1,10 +1,6 @@
-# More ways to give a context object to a second parser while a first holds
-# it, each of which stops the program where the object is given: a parse
-# between two sends to a parser, a parse in a function, a parser made with
-# new in a token action, given this, and a parse after a parser made with new
-# is finished. A parse holds its object until it ends, and a parser made with
-# new until the program ends: text sent to it after its end makes it parse
-# again, and back up. The control run gives the parse an object of its own.
+# A parse given another object between two sends to a parser made with new:
+# the parser is lent C until its finish(), and the parse is given D, which
+# no parser is lent.
 context ctx
 	L: list<str>
 
@@ -45,82 +41,19 @@ context ctx
 		[go]
 end
 
-void pop( O: ctx )
-{
-	parse X: ctx::popper( O )[ "-" ]
-}
-
-A: str = argv->pop()
 C: ctx = new ctx()
 C->L = new list<str>()
 D: ctx = new ctx()
 D->L = new list<str>()
 D->L->push_tail( "y" )
 print( "before\n" )
-
-if ( A == "control" ) {
-	P: parser<ctx::start> = new parser<ctx::start>( C )
-	send P "* ;"
-	parse X: ctx::popper( D )[ "-" ]
-	send P "\n"
-	print( P->finish() )
-	print( "C ", C->L->length, ", D ", D->L->length, "\n" )
-}
-elsif ( A == "parse" ) {
-	P: parser<ctx::start> = new parser<ctx::start>( C )
-	send P "* ;"
-	parse X: ctx::popper( C )[ "-" ]
-	send P "\n"
-	print( P->finish() )
-}
-elsif ( A == "function" ) {
-	P: parser<ctx::start> = new parser<ctx::start>( C )
-	send P "* ;"
-	pop( C )
-	send P "\n"
-	print( P->finish() )
-}
-elsif ( A == "this" ) {
-	parse X: ctx::drive( C )[ "go" ]
-	print( X, "\n" )
-}
-elsif ( A == "finished" ) {
-	P: parser<ctx::start> = new parser<ctx::start>( C )
-	send P "* ; ^\n" eos
-	parse X: ctx::popper( C )[ "-" ]
-	print( "C ", C->L->length, "\n" )
-}
-print( "after\n" )
-##### ARGS #####
-control
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+parse X: ctx::popper( D )[ "-" ]
+send P "\n"
+print( P->finish() )
+print( "C ", C->L->length, ", D ", D->L->length, "\n" )
 ##### EXP #####
 before
 * ;
 C 0, D 0
-after
-##### EXIT #####
-0
-##### ARGS #####
-parse
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-function
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-this
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-finished
-##### EXP #####
-before
-##### EXIT #####
-1

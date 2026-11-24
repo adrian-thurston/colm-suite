@@ -1,0 +1,56 @@
+# A function given the object between two sends to a parser made with new,
+# which is lent it until its finish(): a use of a lent object.
+context ctx
+	L: list<str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `; `-
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			L->push_tail( "x" )
+		}
+
+	def popper
+		[`-]
+		{
+			L->pop_tail()
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+
+	lex
+		token go /'go'/
+		{
+			Q: parser<ctx::popper> = new parser<ctx::popper>( this )
+			input->push( make_token( typeid<go>, input->pull( match_length ) ) )
+		}
+	end
+
+	def drive
+		[go]
+end
+
+void pop( O: ctx )
+{
+	parse X: ctx::popper( O )[ "-" ]
+}
+
+C: ctx = new ctx()
+C->L = new list<str>()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+pop( C )
+send P "\n"
+print( P->finish() )
+##### COMP_ERR #####
+52:6: cannot use C: it is lent to P (50:25) until P->finish()

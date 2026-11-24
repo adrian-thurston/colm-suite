@@ -1,9 +1,11 @@
-# Finishing a parser the object holds, after the parse.
+# Finishing a parser the object holds, after the parse. The parser has an
+# object of its own.
 include 'ctxrule.lmi'
 
 C: ctx = new ctx()
-C->Inner = new parser<ctx::inner>( C )
+C->Inner = new parser<ctx::inner>( new ctx() )
 parse S: ctx::start( C )[ "a" ]
+send C->Inner "x y"
 print( C->Inner->finish(), "\n" )
-##### COMP_ERR #####
-7:8: cannot change C, a context object, outside its setup
+##### EXP #####
+x y

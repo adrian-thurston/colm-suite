@@ -1,10 +1,11 @@
 # A send to a parser the object holds, between two sends (#368's form).
+# The parser has an object of its own, but the object holding it is lent.
 include 'ctxrule.lmi'
 
 C: ctx = new ctx()
-C->Inner = new parser<ctx::inner>( C )
+C->Inner = new parser<ctx::inner>( new ctx() )
 P: parser<ctx::start> = new parser<ctx::start>( C )
 send P "a "
 send C->Inner "x "
 ##### COMP_ERR #####
-8:6: cannot change C, a context object, outside its setup
+9:6: cannot use C: it is lent to P (7:25) until P->finish()

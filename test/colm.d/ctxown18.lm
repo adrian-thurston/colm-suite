@@ -1,0 +1,15 @@
+# A finished parser isn't used as a value: whatever it went to could send to
+# it again, and make it parse and back up.
+include 'ctxrule.lmi'
+
+void feed( P: parser<ctx::start> )
+{
+	send P "a"
+}
+
+C: ctx = new ctx()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+T: ctx::start = P->finish()
+feed( P )
+##### COMP_ERR #####
+13:7: cannot use P as a value: it was finished at 12:20

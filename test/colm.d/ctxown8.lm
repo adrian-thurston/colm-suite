@@ -1,0 +1,20 @@
+# Nothing moves out of a field: it is given another object in its place.
+include 'ctxrule.lmi'
+
+context outer
+	Sub: ctx
+
+	lex
+		token v /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[v*]
+end
+
+O: outer = new outer()
+O->Sub = new ctx()
+X: ctx = O->Sub
+##### COMP_ERR #####
+18:13: cannot move Sub out of O: give the field another object in its place

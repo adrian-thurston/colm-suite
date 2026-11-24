@@ -1,0 +1,40 @@
+# After a parse, the object is the program's again: it changes the object,
+# and gives it to a second parse, which sees the change and what the first
+# parse's actions left.
+context ctx
+	N: int
+	L: list<str>
+
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def item
+		[w]
+		{
+			N = N + 1
+			L->push_tail( $r1 )
+		}
+
+	def start
+		[item*]
+end
+
+C: ctx = new ctx()
+C->L = new list<str>()
+parse S: ctx::start( C )[ "a b" ]
+print( "N ", C->N, ", L ", C->L->length, "\n" )
+C->N = C->N + 10
+C->L->push_tail( "z" )
+parse T: ctx::start( C )[ "c" ]
+print( "N ", C->N, ", L ", C->L->length, "\n" )
+for V: str in C->L
+	print( V, "\n" )
+##### EXP #####
+N 2, L 2
+N 13, L 4
+a
+b
+z
+c

@@ -1,0 +1,9 @@
+# Nothing moves out of a parameter: the caller lends it for the call.
+include 'ctxrule.lmi'
+
+ctx same( O: ctx )
+{
+	return O
+}
+##### COMP_ERR #####
+6:9: cannot move O: the caller lends it for the call

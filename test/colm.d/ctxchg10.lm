@@ -1,4 +1,4 @@
-# A context object another holds isn't set up through it.
+# A context object another holds, changed through it.
 include 'ctxrule.lmi'
 
 context outer
@@ -16,5 +16,6 @@ end
 O: outer = new outer()
 O->Sub = new ctx()
 O->Sub->N = 1
-##### COMP_ERR #####
-18:4: cannot change Sub, a context object, outside its setup
+print( O->Sub->N, "\n" )
+##### EXP #####
+1

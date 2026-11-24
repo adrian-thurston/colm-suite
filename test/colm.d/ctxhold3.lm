@@ -1,8 +1,9 @@
 # A parser that the context holds, given the same object, and sent to by the
 # actions of the parse. The parse's actions would send to it, pop the list
 # its action pushed onto, and send again, which would make it back up over
-# the push onto the empty list. It holds the object, so giving the object to
-# the parse stops the program. Inner is weak: a parser holds its context, so a
+# the push onto the empty list. A parser that goes into a field takes its
+# object with it for good, so C can't be used again: the store into C->Inner
+# doesn't compile (#756). Inner is weak: a parser holds its context, so a
 # context can't hold a parser of its own types strongly.
 context ctx
 	L: list<str>
@@ -41,7 +42,5 @@ C->Inner = new parser<ctx::inner>( C )
 print( "before\n" )
 parse S: ctx::start( C )[ "a b c" ]
 print( S, "\n" )
-##### EXP #####
-before
-##### EXIT #####
-1
+##### COMP_ERR #####
+41:1: cannot use C: it went with the parser made at 41:12

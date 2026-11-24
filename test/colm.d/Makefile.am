@@ -158,6 +158,7 @@ EXTRA_DIST = \
 	earlytree2.lm \
 	earlytreemsg1.lm \
 	elfree1.lm \
+	elstruct1.lm \
 	exit1.lm \
 	exit2.lm \
 	exit3.lm \
@@ -595,6 +596,8 @@ EXTRA_DIST = \
 	streamseq2.lm \
 	string.lm \
 	struct1.lm \
+	structfree1.lm \
+	structfree2.lm \
 	structmsg1.lm \
 	structnil1.lm \
 	structnil2.lm \

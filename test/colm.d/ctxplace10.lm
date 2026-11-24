@@ -1,0 +1,44 @@
+# A context block with no def and no token is a plain struct, and goes where
+# any struct goes: a global, a struct's field, a list, a map, an attribute and
+# a weak reference.
+context plain
+	N: int
+end
+
+global G: plain = new plain()
+G->N = 1
+
+struct holder
+	P: plain
+end
+
+lex
+	token id /[a-z]+/
+	ignore /space+/
+end
+
+def start
+	P: plain
+	[id*]
+
+H: holder = new holder()
+H->P = G
+
+L: list<plain> = new list<plain>()
+L->push_tail( G )
+
+M: map<plain, plain> = new map<plain, plain>()
+M->insert( G, G )
+
+parse S: start[ "a b" ]
+S.P = G
+
+W: weak<plain> = G
+
+F: plain = M->find( G )
+A: plain = S.P
+print( "global ", G->N, ", field ", H->P->N, ", list ", L->head->N, "\n" )
+print( "map ", F->N, ", attribute ", A->N, ", weak ", W->N, "\n" )
+##### EXP #####
+global 1, field 1, list 1
+map 1, attribute 1, weak 1

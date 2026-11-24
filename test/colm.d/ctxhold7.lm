@@ -4,6 +4,7 @@
 # its action, onto the empty list. The new parser holds the object for the
 # parse in its action until the program ends, so giving it to the second
 # parse stops the program.
+# The global can't hold a context object: colm refuses it first.
 context inner
 	L: list<str>
 
@@ -59,7 +60,5 @@ print( "popped, L ", G->L->length, "\n" )
 send P "\n"
 print( P->finish(), "\n" )
 print( "after, L ", G->L->length, "\n" )
-##### EXP #####
-before, L 1
-##### EXIT #####
-1
+##### COMP_ERR #####
+30:11: G can't hold an inner: a context object is held only by a local variable, a parameter, a return or a field of a context

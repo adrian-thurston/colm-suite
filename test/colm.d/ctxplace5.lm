@@ -1,0 +1,14 @@
+# A map can't hold a context object as its key.
+context ctx
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+
+	def start
+		[id*]
+end
+
+M: map<ctx, int>
+##### COMP_ERR #####
+12:8: a map's key can't hold a ctx: a context object is held only by a local variable, a parameter, a return or a field of a context

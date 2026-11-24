@@ -1,0 +1,16 @@
+# A def's attribute can't hold a context object.
+context ctx
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+
+	def start
+		[id*]
+end
+
+def holder
+	C: ctx
+	[]
+##### COMP_ERR #####
+13:5: C can't hold a ctx: a context object is held only by a local variable, a parameter, a return or a field of a context

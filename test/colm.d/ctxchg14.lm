@@ -1,4 +1,5 @@
 # A function call ends the setup of a global's object.
+# The global can't hold a context object: colm refuses it first.
 include 'ctxrule.lmi'
 
 global C: ctx = new ctx()
@@ -14,4 +15,4 @@ void start()
 start()
 C->L->pop_tail()
 ##### COMP_ERR #####
-15:1: cannot change C, a context object, outside its setup
+5:11: C can't hold a ctx: a context object is held only by a local variable, a parameter, a return or a field of a context

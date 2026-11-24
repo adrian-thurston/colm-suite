@@ -21,6 +21,7 @@
  */
 
 #include <stdbool.h>
+#include <string.h>
 #include <iostream>
 #include "compiler.h"
 
@@ -31,6 +32,21 @@
 using std::cout;
 using std::cerr;
 using std::endl;
+
+/* A context object has one owner: a local variable, a field of another
+ * context object, or a parser. A parameter is lent it for the call, and a
+ * return moves it. No other place's type can be a context. */
+static void checkNotContext( TypeRef *typeRef, const char *place )
+{
+	UniqueType *ut = typeRef->uniqueType;
+	if ( ut->typeId == TYPE_STRUCT && ut->structEl->structDef->isContext ) {
+		const char *name = ut->structEl->name.data;
+		const char *article = strchr( "aeiouAEIOU", name[0] ) != 0 ? "an " : "a ";
+		error( typeRef->loc ) << place << " can't hold " << article << name <<
+				": a context object is held only by a local variable, a "
+				"parameter, a return or a field of a context" << endp;
+	}
+}
 
 Namespace *TypeRef::resolveNspace( Compiler *pd )
 {
@@ -187,6 +203,7 @@ UniqueType *TypeRef::resolveTypeListEl( Compiler *pd )
 {
 	TypeRef *valTr = typeRef1;
 	UniqueType *utValue = valTr->resolveType( pd );	
+	checkNotContext( valTr, "a list's value" );
 
 	UniqueGeneric *inMap = 0, searchKey( UniqueGeneric::ListEl, utValue );
 	if ( uniqueGeneric( inMap, pd, searchKey ) )
@@ -270,6 +287,8 @@ UniqueType *TypeRef::resolveTypeMapEl( Compiler *pd )
 
 	UniqueType *utKey = keyType->resolveType( pd );	
 	UniqueType *utValue = valType->resolveType( pd );	
+	checkNotContext( keyType, "a map's key" );
+	checkNotContext( valType, "a map's value" );
 
 	UniqueGeneric *inMap = 0, searchKey( UniqueGeneric::MapEl, utKey, utValue );
 	if ( uniqueGeneric( inMap, pd, searchKey ) )
@@ -365,6 +384,7 @@ UniqueType *TypeRef::resolveTypeWeak( Compiler *pd )
 	typeRef1->resolveType( pd );
 	if ( !typeRef1->uniqueType->ptr() )
 		error( loc ) << "weak takes a struct type" << endp;
+	checkNotContext( typeRef1, "weak<T>'s T" );
 	return pd->findUniqueType( TYPE_WEAK, typeRef1->uniqueType );
 }
 
@@ -829,25 +849,38 @@ void Compiler::resolveParseTree()
 
 	rootLocalFrame->resolve( this );
 
-	/* Init all user object fields (need consistent size). */
+	/* Init all user object fields (need consistent size). A def's or a
+	 * token's attribute can't hold a context object. Its captures are trees. */
 	for ( LelList::Iter lel = langEls; lel.lte(); lel++ ) {
 		ObjectDef *objDef = lel->objectDef;
 		if ( objDef != 0 ) {
 			/* Init all fields of the object. */
-			for ( FieldList::Iter f = objDef->fieldList; f.lte(); f++ )
+			for ( FieldList::Iter f = objDef->fieldList; f.lte(); f++ ) {
 				f->value->typeRef->resolveType( this );
+				checkNotContext( f->value->typeRef, f->value->name );
+			}
 		}
 	}
 
+	/* A field of a struct that isn't a context can't hold a context object.
+	 * The struct of globals is checked below. A list's or a map's element
+	 * struct, whose value field has no location to point at, never has a
+	 * context value: resolveTypeListEl() and resolveTypeMapEl() refuse it
+	 * before the struct is declared. */
 	for ( StructElList::Iter sel = structEls; sel.lte(); sel++ ) {
 		ObjectDef *objDef = sel->structDef->objectDef;
-		for ( FieldList::Iter f = objDef->fieldList; f.lte(); f++ )
+		for ( FieldList::Iter f = objDef->fieldList; f.lte(); f++ ) {
 			f->value->typeRef->resolveType( this );
+			if ( !sel->structDef->isContext && sel != globalSel )
+				checkNotContext( f->value->typeRef, f->value->name );
+		}
 	}
 
-	/* Init all fields of the global object. */
+	/* Init all fields of the global object. A global, declared with global
+	 * or export, can't hold a context object. */
 	for ( FieldList::Iter f = globalObjectDef->fieldList; f.lte(); f++ ) {
 		f->value->typeRef->resolveType( this );
+		checkNotContext( f->value->typeRef, f->value->name );
 	}
 }
 

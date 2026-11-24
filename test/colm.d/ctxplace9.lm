@@ -1,0 +1,14 @@
+# A weak reference can't hold a context object.
+context ctx
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+
+	def start
+		[id*]
+end
+
+W: weak<ctx>
+##### COMP_ERR #####
+12:9: weak<T>'s T can't hold a ctx: a context object is held only by a local variable, a parameter, a return or a field of a context

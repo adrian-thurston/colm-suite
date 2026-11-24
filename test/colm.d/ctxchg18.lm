@@ -1,4 +1,5 @@
 # A yield runs the loop body, which reaches the global.
+# The global can't hold a context object: colm refuses it first.
 context ctx
 	L: list<str>
 
@@ -49,4 +50,4 @@ for X: str in steps() {
 }
 print( P->finish(), "\n" )
 ##### COMP_ERR #####
-35:2: cannot change G, a context object, outside its setup
+27:11: G can't hold a ctx: a context object is held only by a local variable, a parameter, a return or a field of a context

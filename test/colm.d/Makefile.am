@@ -677,6 +677,8 @@ EXTRA_DIST = \
 	undopush1.lm \
 	undosplit1.lm \
 	undosplit2.lm \
+	undostream1.lm \
+	undostream2.lm \
 	utf8.lm \
 	void1.lm \
 	vpop1.lm \

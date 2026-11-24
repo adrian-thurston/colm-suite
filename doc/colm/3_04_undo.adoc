@@ -231,8 +231,9 @@ the parse instead: keep what to send in a list during the parse, and send it
 once the parse has ended.
 
 Colm doesn't undo what is printed, or what is sent to any stream: `stdout`,
-`stderr`, a file, or a stream made with `new stream()`. An action's local
-variables end with the action, and need no undoing.
+`stderr`, a file, or a stream made with `new stream()`. Nor does it undo a
+stream's `close()` or `auto_trim()`, or an input's `auto_trim()`. An action's
+local variables end with the action, and need no undoing.
 
 A parse that fails has backed up over every action, so the data is as it was
 before the parse. The exception is writes made before a `commit`. The parser

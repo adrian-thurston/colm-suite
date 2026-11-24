@@ -1,0 +1,24 @@
+# A loop left by a break before its body gives a moved local another object:
+# after the loop, C is still moved. A loop leaves the state at each break,
+# merged with the state its test left.
+include 'ctxpush.lmi'
+
+C: ctx = new ctx()
+C->L = new list<str>()
+D: ctx
+I: int = 0
+while ( I < 1 ) {
+	I = I + 1
+	if ( I == 1 ) {
+		D = C
+		break
+	}
+	C = new ctx()
+}
+P: parser<ctx::start> = new parser<ctx::start>( D )
+send P "* ;"
+print( "popped ", C->L->pop_tail(), "\n" )
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+20:19: cannot use C: it was moved at 13:7

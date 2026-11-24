@@ -1010,6 +1010,10 @@ struct Compiler
 	Vector<Own> owns;
 	int loopDepth;
 
+	/* The ownership state at each break of the innermost loop being
+	 * compiled: the loop leaves with it, or with the state its test left. */
+	Vector< Vector<Own> > breakOwns;
+
 	/* The parser variable that the new parser being compiled goes into, and
 	 * what its new lends it, once the assignment has ended what the variable
 	 * had. */
@@ -1040,7 +1044,9 @@ struct Compiler
 	bool lentToParser( ObjectField *parser );
 	void releaseParser( ObjectField *parser );
 	void mergeOwns( const Vector<Own> &other );
+	void endScopeOwns( NameScope *scope, bool within );
 	void checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc );
+	void leaveLoop( const Vector<Own> &test, NameScope *scope );
 	void checkLentCalls();
 
 	ObjectField *makeDataEl();

@@ -1,0 +1,18 @@
+# A while loop whose body gives back what was lent, as P = nil does, and
+# whose test fails at once: after the loop, C is still lent to P. The state a
+# loop leaves is the one its test left, since the body may not run.
+include 'ctxpush.lmi'
+
+C: ctx = new ctx()
+C->L = new list<str>()
+I: int = 0
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+while ( I < 0 ) {
+	P = nil
+}
+print( "popped ", C->L->pop_tail(), "\n" )
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+14:19: cannot use C: it is lent to P (9:25) until P->finish()

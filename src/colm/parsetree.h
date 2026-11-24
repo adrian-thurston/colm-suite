@@ -3492,7 +3492,8 @@ struct CodeBlock
 	:
 		frameId(-1),
 		context(0),
-		namesContext(false)
+		namesContext(false),
+		yields(false)
 	{}
 
 	static CodeBlock *cons( StmtList *stmtList, ObjectDef *localFrame ) 
@@ -3524,18 +3525,35 @@ struct CodeBlock
 	Vector<LangEl*> parses;
 
 	/* A call of a function or an iterator, made while the running context
-	 * is lent, which the function can't make if it names the context: the
-	 * function, where the call is, and where the context was lent. Whether
-	 * the block names a context variable or this, and, once closed over
-	 * calls, whether a function it calls does. */
+	 * is lent, or a parameter is lent to a parser: the function, where the
+	 * call is, what is lent and where. Checked once all the code is
+	 * compiled: the function can't name the context, if the running context
+	 * is lent, nor yield to a loop's body, which could use what is lent. */
 	struct LentCall
 	{
 		Function *func;
 		InputLoc loc;
 		InputLoc lentLoc;
+		bool running;
+		String what;
 	};
 	Vector<LentCall> lentCalls;
+
+	/* A call given an argument that the running context reaches, such as
+	 * this or a context variable, which the function can't take if it names
+	 * the context: the function, the argument and where. */
+	struct ContextArg
+	{
+		Function *func;
+		InputLoc loc;
+		String arg;
+	};
+	Vector<ContextArg> contextArgs;
+
+	/* Whether the block names a context variable or this, and whether it
+	 * yields. Once closed over calls, whether a function it calls does. */
 	bool namesContext;
+	bool yields;
 };
 
 struct Function

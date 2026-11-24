@@ -1,0 +1,32 @@
+# The same with an object and one that it holds: C and C->Sub.
+include 'ctxpush.lmi'
+
+context outer
+	Sub: ctx
+
+	lex
+		token v /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[v*]
+end
+
+int f( O: outer, S: ctx )
+{
+	P: parser<ctx::start> = new parser<ctx::start>( S )
+	send P "* ;"
+	print( "popped ", O->Sub->L->pop_tail(), "\n" )
+	send P "\n"
+	print( P->finish(), "\n" )
+	return 0
+}
+
+C: outer = new outer()
+C->Sub = new ctx()
+C->Sub->L = new list<str>()
+f( C, C->Sub )
+print( "after\n" )
+##### COMP_ERR #####
+29:10: cannot give f two arguments that C reaches: it could lend one and use the other

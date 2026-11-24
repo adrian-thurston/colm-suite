@@ -1,0 +1,36 @@
+# A function of a context given one of the context's variables could lend its
+# parameter and use the variable by name, which reaches the same object.
+include 'ctxpush.lmi'
+
+context outer
+	Sub: ctx
+
+	lex
+		token v /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	int f( O: ctx )
+	{
+		P: parser<ctx::start> = new parser<ctx::start>( O )
+		send P "* ;"
+		print( "popped ", Sub->L->pop_tail(), "\n" )
+		send P "\n"
+		print( P->finish(), "\n" )
+		return 0
+	}
+
+	def start
+		[v]
+		{
+			f( Sub )
+		}
+end
+
+C: outer = new outer()
+C->Sub = new ctx()
+C->Sub->L = new list<str>()
+parse X: outer::start( C )[ "a" ]
+print( "after\n" )
+##### COMP_ERR #####
+26:7: cannot give Sub to f: f uses the context's variables, which reach the same object

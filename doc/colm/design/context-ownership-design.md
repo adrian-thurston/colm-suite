@@ -237,9 +237,29 @@ iterator that names the context:
     cannot call f while the context object is lent (12:7): f uses the
     context's variables
 
-Outside code needs no such note: a function can reach a context object only
-through its parameters, which the caller can't give it while the object is
-lent.
+A `yield` runs the body of the loop over the iterator, and in an action
+that body can use the context's variables. So a yield is refused while the
+running context is lent, or while a parameter is lent to a parser: the
+caller could have given it what the body uses. A local of the function or
+the iterator, lent, is safe: the body can't reach it.
+
+    cannot yield while the context object is lent (12:7): the loop's body
+    could use it
+    cannot yield while O is lent (12:7): the loop's body could use it
+
+A function that an iterator calls can yield too, for the iterator. So a
+call made while the running context is lent, or while a parameter is lent
+to a parser, is noted the same way. Each block notes whether it yields
+(`CodeBlock::yields`), and the pass after compiling closes that over the
+functions it calls, but not over the iterators, whose yields go to their own
+loops. It refuses a noted call of a function that can yield:
+
+    cannot call f while O is lent (12:7): f can yield to a loop's body,
+    which could use it
+
+Otherwise, outside code needs no such note: a function can reach a context
+object only through its parameters, which the caller can't give it while
+the object is lent.
 
 ### Arguments and iterators (11)
 
@@ -248,6 +268,23 @@ before anything else runs, and in the function the parameter can't move. An
 iterator's argument is lent from the call to the end of its loop
 (`compileForIter()`, around `compileForIterBody()`), since the loop's body
 runs while the iterator is suspended.
+
+But the function lends a parameter as if nothing else reached its object.
+So at a call of a function or an iterator (`checkContextArgs()`), two
+arguments of a context type can't have one root: `C` and `C`, `C` and
+`C->Sub`, or `this` and a context variable. Nor can an argument whose root
+is the running context go to a function or an iterator that names the
+context: the function could lend its parameter and use the variable by
+name. That call is noted (`CodeBlock::contextArgs`), and refused once
+`namesContext` is closed over the calls:
+
+    cannot give f two arguments that C reaches: it could lend one and use
+    the other
+    cannot give Sub to f: f uses the context's variables, which reach the
+    same object
+
+Only a context object can be an argument through a root: what else a
+context object holds can't be taken out of it until loans ([#773]).
 
 ### Branches and loops
 
@@ -275,8 +312,14 @@ Nothing saves compiler state across a branch today, so this adds it:
 
   A loan that ended in the body is checked the same way.
 
+  What the body gives back doesn't count after the loop, which can end
+  before the body runs, or at a `break`. A loop leaves the state its test
+  left (a `for` loop, the state its body starts from), merged with the
+  state at each `break` (`Compiler::breakOwns`, kept as `breakJumps` is),
+  less what the loop's own variables held (`leaveLoop()`).
+
 `return`, `break` and `exit` don't end a path. A branch that ends with one
-still merges.
+still merges, and the state at a `break` goes to the end of its loop too.
 
 ## What goes in (12)
 
@@ -369,7 +412,8 @@ reference value in. The errors are #714's, saying
   - `return`, `break` and `exit` don't end a path.
   - A parse's first item can't use the object, though nothing has been sent
     when it runs.
-  - A function argument isn't lent: only the parameter can't move.
+  - A function argument isn't lent: only the parameter can't move, and two
+    arguments can't reach one object.
   - A loan given to a function that keeps anything got from it is refused,
     even if the function keeps it in the same object.
 - Not taken: a parser made with its context, owning it: a language change,
@@ -421,8 +465,9 @@ In `test/colm.d`.
   refusal. A run case each for what is new: a change and a second parse
   after a parse, an object back after `finish()`, a unique local moved in,
   and a loan read after its parse.
-- **The cases.** [#771] added `ctxown1`–`ctxown22`, one refusal each, and
+- **The cases.** [#771] added `ctxown1`–`ctxown38`, one refusal each, and
   the run cases `ctxlend1`–`ctxlend3`, the last [#757]'s programs.
+  `ctxown28`–`ctxown38` share `ctxpush.lmi`.
   `ctxhold5`'s runs became `ctxhold5`, `ctxhold10` and `ctxhold11` (refused),
   `ctxhold12` and `ctxhold13`.
 

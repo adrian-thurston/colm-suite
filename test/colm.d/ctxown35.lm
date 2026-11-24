@@ -1,0 +1,38 @@
+# An iterator's yield runs the loop's body, which can use the running context,
+# while the context is lent to a parser that can back up.
+include 'ctxpush.lmi'
+
+context outer
+	Sub: ctx
+
+	lex
+		token v /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	iter each()
+	{
+		P: parser<ctx::start> = new parser<ctx::start>( Sub )
+		send P "* ;"
+		Y: str = "y"
+		yield Y
+		send P "\n"
+		print( P->finish(), "\n" )
+	}
+
+	def start
+		[v]
+		{
+			for S: str in each() {
+				print( "popped ", Sub->L->pop_tail(), "\n" )
+			}
+		}
+end
+
+C: outer = new outer()
+C->Sub = new ctx()
+C->Sub->L = new list<str>()
+parse X: outer::start( C )[ "a" ]
+print( "after\n" )
+##### COMP_ERR #####
+18:3: cannot yield while the context object is lent (15:27): the loop's body could use it

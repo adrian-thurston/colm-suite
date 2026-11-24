@@ -140,6 +140,17 @@ EXTRA_DIST = \
 	ctxown25.lm \
 	ctxown26.lm \
 	ctxown27.lm \
+	ctxown28.lm \
+	ctxown29.lm \
+	ctxown30.lm \
+	ctxown31.lm \
+	ctxown32.lm \
+	ctxown33.lm \
+	ctxown34.lm \
+	ctxown35.lm \
+	ctxown36.lm \
+	ctxown37.lm \
+	ctxown38.lm \
 	ctxplace1.lm \
 	ctxplace2.lm \
 	ctxplace3.lm \
@@ -775,6 +786,7 @@ EXTRA_DIST = \
 	undosplit2.in \
 	include1a.lmi \
 	ctxrule.lmi \
+	ctxpush.lmi \
 	redef1.lm \
 	redef2.lm \
 	redef3.lm \

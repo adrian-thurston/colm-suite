@@ -330,17 +330,25 @@ local can't be used until it is given another object. Nothing moves out of a
 parameter, which the caller lends for the call, out of `this`, or out of a
 context's variable or a field, which is given another object in its place.
 An iterator's parameter is lent for the whole loop, so the loop's body can't
-use the object either.
+use the object either. A function lends a parameter as if nothing else
+reached its object, so a call can't give it two objects of a context that one
+variable reaches, as `+f( C, C )+` and `+f( C, C->Sub )+` would, nor give a
+function that uses the context's variables one of them, or `this`.
 
 In an action, a parse or a parser made with `new` that is given `this`, or one
 of the context's variables, is lent the action's own context object. Until
 the lend ends, the action can't use `this` or the context's variables, nor
-call a function or an iterator that does.
+call a function or an iterator that does. A `yield` runs the body of the loop
+over the iterator, which can use them too. So an iterator, or a function an
+iterator calls, can't yield while the context object, or one of its
+parameters, is lent to a parser, nor call then a function that can yield.
 
 A lend or a move on one side of an `if` holds after it. A parser finished on
 one side only can't be sent to after the `if`, and keeps what it was lent. A
 loop's body can't leave something from outside the loop lent, moved or
-finished: the next pass would use it.
+finished: the next pass would use it. What the body gives back, as `P = nil`
+does, doesn't count after the loop, since the loop can end before the body
+runs, or at a `break`.
 
 Each of these is a compile error that names the object and where it was lent
 or moved, such as `+cannot use C: it is lent to P (12:7) until P->finish()+`

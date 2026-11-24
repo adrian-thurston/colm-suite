@@ -1,0 +1,17 @@
+# The same with a for loop over an empty list: after the loop, C is still lent
+# to P. A for loop leaves the state its body starts from.
+include 'ctxpush.lmi'
+
+C: ctx = new ctx()
+C->L = new list<str>()
+E: list<str> = new list<str>()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+for S: str in E {
+	P = nil
+}
+print( "popped ", C->L->pop_tail(), "\n" )
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+13:19: cannot use C: it is lent to P (8:25) until P->finish()

@@ -651,6 +651,34 @@ static void ownPlace( std::ostream &out, const InputLoc &loc )
 	out << loc.line << ":" << loc.col;
 }
 
+/* The variable is declared in scope, or, if within, in a scope inside it. */
+static bool declaredIn( ObjectField *var, NameScope *scope, bool within )
+{
+	for ( NameScope *s = var->scope; s != 0; s = within ? s->parentScope : 0 ) {
+		if ( s == scope )
+			return true;
+	}
+	return false;
+}
+
+/* The variables of a scope have ended: nothing can send to a parser one of
+ * them holds any more, and what they were lent is the code's again. */
+void Compiler::endScopeOwns( NameScope *scope, bool within )
+{
+	Vector<ObjectField*> ended;
+	for ( int i = 0; i < owns.length(); i++ ) {
+		Own &own = owns[i];
+		if ( own.var != 0 && declaredIn( own.var, scope, within ) )
+			ended.append( own.var );
+		if ( own.kind == Own::LentToParser && declaredIn( own.parser, scope, within ) )
+			ended.append( own.parser );
+	}
+	for ( int i = 0; i < ended.length(); i++ ) {
+		releaseParser( ended[i] );
+		removeOwn( ended[i] );
+	}
+}
+
 /* A loop's body runs again after its end: what it lends, moves or finishes
  * of what is outside it can't be as the next pass expects. */
 void Compiler::checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc )
@@ -684,6 +712,25 @@ void Compiler::checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc 
 				out << "), and the next pass can't send to it" << endp;
 				break;
 		}
+	}
+}
+
+/* A loop ends when its test fails, which can be before the body runs, or at a
+ * break. So what follows it starts from the state the test left, merged with
+ * the state at each break, less what the loop's own variables held. What the
+ * end of the body left adds nothing: checkLoopOwns() refused that. */
+void Compiler::leaveLoop( const Vector<Own> &test, NameScope *scope )
+{
+	Vector< Vector<Own> > breaks = breakOwns;
+	owns = test;
+	for ( int b = 0; b < breaks.length(); b++ ) {
+		Vector<Own> after = owns;
+		owns = breaks[b];
+		if ( scope != 0 )
+			endScopeOwns( scope, true );
+		Vector<Own> atBreak = owns;
+		owns = after;
+		mergeOwns( atBreak );
 	}
 }
 
@@ -2024,6 +2071,78 @@ void LangVarRef::popRefQuals( Compiler *pd, CodeVect &code,
 }
 
 
+/* A call of func is made while the running context is lent, or, for a
+ * function, while a parameter is lent to a parser. checkLentCalls() refuses
+ * it once all the code is compiled if func names the context, or can yield
+ * to a loop's body, which could use what is lent. */
+static void noteLentCall( Compiler *pd, Function *func, const InputLoc &loc )
+{
+	if ( func == 0 || !pd->revertOn || pd->curBlock == 0 )
+		return;
+
+	for ( int i = 0; i < pd->owns.length(); i++ ) {
+		Compiler::Own &own = pd->owns[i];
+		bool lent = own.kind == Compiler::Own::LentToParse ||
+				own.kind == Compiler::Own::LentToParser ||
+				own.kind == Compiler::Own::LentToLoop;
+		bool running = own.var == 0 && lent;
+		bool param = own.var != 0 && own.var->isParam() &&
+				own.kind == Compiler::Own::LentToParser && !func->isUserIter;
+		if ( running || param ) {
+			CodeBlock::LentCall call;
+			call.func = func;
+			call.loc = loc;
+			call.lentLoc = own.loc;
+			call.running = running;
+			call.what = running ? String( "the context object" ) : own.var->name;
+			pd->curBlock->lentCalls.append( call );
+		}
+	}
+}
+
+/* A function lends a parameter as if nothing else reached its object, so
+ * two of the arguments of a context type can't reach one object: C and C,
+ * or C and C->Sub. An argument that the running context reaches can't go to
+ * a function that names the context, which checkLentCalls() finds. */
+static void checkContextArgs( Compiler *pd, Function *func, UniqueType **paramUTs,
+		CallArgVect *args )
+{
+	if ( func == 0 || args == 0 )
+		return;
+
+	Vector<ObjectField*> roots;
+	for ( int a = 0; a < args->length(); a++ ) {
+		UniqueType *paramUT = paramUTs[a];
+		LangExpr *argExpr = args->data[a]->expr;
+		ObjectField *root;
+		if ( paramUT->typeId != TYPE_STRUCT || !paramUT->structEl->structDef->isContext ||
+				argExpr->type != LangExpr::TermType ||
+				argExpr->term->type != LangTerm::VarRefType ||
+				!argExpr->term->varRef->ownRoot( pd, root ) )
+			continue;
+
+		LangVarRef *argRef = argExpr->term->varRef;
+		for ( int r = 0; r < roots.length(); r++ ) {
+			if ( roots[r] == root ) {
+				error(argRef->loc) << "cannot give " << func->name <<
+						" two arguments that " << ( root == 0 ?
+						String( "the context object" ) : root->name ) <<
+						" reaches: it could lend one and use the other" << endp;
+			}
+		}
+		roots.append( root );
+
+		if ( root == 0 && pd->revertOn && pd->curBlock != 0 ) {
+			CodeBlock::ContextArg arg;
+			arg.func = func;
+			arg.loc = argRef->loc;
+			arg.arg = argRef->qual->length() > 0 ? argRef->qual->data[0].data :
+					argRef->name;
+			pd->curBlock->contextArgs.append( arg );
+		}
+	}
+}
+
 UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect *args ) 
 {
 	/* Evaluate the object. */
@@ -2087,16 +2206,8 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 		}
 	}
 
-	/* A call made while the running context is lent can't be of a function
-	 * that names the context, which checkLentCalls() finds. */
-	Compiler::Own *running = pd->findOwn( 0 );
-	if ( func != 0 && running != 0 && pd->revertOn && pd->curBlock != 0 ) {
-		CodeBlock::LentCall call;
-		call.func = func;
-		call.loc = loc;
-		call.lentLoc = running->loc;
-		pd->curBlock->lentCalls.append( call );
-	}
+	noteLentCall( pd, func, loc );
+	checkContextArgs( pd, func, lookup.objMethod->paramUTs, args );
 
 	/* Evaluate and push the arguments. A change through a context reference
 	 * puts them into the object. */
@@ -3902,21 +4013,8 @@ static void compileStmtList( Compiler *pd, CodeVect &code, StmtList *stmtList,
 	for ( StmtList::Iter stmt = *stmtList; stmt.lte(); stmt++ )
 		stmt->compile( pd, code );
 
-	if ( scope == 0 )
-		return;
-
-	Vector<ObjectField*> ended;
-	for ( int i = 0; i < pd->owns.length(); i++ ) {
-		Compiler::Own &own = pd->owns[i];
-		if ( own.var != 0 && own.var->scope == scope )
-			ended.append( own.var );
-		if ( own.kind == Compiler::Own::LentToParser && own.parser->scope == scope )
-			ended.append( own.parser );
-	}
-	for ( int i = 0; i < ended.length(); i++ ) {
-		pd->releaseParser( ended[i] );
-		pd->removeOwn( ended[i] );
-	}
+	if ( scope != 0 )
+		pd->endScopeOwns( scope, false );
 }
 
 /* A loop's body runs again after its end. What is outside the loop must be
@@ -3965,11 +4063,16 @@ void LangStmt::compileForIterBody( Compiler *pd,
 	 * expression lie on what this loop's iterator left. */
 	LongVect outerBreaks = pd->breakJumps;
 	pd->breakJumps.empty();
+	Vector< Vector<Compiler::Own> > outerBreakOwns = pd->breakOwns;
+	pd->breakOwns.empty();
 	ObjectField *outerLoop = pd->unwindLoop;
 	pd->unwindLoop = objField;
 
+	/* The loop ends at the advance, before the body, or at a break. */
 	Vector<Compiler::Own> start = pd->owns;
 	compileLoopBody( pd, code, stmtList, scope, start, loc );
+	pd->leaveLoop( start, scope );
+	pd->breakOwns = outerBreakOwns;
 
 	pd->unwindLoop = outerLoop;
 	pd->unwindCode.remove( 0, pd->unwindCode.length() - lcLen );
@@ -4075,15 +4178,9 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	if ( func != 0 )
 		pd->countOtherCode();
 
-	/* A call made while the running context is lent. */
-	Compiler::Own *running = pd->findOwn( 0 );
-	if ( func != 0 && running != 0 && pd->revertOn && pd->curBlock != 0 ) {
-		CodeBlock::LentCall call;
-		call.func = func;
-		call.loc = iterCall->langTerm->varRef->loc;
-		call.lentLoc = running->loc;
-		pd->curBlock->lentCalls.append( call );
-	}
+	noteLentCall( pd, func, iterCall->langTerm->varRef->loc );
+	checkContextArgs( pd, func, lookup.objMethod->paramUTs,
+			iterCall->langTerm->args );
 
 	if ( func != 0 && pd->revertOn && pd->curBlock != 0 )
 		pd->curBlock->calls.append( func );
@@ -4263,6 +4360,7 @@ void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 	long top = code.length();
 	Vector<Compiler::Own> start = pd->owns;
 	UniqueType *eut = expr->evaluate( pd, code );
+	Vector<Compiler::Own> test = pd->owns;
 
 	/* Jump past the while block if false. Note that we don't have the
 	 * distance yet. */
@@ -4271,11 +4369,16 @@ void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 	code.append( jinstr );
 	code.appendHalf( 0 );
 
-	/* Compute the while block. Its breaks are its own. */
+	/* Compute the while block. Its breaks are its own. The loop ends where
+	 * the test fails, or at a break. */
 	LongVect outerBreaks = pd->breakJumps;
 	pd->breakJumps.empty();
+	Vector< Vector<Compiler::Own> > outerBreakOwns = pd->breakOwns;
+	pd->breakOwns.empty();
 
 	compileLoopBody( pd, code, stmtList, scope, start, loc );
+	pd->leaveLoop( test, scope );
+	pd->breakOwns = outerBreakOwns;
 
 	/* Jump back to the top to retest. */
 	long retestDist = code.length() - top + 3;
@@ -4493,7 +4596,9 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			if ( pd->loopDepth == 0 )
 				error(loc) << "break outside a loop" << endp;
 
+			/* The loop is left with what is lent or moved here. */
 			pd->breakJumps.append( code.length() );
+			pd->breakOwns.append( pd->owns );
 			code.append( IN_JMP );
 			code.appendHalf( 0 );
 			break;
@@ -4519,8 +4624,27 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 					break;
 			}
 
-			/* A yield runs the loop's body. */
+			/* A yield runs the loop's body, which can use the running
+			 * context, and an object a parameter reaches. A local of this
+			 * function it can't reach. */
 			pd->countOtherCode();
+			if ( pd->revertOn && pd->curBlock != 0 )
+				pd->curBlock->yields = true;
+			for ( int i = 0; i < pd->owns.length(); i++ ) {
+				Compiler::Own &own = pd->owns[i];
+				bool lent = own.kind == Compiler::Own::LentToParse ||
+						own.kind == Compiler::Own::LentToParser ||
+						own.kind == Compiler::Own::LentToLoop;
+				if ( ( own.var == 0 && lent ) || ( own.var != 0 &&
+						own.var->isParam() && own.kind == Compiler::Own::LentToParser ) )
+				{
+					std::ostream &out = error(loc) << "cannot yield while " <<
+							( own.var == 0 ? String( "the context object" ) : own.var->name ) <<
+							" is lent (";
+					ownPlace( out, own.loc );
+					out << "): the loop's body could use it" << endp;
+				}
+			}
 
 			/* take a reference and yield it. Immediately reset the referece. */
 			ObjectField *objField = varRef->preEvaluateRef( pd, code );
@@ -5232,26 +5356,41 @@ void Compiler::compileByteCode()
 	checkLentCalls();
 }
 
-/* A call made while the running context is lent, of a function or an
- * iterator that names the context, or calls one that does. */
-void Compiler::checkLentCalls()
+/* A function names the context, or yields, if it does so itself, or calls a
+ * function that does. A function's yield goes to the loop over the iterator
+ * that called it, so an iterator it calls doesn't yield for it. */
+static void closeOverCalls( FunctionList &functionList, bool CodeBlock::*flag,
+		bool throughIters )
 {
 	bool grew = true;
 	while ( grew ) {
 		grew = false;
 		for ( FunctionList::Iter func = functionList; func.lte(); func++ ) {
 			CodeBlock *block = func->codeBlock;
-			if ( block->namesContext )
+			if ( block->*flag )
 				continue;
 			for ( Vector<Function*>::Iter c = block->calls; c.lte(); c++ ) {
-				if ( (*c)->codeBlock != 0 && (*c)->codeBlock->namesContext ) {
-					block->namesContext = true;
+				if ( (*c)->codeBlock != 0 && ( throughIters || !(*c)->isUserIter ) &&
+						(*c)->codeBlock->*flag )
+				{
+					block->*flag = true;
 					grew = true;
 					break;
 				}
 			}
 		}
 	}
+}
+
+/* A call made while the running context is lent, of a function or an
+ * iterator that names the context, or calls one that does, or of a function
+ * that can yield to a loop's body, which could use what is lent. A call given
+ * an argument that the running context reaches, of a function that names the
+ * context. */
+void Compiler::checkLentCalls()
+{
+	closeOverCalls( functionList, &CodeBlock::namesContext, true );
+	closeOverCalls( functionList, &CodeBlock::yields, false );
 
 	Vector<CodeBlock*> blocks;
 	for ( FunctionList::Iter func = functionList; func.lte(); func++ )
@@ -5272,11 +5411,31 @@ void Compiler::checkLentCalls()
 	for ( int b = 0; b < blocks.length(); b++ ) {
 		for ( int c = 0; c < blocks[b]->lentCalls.length(); c++ ) {
 			CodeBlock::LentCall &call = blocks[b]->lentCalls[c];
-			if ( call.func->codeBlock != 0 && call.func->codeBlock->namesContext ) {
+			CodeBlock *callee = call.func->codeBlock;
+			if ( callee == 0 )
+				continue;
+
+			bool names = call.running && callee->namesContext;
+			bool yields = !call.func->isUserIter && callee->yields;
+			if ( names || yields ) {
 				std::ostream &out = error( call.loc ) << "cannot call " <<
-						call.func->name << " while the context object is lent (";
+						call.func->name << " while " << call.what << " is lent (";
 				ownPlace( out, call.lentLoc );
-				out << "): " << call.func->name << " uses the context's variables" << endp;
+				out << "): " << call.func->name;
+				if ( names )
+					out << " uses the context's variables" << endp;
+				else
+					out << " can yield to a loop's body, which could use it" << endp;
+			}
+		}
+
+		for ( int c = 0; c < blocks[b]->contextArgs.length(); c++ ) {
+			CodeBlock::ContextArg &arg = blocks[b]->contextArgs[c];
+			CodeBlock *callee = arg.func->codeBlock;
+			if ( callee != 0 && callee->namesContext ) {
+				error( arg.loc ) << "cannot give " << arg.arg << " to " << arg.func->name <<
+						": " << arg.func->name << " uses the context's variables, "
+						"which reach the same object" << endp;
 			}
 		}
 	}

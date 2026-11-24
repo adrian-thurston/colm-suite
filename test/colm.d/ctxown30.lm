@@ -1,0 +1,18 @@
+# A while loop whose body gives a moved local another object, and whose test
+# fails at once: after the loop, C is still moved.
+include 'ctxpush.lmi'
+
+C: ctx = new ctx()
+C->L = new list<str>()
+I: int = 0
+D: ctx = C
+while ( I < 0 ) {
+	C = new ctx()
+}
+P: parser<ctx::start> = new parser<ctx::start>( D )
+send P "* ;"
+print( "popped ", C->L->pop_tail(), "\n" )
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+14:19: cannot use C: it was moved at 8:10

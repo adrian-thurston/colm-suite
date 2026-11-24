@@ -1,0 +1,20 @@
+# A function given one object twice could lend one parameter to a parser and
+# change the object through the other while the parser can back up.
+include 'ctxpush.lmi'
+
+int f( O1: ctx, O2: ctx )
+{
+	P: parser<ctx::start> = new parser<ctx::start>( O1 )
+	send P "* ;"
+	print( "popped ", O2->L->pop_tail(), "\n" )
+	send P "\n"
+	print( P->finish(), "\n" )
+	return 0
+}
+
+C: ctx = new ctx()
+C->L = new list<str>()
+f( C, C )
+print( "after\n" )
+##### COMP_ERR #####
+17:7: cannot give f two arguments that C reaches: it could lend one and use the other

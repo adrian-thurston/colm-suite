@@ -169,16 +169,18 @@ The error is at the global's name:
 
 ## Tests
 
-In `test/colm.d`. `globchg1`–`globchg16` (changes) and
+In `test/colm.d`. `globchg1`–`globchg17` (changes) and
 `globtake1`–`globtake6` (takes) are compile errors, one each, and say in
 their first lines what they show. `globchg1`, `globchg2` and `globchg9` are
 [#687]'s, [#683]'s and [#368]'s programs, through a global. `globchg3` is a
 parse whose second item calls a function, and `globchg16` one whose second
-item pops the list. `globtake5` and `globtake6` take a tree whose attribute
-holds a list out of a global, into a variable and as a loop over a list of
-them. `globread1` runs what stays: reads in place and a send to a stream in
-a restartable parser, and a change undone in a parse whose only item that
-runs code is its first. `globread2` reads such a tree's attributes in place.
+item pops the list. `globchg17` changes a global through a child named on
+its own in a switch case. `globtake5` and `globtake6` take a tree whose
+attribute holds a list out of a global, into a variable and as a loop over
+a list of them. `globread1` runs what stays: reads in place and a send to a
+stream in a restartable parser, and a change undone in a parse whose only
+item that runs code is its first. `globread2` reads such a tree's
+attributes in place.
 `globctx1`–`globctx6` are [#770]'s compile errors in parses given a context
 that aren't restartable. `globctx1` and `globctx2` take a global's list into
 the object and put the object's list into a global, and lend the object to

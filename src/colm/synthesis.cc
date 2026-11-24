@@ -4873,8 +4873,8 @@ void Compiler::checkRefCopies()
 	}
 }
 
-/* The types and the code blocks that restartable parsers reach, each queued
- * once. */
+/* The types and the code blocks that a walk reaches, each queued once: what
+ * restartable parsers run, or what parses given a context run. */
 struct RestartReach
 {
 	BstSet<LangEl*> typeSet;

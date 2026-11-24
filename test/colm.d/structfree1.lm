@@ -4,12 +4,21 @@
 # functions count them: hold() counts the reference that the next node's
 # field, or the program, holds to N, and drop() releases it. heap_structs()
 # counts the structs on the program's heap list.
+#
+# A program can't declare a struct that holds its own type: colm refuses the
+# cycle of strong references. So Next is declared a link, which holds nothing,
+# and set_next(), a host function, stores the next node in it, as a host can.
+# Freeing a node releases its Next whatever the struct in it.
+
+struct link
+end
 
 struct node
-	Next: node
+	Next: link
 end
 
 int hold( N: node ) = c_hold
+int set_next( N: node, Next: node ) = c_set_next
 int drop( N: node ) = c_drop
 int heap_structs() = c_heap_structs
 
@@ -18,7 +27,7 @@ I: int = 0
 while ( I < 1000000 ) {
 	N: node = new node()
 	hold( N )
-	N->Next = Head
+	set_next( N, Head )
 	Head = N
 	I = I + 1
 }
@@ -35,6 +44,13 @@ print( "freed ", Before - heap_structs(), "\n" )
 value_t c_hold( program_t *prg, tree_t **sp, value_t a1 )
 {
 	colm_struct_upref( prg, (struct colm_struct*)a1 );
+	return 0;
+}
+
+value_t c_set_next( program_t *prg, tree_t **sp, value_t a1, value_t a2 )
+{
+	colm_struct_set_field( (struct colm_struct*)a1, struct colm_struct*, 0,
+			(struct colm_struct*)a2 );
 	return 0;
 }
 

@@ -162,6 +162,7 @@ EXTRA_DIST = \
 	cycle12.lm \
 	cycle13.lm \
 	cycle14.lm \
+	cycle15.lm \
 	cycleweak1.lm \
 	decl1.lm \
 	decl2.lm \

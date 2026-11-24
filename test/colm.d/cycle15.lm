@@ -1,0 +1,17 @@
+# A cycle through a def's attribute and a struct's field, with the attribute
+# declared first. The error is at the field, as the manual says: a cycle's
+# error is at a struct's or a context's field if it has one.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def d
+	S: s
+	[id]
+
+struct s
+	Name: str
+end
+##### COMP_ERR #####
+14:2: strong references make a cycle: s.Name, d.S; declare a field or attribute in it weak

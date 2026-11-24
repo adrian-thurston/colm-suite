@@ -256,9 +256,9 @@ parser's context, or a tree. An `any` can be given to a variable of any tree
 type, so a field that holds a tree, a `str` included, counts as holding every
 struct, list, map or parser that an attribute of a tree, or a `make_token`
 argument, can hold. Colm refuses such a program when it compiles. The error is
-at the first place on the cycle, in the order the program declares them, and
-names the places that lead back to it. The route above, with `Next: stop`,
-gives
+at one of the places on the cycle, a struct's or a context's field if it has
+one, and names the places that lead back to it. The route above, with
+`Next: stop`, gives
 `strong references make a cycle: stop.Next; declare a field or attribute in it weak`.
 
 A place declared `weak<T>` refers to a value of type `T`, and doesn't count

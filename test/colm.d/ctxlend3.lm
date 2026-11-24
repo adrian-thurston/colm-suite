@@ -77,9 +77,10 @@ context outer
 end
 
 A: str = argv->pop()
+S: inner = new inner()
+S->L = new list<str>()
 C: outer = new outer()
-C->Sub = new inner()
-C->Sub->L = new list<str>()
+C->Sub = S
 
 if ( A == "rr1" ) {
 	parse P: outer::items( C )[ "a b c" ]

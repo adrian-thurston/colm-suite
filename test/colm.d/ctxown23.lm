@@ -1,0 +1,13 @@
+# A loop's body moves an object from outside the loop: the next pass would
+# use the moved local.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+D: ctx
+I: int = 0
+while ( I < 2 ) {
+	D = C
+	I = I + 1
+}
+##### COMP_ERR #####
+8:1: C is moved in the loop's body (9:6), and isn't given another object by its end

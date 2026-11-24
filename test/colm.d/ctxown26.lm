@@ -1,0 +1,10 @@
+# Nothing is sent to a parser with send_tree after a send that ends with eos,
+# which finishes it.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "a" eos
+send_tree P [ "b" ]
+##### COMP_ERR #####
+8:11: cannot send to P: it was finished at 7:6

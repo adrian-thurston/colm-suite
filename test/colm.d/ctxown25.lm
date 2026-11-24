@@ -1,0 +1,10 @@
+# The input of a finished parser isn't taken: a push onto it would send to it
+# again.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+T: ctx::start = P->finish()
+I: _input = P->gets()
+##### COMP_ERR #####
+8:16: cannot get the input of P: it was finished at 7:20

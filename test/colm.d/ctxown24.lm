@@ -1,0 +1,13 @@
+# A loop's body finishes a parser from outside the loop: the next pass would
+# finish it again.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+I: int = 0
+while ( I < 2 ) {
+	T: ctx::start = P->finish()
+	I = I + 1
+}
+##### COMP_ERR #####
+8:1: P is finished in the loop's body (9:21), and the next pass can't send to it

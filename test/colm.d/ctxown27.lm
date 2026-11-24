@@ -1,0 +1,15 @@
+# An object lent to one parser on one side of an if, and to another on the
+# other, goes with whichever parser has it, for good.
+include 'ctxrule.lmi'
+
+A: str = argv->pop()
+C: ctx = new ctx()
+P: parser<ctx::start>
+Q: parser<ctx::start>
+if ( A == "x" )
+	P = new parser<ctx::start>( C )
+else
+	Q = new parser<ctx::start>( C )
+print( C->N, "\n" )
+##### COMP_ERR #####
+13:8: cannot use C: it went with the parser made at 12:6

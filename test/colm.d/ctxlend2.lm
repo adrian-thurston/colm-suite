@@ -1,7 +1,7 @@
 # A parser made with new gives its object back when it is finished, by
-# finish() or by a send that ends with eos, when its variable is given
-# another parser, and when the statement list its variable is declared in
-# ends. Each time the program can use the object again.
+# finish(), by eof() or by a send that ends with eos, when its variable is
+# given another parser, and when the statement list its variable is declared
+# in ends. Each time the program can use the object again.
 context ctx
 	N: int
 
@@ -44,6 +44,12 @@ if ( A == "x" ) {
 }
 C->N = C->N + 100
 print( "list end: N ", C->N, "\n" )
+
+E: parser<ctx::start> = new parser<ctx::start>( C )
+send E "f g"
+U: ctx::start = E->eof()
+C->N = C->N + 1000
+print( "eof: ", U, ", N ", C->N, "\n" )
 ##### ARGS #####
 x
 ##### EXP #####
@@ -51,3 +57,4 @@ finish: a b, N 2
 eos: c, N 3
 another: N 13
 list end: N 113
+eof: f g, N 1115

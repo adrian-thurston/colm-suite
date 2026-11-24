@@ -3,10 +3,10 @@
 # object gets the tree from its parse's actions, never from the program, and
 # the program reads the tree's attributes in place once the parser is
 # finished: the list's length, a loop over its values, and an int
-# attribute. Between the sends the object is lent to the parser. When the parser backs up over the item actions, the pushes they
-# made come off, and the length goes back. "keep" ends the input with "^",
-# which keeps the reductions of item, "back" without, which backs up over
-# them.
+# attribute. Between the sends the object is lent to the parser. When the
+# parser backs up over the item actions, the pushes they made come off, and
+# the length goes back. "keep" ends the input with "^", which keeps the
+# reductions of item, "back" without, which backs up over them.
 #
 # L is weak: a list of trees in a tree's attribute makes a cycle, so the
 # context's Held holds the list.

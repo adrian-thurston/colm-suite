@@ -1,0 +1,35 @@
+# The context object's stream sent to a parser that a global holds, by a
+# parse given a context that isn't restartable: the parser's input then
+# holds the stream.
+lex
+	token id /[a-z]+/
+	ignore /[ \n]+/
+end
+
+def other
+	[id*]
+
+global O: parser<other> = new parser<other>()
+
+context ctx
+	In: stream
+
+	lex
+		token word /[a-z]+/
+		literal `;
+		ignore /[ \n]+/
+	end
+
+	def start
+		[word* `;]
+		{
+			In = open( "/dev/null", "r" )
+			send O [In]
+		}
+end
+
+C: ctx = new ctx()
+parse S: ctx::start( C )[ "a b ;" ]
+print( S, "\n" )
+##### COMP_ERR #####
+27:9: cannot change O, a global, in an action of a parse given a context: keep the data in a context

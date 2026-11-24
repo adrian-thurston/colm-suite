@@ -2694,7 +2694,9 @@ typedef Vector<FieldInit*> FieldInitVect;
 /* A change that revert code makes to what a global holds, or a value it
  * takes out of one that could be changed: kept with the block for
  * Compiler::checkRestartable(). What is taken out is a field of the global,
- * what a call on it gives, or, if what is empty, the global itself. */
+ * what a call on it gives, or, if what is empty, the global itself. A change
+ * that puts a list, map, parser, stream or struct into the global, or a tree
+ * that shares one, puts a reference value in. */
 struct GlobalUse
 {
 	enum Kind { Change, Take };
@@ -2703,6 +2705,7 @@ struct GlobalUse
 	InputLoc loc;
 	String global;
 	String what;
+	bool putsRef;
 };
 
 struct VarRefLookup
@@ -2851,7 +2854,8 @@ struct LangVarRef
 
 	void checkContextChange( Compiler *pd, const VarRefLookup &lookup ) const;
 	bool isGlobalRef( Compiler *pd ) const;
-	void noteGlobalUse( Compiler *pd, GlobalUse::Kind kind, const String &what ) const;
+	void noteGlobalUse( Compiler *pd, GlobalUse::Kind kind, const String &what,
+			bool putsRef = false ) const;
 	void checkContextValue( Compiler *pd, const VarRefLookup &lookup,
 			UniqueType *ut, bool inPlace ) const;
 	ObjectField *setupVar( Compiler *pd, const VarRefLookup &lookup ) const;
@@ -3124,8 +3128,8 @@ struct LangTerm
 	UniqueType *evaluateParse( Compiler *pd, CodeVect &code, bool tree, bool stop ) const;
 	UniqueType *evaluateReadReduce( Compiler *pd, CodeVect &code ) const;
 	void evaluateSendStream( Compiler *pd, CodeVect &code ) const;
-	void evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) const;
-	void checkSendChange( Compiler *pd, UniqueType *varUt ) const;
+	bool evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) const;
+	void checkSendChange( Compiler *pd, UniqueType *varUt, bool putsRef ) const;
 	UniqueType *evaluateSend( Compiler *pd, CodeVect &code ) const;
 	UniqueType *evaluateSendTree( Compiler *pd, CodeVect &code ) const;
 	UniqueType *evaluateMatch( Compiler *pd, CodeVect &code ) const;

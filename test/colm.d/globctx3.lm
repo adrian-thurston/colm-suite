@@ -1,0 +1,30 @@
+# A global's list put into the context object in a function that an action
+# of a parse given a context calls, where the parse isn't restartable.
+global GL: list<str> = new list<str>()
+
+context ctx
+	L: list<str>
+
+	lex
+		token id /[a-z]+/
+		literal `;
+		ignore /[ \n]+/
+	end
+
+	void share()
+	{
+		L = GL
+	}
+
+	def start
+		[id* `;]
+		{
+			share()
+		}
+end
+
+C: ctx = new ctx()
+parse S: ctx::start( C )[ "a b ;" ]
+print( S, "\n" )
+##### COMP_ERR #####
+16:7: cannot take GL, a global, out in share, which an action of a parse given a context runs: keep the data in a context

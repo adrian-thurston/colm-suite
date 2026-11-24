@@ -310,9 +310,9 @@ parsers run, and refuses there every change of a global and every take out
 of one. A second walk, the same way, starts from every type defined in a
 context, and refuses there only what crosses the fence (13): a take out of a
 global, and a change that puts a reference value into one, an assignment or
-a call such as `push_tail` given one. `GlobalUse` notes which changes put a
-reference value in. The errors are #714's, saying
-`in an action of a parse given a context` in place of
+a call such as `push_tail` given one, or a stream sent to a parser it holds.
+`GlobalUse` notes which changes put a reference value in. The errors are
+#714's, saying `in an action of a parse given a context` in place of
 `in an action of a restartable parser`.
 
 ## Choices

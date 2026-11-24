@@ -1,0 +1,45 @@
+# A global's list put into the context object by a parse given a context
+# that isn't restartable. The object is then lent to a new parser whose
+# action pushes onto the list, and the program pops the list through the
+# global between sends. Backing up over the push would pop an empty list:
+# before the check, colm compiled the program and it segfaulted.
+global GL: list<str> = new list<str>()
+
+context ctx
+	L: list<str>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `; `=
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			L->push_tail( "g" )
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+
+	def share
+		[`=]
+		{
+			L = GL
+		}
+end
+
+C: ctx = new ctx()
+parse S: ctx::share( C )[ "=" ]
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+GL->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+33:8: cannot take GL, a global, out in an action of a parse given a context: keep the data in a context

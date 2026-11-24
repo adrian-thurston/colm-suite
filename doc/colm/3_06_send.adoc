@@ -39,7 +39,9 @@ into a variable, as in `+T: program = P->tree+`, and change the copy.
 
 A parser is a reference. Assigning it to another variable, or passing it to a
 function, doesn't copy it. Sends through either go to the same parser, as the
-function `feed` in the next example shows.
+function `feed` in the next example shows. A parser lent a context object
+stays in its variable: anywhere else, it takes the object with it for good, as
+xref:3_04_undo.adoc#context-lending[lending a context object] explains.
 
 `accum<T>` is another name for `parser<T>`, and `+P->eof()+` another name for
 `+P->finish()+`.
@@ -49,9 +51,10 @@ A parser can also be given a context, for a grammar defined inside a
 xref:3_04_undo.adoc#context[The context chapter] covers contexts. The
 context is all `new` takes. A parser gets its input from what is sent to
 it, so colm doesn't compile `+new parser<T>( input )+`, or a `new parser`
-of a type outside a context given any argument. Between two sends, and after
-them, the program reads the context object but can't change it, or give it to
-another parser, as xref:3_04_undo.adoc#context-setup[setting up a context
+of a type outside a context given any argument. The parser is lent the object
+until its `+finish()+`, or a send that ends with `eos`. Until then the program
+can't use the object, and after it the program has it back, and sends nothing
+more to the parser, as xref:3_04_undo.adoc#context-lending[lending a context
 object] explains.
 
 == Sending input piece by piece

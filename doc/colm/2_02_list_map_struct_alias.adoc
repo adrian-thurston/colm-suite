@@ -118,7 +118,7 @@ body, on the local variable the loop is over, is a compile error,
 `reference active, cannot write to object`. Any other push or pop while the
 loop runs stops the program: one through another variable that holds the
 list, in a function the body calls, on a global or a struct's field that the
-loop is over, or in the actions of a parser that the body sends to. It
+loop is over, or in the actions of a parse that the body runs. It
 prints `fatal: changing a list a loop is over` and exits with status 1, as
 xref:8_04_error_handling.adoc#run-time-errors[the error handling chapter]
 says. A parser backing up over an action's push or pop while a loop is over

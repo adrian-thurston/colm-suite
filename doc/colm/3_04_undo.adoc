@@ -46,8 +46,9 @@ struct goes.
 
 The variables start at 0, false or nil, as a struct's fields do. They can't
 have a first value: that is a parse error. Make the lists and maps that a
-parse uses before the parse, as the object is set up:
-xref:3_04_undo.adoc#context-setup[setting up a context object] says how.
+parse uses before the parse:
+xref:3_04_undo.adoc#context-lending[lending a context object] says when the
+program can use the object.
 
 Inside the block, code uses the context's variables, defs and tokens by
 name. Outside it, the context's names are qualified as a namespace's are, as
@@ -114,9 +115,10 @@ through `this`, as in `+this->N+`. It can't assign to `this` itself:
 action starts, of a type in the same context, must be given it, as in
 `+parse_stop T( this input )[]+`. A parser made with `new` takes the context
 alone, and gets its input from sends, so a parse of the action's input is a
-`parse_stop` like this one. Nor can a parser made with `new` be given `this`,
-which the action's parse holds, as
-xref:3_04_undo.adoc#context-setup[setting up a context object] explains. A
+`parse_stop` like this one. A parser made with `new` can be given `this` too.
+It is lent the action's context until its `+finish()+`, and the action can't
+use `this` or the context's variables until then, as
+xref:3_04_undo.adoc#context-lending[lending a context object] explains. A
 token action outside a context has no `this`.
 
 A `global`, such as `HereEnd` in the example `lex_heredoc` in
@@ -272,63 +274,93 @@ the parse while the parser can still back up over the action isn't only lost:
 when the parser backs up, it can corrupt the list or map, or crash the
 program.
 
-So colm doesn't compile a change to a context object from outside its parse,
-except while the program sets the object up, as the next section describes.
+So colm doesn't compile a use of a context object from outside its parse
+while a parser it is lent to can still back up, as the next section
+describes.
 A global has a guard of its own: where the program can run while a parser
 can back up, the parser's actions can't change a global, as the section after
 it describes.
 
-[[context-setup]]
-== Setting up a context object
+[[context-lending]]
+== Lending a context object
 
-Outside its parse's actions, the program changes a context object only while
-it sets the object up. The setup starts after the statement that puts a new
-object of the context into a variable, as `+Decls: decls = new decls()+` does,
-and goes on through the statements after it in the same block, up to the
-first that uses the variable other than through `+->+`: one that gives the
-object to a parse, a parser or a function, or puts it into another variable.
-Up to there, the program changes the object through the variable, as in
-`+Decls->Types = new map<str, str>()+`. A statement that gives the object to a
-new parser, as `+P = new parser<ctx::start>( C )+` does, is the last of the
-setup: a new parser runs nothing until something is sent to it. Code that
-runs later in that statement, a call of a function, a parse, or a send to or
-`finish` of a parser, could send to it, so the setup ends there. Giving the
-variable another new object starts the setup of that one.
+Giving a context object to a parse, or to a parser made with `new`, lends it
+to the parser. While the parser can back up over its actions, the program
+can't use the object at all, not even to read it. Colm checks this when it
+compiles the program, and nothing is checked when it runs. The parse's own
+actions use the object through the context's variables, by name, and in a
+token action through `this`, as before.
 
-The setup doesn't reach into a loop's body, or into a `while` loop's condition,
-unless the object is made in the body: the body runs again after the
-statements that follow it in the body, and the condition runs again after the
-body. Nor does it reach into a function.
+A `parse` is lent its object for its statement. Its items can't use it: in
+`+parse S: ctx::start( C )[ "a " C->N ]+`, the item `+C->N+` is a compile
+error. After the statement the object is the program's again. The program
+reads it and changes it, and gives it to another parse, which sees what the
+first parse's actions left in it. A parse is given one context: colm doesn't
+compile a second, with the error
+`parse command requires just context and input`.
 
-Anywhere else, colm doesn't compile a change to a context object through a
-reference to it: between two sends to its parser, after its parse, in a
-function, or in the actions of another parse. A change is an assignment to one
-of its variables or to a field of a struct it holds, a write into a tree it
-holds, a call that changes a list or a map it holds, such as `push_tail`, and
-a send to a parser or a stream it holds, or a parser's `finish`. Colm stops
-with the error `cannot change C, a context object, outside its setup`. The
-parse's own actions change the object through the context's variables, by
-name, and in a token action through `this`, as before.
+`+P: parser<ctx::start> = new parser<ctx::start>( C )+` lends `C` to the
+parser in `P` until `+P->finish()+`, `+P->eof()+`, or a send to `P` that ends
+with `eos`. Until then the program can't use `C`. After it, the program has
+`C` back, and sends nothing more to `P`, nor finishes it again. `+P->tree+`
+and `+P->error+` are read through `P` as before. While `P` is lent an object,
+`+P->gets()+` is a compile error: a push onto the input it gives is a send.
+Giving `P` another parser, or `nil`, ends the lend, as does the end of the
+block that declares `P`: nothing can send to that parser any more.
 
-Colm can't tell when the parse the object was given to has ended, so this
-holds after the parse too. For another parse, the program makes a new object.
-A parser that the context holds is finished by an action of the parse, such as
-the action of the last reduction, rather than by the program after it.
+The parser stays in `P`. Used as a value, put into another variable, passed
+to a function, or kept as a send's value, as in
+`+Q: parser<ctx::start> = send P "a"+`, it takes `C` with it for good: `C`
+can't be used again until it is given another object. A parser made with
+`new` that goes anywhere but a local variable, such as into a field or to a
+function, takes its object with it the same way. A finished parser can't be
+used as a value, nor can one lent what a parameter, `this`, a context's
+variable or a field holds, since that can't go with it. A parser in a field
+of the context gets an object of its own, as in
+`+C->Inner = new parser<ctx::inner>( new ctx() )+`. The field is declared
+`weak<parser<inner>>`: a parser holds its context, so a context can't hold a
+parser of its own types, as
+xref:2_02_list_map_struct_alias.adoc#weak[weak references] explain.
+`+C->X = new parser<ctx::start>( C )+` doesn't compile: the parser takes `C`
+with it, and `C` can't then be used to store it.
 
-What goes into a context object as it is set up is new: an object made with
+Putting a context object that a local variable holds into another variable,
+or into a field of another context object, or returning it, moves it: the
+local can't be used until it is given another object. Nothing moves out of a
+parameter, which the caller lends for the call, out of `this`, or out of a
+context's variable or a field, which is given another object in its place.
+An iterator's parameter is lent for the whole loop, so the loop's body can't
+use the object either.
+
+In an action, a parse or a parser made with `new` that is given `this`, or one
+of the context's variables, is lent the action's own context object. Until
+the lend ends, the action can't use `this` or the context's variables, nor
+call a function or an iterator that does.
+
+A lend or a move on one side of an `if` holds after it. A parser finished on
+one side only can't be sent to after the `if`, and keeps what it was lent. A
+loop's body can't leave something from outside the loop lent, moved or
+finished: the next pass would use it.
+
+Each of these is a compile error that names the object and where it was lent
+or moved, such as `+cannot use C: it is lent to P (12:7) until P->finish()+`
+or `+cannot use C: it went with the parser made at 9:12+`.
+
+What the program puts into a context object through a reference to it, as
+`+C->L = ...+` and `+C->L->push_tail( ... )+` do, is new: an object made with
 `new`, `nil`, or something the object holds already, as in
 `+Lookup->curNamespace->push_tail( Lookup->rootNamespace )+`. Anything else
 could be changed through another reference while a parser can back up. Colm
 stops with the error
-`only a new object, nil or what C holds can go into C as it is set up`.
+`only a new object, nil or what C holds can go into C`.
 An `int` or a `str` can come from anywhere, and so can a tree, which is copied
 when it is written. But a copy of a tree shares the list, map, struct, parser
 or stream that an attribute of it, or of a tree below it, holds. So a tree of
 a type that can hold one there gets into a context object only through its
-parse's actions. As the object is set up, only `nil` or what the object holds
-goes in, not even a tree that `cons` or `parse` makes, since what makes it can
-give it a list held elsewhere. Colm stops with the error
-`only nil or what C holds can go into C as it is set up: a T can hold a list, map, parser, stream or struct`.
+parse's actions. Only `nil` or what the object holds goes in this way, not
+even a tree that `cons` or `parse` makes, since what makes it can give it a
+list held elsewhere. Colm stops with the error
+`only nil or what C holds can go into C: a T can hold a list, map, parser, stream or struct`.
 
 Outside its parse's actions, the program reads a context object's variables,
 and the lists, maps, structs and parsers they hold in place, through `+->+`,
@@ -341,47 +373,6 @@ Colm stops with the error `cannot take L out of C, a context object`.
 A tree of a type that can hold one of these counts as one too. The program
 reads its attributes in place, as `+C->T.L->length+` does, and using the tree
 itself as a value, even to print or match it, takes it out.
-While a `for` loop is over such a list or map, a send that makes the
-parser's actions change it, or makes the parser back up over a change to
-it, stops the program, as
-xref:2_02_list_map_struct_alias.adoc#lists[the lists section] says.
-
-A context object is given to one parser at a time. Two parsers given one
-object would change it under each other, and backing up over an action of
-either would then work on data that isn't as the action left it. So a parser
-holds the object it is given: a parser made with `new` until the program ends,
-and a `parse` outside any action until it ends. Giving the object to another
-parser while one holds it stops the program, as
-xref:8_04_error_handling.adoc#run-time-errors[errors at run time] do, with the
-message `giving a parser a context that another parser holds`. A parser made
-with `new` holds its object even once it is finished: text sent to it after
-its end makes it parse again, and back up.
-
-A parse that an action starts runs inside the action, and backing up over the
-action backs it up whole. So what it is given is held for the parser the
-action belongs to, and every parse that parser's actions start, however deep,
-can be given the same object. That can be the action's own context, `this`, as
-in `+parse_stop T( this input )[]+`, or an object of another context that the
-context holds, given to a parse each time an action runs. The object is free
-for other parsers once the parse at the bottom, outside any action, has ended.
-A parser made with `new` at the bottom holds it until the program ends. A
-parse with an item after the first that runs code is the exception: it can
-back up between its items, while the action runs, so it holds what it is
-given for itself until it ends. So it can't be given an object that the
-action's parser holds, such as one a parse in an earlier action was given, or
-that it was given itself the last time the action ran. To share one, evaluate
-the item before the parse, into a variable.
-
-Any other parser gets an object of its own, as a parser in a field of the
-context does in `+C->Inner = new parser<ctx::inner>( new ctx() )+`, and so
-does a parser that an action makes with `new`. The field is declared
-`weak<parser<inner>>`: a parser holds its context, so a context can't hold a
-parser of its own types, as
-xref:2_02_list_map_struct_alias.adoc#weak[weak references] explain. Two
-parses one after the other can still be given one object, as it is: the
-first lets it go when it ends, and the second sees what the first's actions
-left in it. A parse is given one context: colm doesn't compile a second, with
-the error `parse command requires just context and input`.
 
 [[restartable]]
 == Globals in a restartable parser
@@ -433,7 +424,7 @@ The actions can read globals, which the program can change between sends,
 and send to a stream that a global holds, since what goes to a stream isn't
 undone. The data they change goes in a context, as in the examples of this
 chapter. The program sets up the context's object before the parse, and
-reads it in place while the parser can back up.
+uses it again once the parser it is lent to is finished.
 
 An action that a restartable parser runs can't change a global even where a
 parse that isn't restartable runs it too. A parse that isn't restartable,

@@ -2,9 +2,11 @@
 # In a production's action, setting an int, bool, struct or list attribute
 # of a global's tree or of a context's variable's tree, and setting one of a
 # global's tree in a function the action calls, stays when the parse keeps
-# the reduction of item. When the parser backs up over the action, the old
-# values come back. "keep" ends the input with ";", "back" with "!". On main
-# each set stopped the program with IN_HALT (#537). The context's tree is a
+# the reduction of item, or of citem. When the parser backs up over the
+# action, the old values come back. "keep" ends the input with ";", "back"
+# with "!". On main each set stopped the program with IN_HALT (#537). The
+# global's tree is set in a parse given no context: a parse given one can't
+# put a struct or a list into a global (#770). The context's tree is a
 # counter, which holds no list or struct: one that can goes into a context
 # only in its parse's actions (#720).
 #
@@ -40,24 +42,33 @@ void setm( V: int )
 	G.M = V
 }
 
+def item
+	[id num]
+	{
+		G.N = 3
+		G.B = true
+		G.X = new box()
+		G.X->V = 4
+		G.L = new list<int>()
+		G.L->push_tail( 5 )
+		setm( 6 )
+	}
+
+def start
+	[item id `;]
+|	[id num id `!]
+
 context ctx
 	C: counter
 
-	def item
+	def citem
 		[id num]
 		{
-			G.N = 3
-			G.B = true
-			G.X = new box()
-			G.X->V = 4
-			G.L = new list<int>()
-			G.L->push_tail( 5 )
-			setm( 6 )
 			C.N = 7
 		}
 
-	def start
-		[item id `;]
+	def cstart
+		[citem id `;]
 	|	[id num id `!]
 end
 
@@ -67,7 +78,8 @@ Ctx->C = cons counter [ "c" ]
 In: str = "y 3 u ;"
 if Run == 'back'
 	In = "y 3 u !"
-parse S: ctx::start( Ctx )[ In ]
+parse S: start[ In ]
+parse T: ctx::cstart( Ctx )[ In ]
 print( "S [S]\n" )
 print( "G ", G.N, " ", G.B, " ", G.M, " C ", Ctx->C.N, "\n" )
 if ( G.X )

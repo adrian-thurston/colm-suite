@@ -283,29 +283,11 @@ static void map_change_check( program_t *prg, map_t *map, int undo )
 	}
 }
 
-/* Takes a struct off the program's heap list, the inverse of
- * colm_struct_add(). Only colm_clear_heap(), at exit, frees what is on it. */
-static void heap_unlink( program_t *prg, struct colm_struct *s )
-{
-	if ( s->prev == 0 )
-		prg->heap.head = s->next;
-	else
-		s->prev->next = s->next;
-
-	if ( s->next == 0 )
-		prg->heap.tail = s->prev;
-	else
-		s->next->prev = s->prev;
-
-	s->prev = s->next = 0;
-}
-
 /* Frees the struct of a list's or a map's element that nothing holds any
  * more. colm_struct_delete() downrefs its trees: its value, and a map
  * element's key. */
 static void el_free( program_t *prg, tree_t **sp, struct colm_struct *s )
 {
-	heap_unlink( prg, s );
 	colm_struct_delete( prg, sp, s );
 }
 
@@ -1027,8 +1009,7 @@ static list_t *construct_argv( program_t *prg, int argc, const char **argv, cons
 		tree_t *arg = construct_string( prg, head );
 		colm_tree_upref( prg, arg );
 
-		struct_t *strct = colm_struct_new_size( prg, 16 );
-		strct->id = prg->rtd->argv_el_id;
+		struct_t *strct = colm_struct_new_el( prg, prg->rtd->argv_el_id );
 		colm_struct_set_field( strct, tree_t*, 0, arg );
 		list_el_t *list_el = colm_struct_get_addr( strct, list_el_t*, 1 );
 		colm_list_append( list, list_el );
@@ -1044,8 +1025,7 @@ static list_t *construct_stds( program_t *prg )
 
 	list_t *list = (list_t*)colm_construct_generic( prg, prg->rtd->stds_generic_id, 0 );
 
-	struct_t *strct = colm_struct_new_size( prg, 16 );
-	strct->id = prg->rtd->stds_el_id;
+	struct_t *strct = colm_struct_new_el( prg, prg->rtd->stds_el_id );
 	colm_struct_set_field( strct, stream_t*, 0, prg->stdout_val );
 	list_el_t *list_el = colm_struct_get_addr( strct, list_el_t*, 1 );
 	colm_list_append( list, list_el );
@@ -5059,7 +5039,8 @@ again:
 				/* As colm_vmap_insert(), but an element the map doesn't take,
 				 * since it has the key, is freed at once. */
 				struct generic_info *gi = map->generic_info;
-				struct colm_struct *el = colm_struct_new( prg, gi->el_struct_id );
+				struct colm_struct *el = colm_struct_new_el( prg,
+						gi->el_struct_id );
 				colm_struct_set_field( el, struct_t*, gi->el_offset, key );
 				colm_struct_set_field( el, struct_t*, 0, value );
 				if ( colm_map_insert( prg, map, colm_struct_get_addr( el,
@@ -5085,7 +5066,8 @@ again:
 
 				/* As in FN_VMAP_INSERT_WC. */
 				struct generic_info *gi = map->generic_info;
-				struct colm_struct *el = colm_struct_new( prg, gi->el_struct_id );
+				struct colm_struct *el = colm_struct_new_el( prg,
+						gi->el_struct_id );
 				colm_struct_set_field( el, struct_t*, gi->el_offset, key );
 				colm_struct_set_field( el, struct_t*, 0, value );
 				map_el_t *inserted = colm_map_insert( prg, map,
@@ -5173,15 +5155,14 @@ again:
 
 				map_el_t *map_el = colm_vmap_remove( prg, map, key );
 
-				/* The removed value, as in FN_VMAP_REMOVE_WC. The element
-				 * leaves the heap list: the reverse code holds it now. */
+				/* The removed value, as in FN_VMAP_REMOVE_WC. The reverse code
+				 * holds the element now. */
 				value_t val = 0;
 				if ( map_el != 0 ) {
 					struct colm_struct *el = colm_generic_el_container( prg, map_el, gen_id );
 					val = colm_struct_get_field( el, value_t, 0 );
 					if ( map->generic_info->value_type == TYPE_TREE )
 						colm_tree_upref( prg, (tree_t*)val );
-					heap_unlink( prg, el );
 				}
 				vm_push_value( val );
 
@@ -5210,13 +5191,10 @@ again:
 
 				map_t *map = vm_pop_map();
 
-				/* The map doesn't have the key: it is as the remove left it.
-				 * The element goes back on the heap list. */
+				/* The map doesn't have the key: it is as the remove left it. */
 				if ( map_el != 0 ) {
 					map_change_check( prg, map, 1 );
 					colm_map_insert( prg, map, map_el );
-					colm_struct_add( prg, colm_generic_el_container( prg, map_el,
-							map->generic_info - prg->rtd->generic_info ) );
 				}
 				break;
 			}
@@ -5256,7 +5234,8 @@ again:
 				struct_t *key = vm_pop_struct();
 
 				struct generic_info *gi = map->generic_info;
-				struct colm_struct *el = colm_struct_new( prg, gi->el_struct_id );
+				struct colm_struct *el = colm_struct_new_el( prg,
+						gi->el_struct_id );
 				colm_struct_set_field( el, struct_t*, gi->el_offset, key );
 				colm_struct_set_field( el, struct_t*, 0, value );
 
@@ -5475,12 +5454,10 @@ again:
 				list_change_check( prg, list, 0 );
 
 				/* As in the _WC form, but the reverse code holds the element,
-				 * with its own reference to the value, and it leaves the heap
-				 * list. */
+				 * with its own reference to the value. */
 				list_el_t *list_el = list->head;
 				value_t result = colm_vlist_detach_head( prg, list );
 				struct colm_struct *el = colm_generic_el_container( prg, list_el, gen_id );
-				heap_unlink( prg, el );
 				vm_push_value( result );
 
 				/* Set up reverse. */
@@ -5503,7 +5480,6 @@ again:
 
 				/* The element the pop took off goes back, with its value. */
 				struct colm_struct *el = (struct colm_struct*)wel;
-				colm_struct_add( prg, el );
 				colm_list_prepend( list, colm_struct_get_addr( el, list_el_t*,
 						list->generic_info->el_offset ) );
 				break;
@@ -5537,12 +5513,10 @@ again:
 				list_change_check( prg, list, 0 );
 
 				/* As in the _WC form, but the reverse code holds the element,
-				 * with its own reference to the value, and it leaves the heap
-				 * list. */
+				 * with its own reference to the value. */
 				list_el_t *list_el = list->tail;
 				value_t result = colm_vlist_detach_tail( prg, list );
 				struct colm_struct *el = colm_generic_el_container( prg, list_el, gen_id );
-				heap_unlink( prg, el );
 				vm_push_value( result );
 
 				/* Set up reverse. */
@@ -5565,7 +5539,6 @@ again:
 
 				/* The element the pop took off goes back, with its value. */
 				struct colm_struct *el = (struct colm_struct*)wel;
-				colm_struct_add( prg, el );
 				colm_list_append( list, colm_struct_get_addr( el, list_el_t*,
 						list->generic_info->el_offset ) );
 				break;

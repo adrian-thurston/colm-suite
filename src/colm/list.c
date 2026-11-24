@@ -60,7 +60,7 @@ long colm_list_length( list_t *list )
 
 void colm_vlist_append( struct colm_program *prg, list_t *list, value_t value )
 {
-	struct colm_struct *s = colm_struct_new( prg, list->generic_info->el_struct_id );
+	struct colm_struct *s = colm_struct_new_el( prg, list->generic_info->el_struct_id );
 
 	colm_struct_set_field( s, value_t, 0, value );
 
@@ -71,7 +71,7 @@ void colm_vlist_append( struct colm_program *prg, list_t *list, value_t value )
 
 void colm_vlist_prepend( struct colm_program *prg, list_t *list, value_t value )
 {
-	struct colm_struct *s = colm_struct_new( prg, list->generic_info->el_struct_id );
+	struct colm_struct *s = colm_struct_new_el( prg, list->generic_info->el_struct_id );
 
 	colm_struct_set_field( s, value_t, 0, value );
 
@@ -195,8 +195,17 @@ list_el_t *colm_list_detach( list_t *list, list_el_t *el )
 	return el;
 }
 
+/* Frees the list's elements, from the head, with what each holds. */
 static void colm_list_destroy( struct colm_program *prg, tree_t **sp, struct colm_struct *s )
 {
+	list_t *list = (list_t*)s;
+	long gen_id = list->generic_info - prg->rtd->generic_info;
+	list_el_t *list_el = list->head;
+	while ( list_el != 0 ) {
+		list_el_t *next = list_el->list_next;
+		colm_struct_delete( prg, sp, colm_generic_el_container( prg, list_el, gen_id ) );
+		list_el = next;
+	}
 }
 
 list_t *colm_list_new( struct colm_program *prg )

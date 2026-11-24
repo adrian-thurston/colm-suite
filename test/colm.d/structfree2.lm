@@ -1,0 +1,62 @@
+# A struct freed during a run releases what its fields hold: a tree, and a
+# list and a map, which free their elements and the trees in them. As in
+# structfree1, the host functions count the references the program holds.
+# The run's leak check shows that no tree is lost.
+
+struct holder
+	L: list<str>
+	M: map<str, str>
+	T: str
+end
+
+int hold_list( L: list<str> ) = c_hold
+int hold_map( M: map<str, str> ) = c_hold
+int hold( H: holder ) = c_hold
+int drop( H: holder ) = c_drop
+int heap_structs() = c_heap_structs
+
+H: holder = new holder()
+hold( H )
+H->L = new list<str>()
+hold_list( H->L )
+H->M = new map<str, str>()
+hold_map( H->M )
+H->T = "tree"
+I: int = 0
+while ( I < 1000 ) {
+	H->L->push_tail( "v[I]" )
+	H->M->insert( "k[I]", "v[I]" )
+	I = I + 1
+}
+Before: int = heap_structs()
+drop( H )
+H = nil
+print( "freed ", Before - heap_structs(), "\n" )
+##### CALL #####
+#include <colm/tree.h>
+#include <colm/bytecode.h>
+#include <colm/program.h>
+#include <colm/struct.h>
+
+value_t c_hold( program_t *prg, tree_t **sp, value_t a1 )
+{
+	colm_struct_upref( prg, (struct colm_struct*)a1 );
+	return 0;
+}
+
+value_t c_drop( program_t *prg, tree_t **sp, value_t a1 )
+{
+	colm_struct_downref( prg, sp, (struct colm_struct*)a1 );
+	return 0;
+}
+
+value_t c_heap_structs( program_t *prg, tree_t **sp )
+{
+	long count = 0;
+	struct colm_struct *s;
+	for ( s = prg->heap.head; s != 0; s = s->next )
+		count += 1;
+	return (value_t)count;
+}
+##### EXP #####
+freed 3

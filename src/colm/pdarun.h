@@ -146,6 +146,8 @@ struct struct_el_info
 	long size;
 	short *trees;
 	long trees_len;
+	short *structs;
+	long structs_len;
 };
 
 struct prod_info

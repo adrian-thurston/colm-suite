@@ -1331,6 +1331,52 @@ short *Compiler::makeTrees( ObjectDef *objectDef, int &numTrees )
 	return trees;
 }
 
+/* The fields that hold a struct: a struct, a context, an _input, a stream, a
+ * list, a map or a parser. A weak reference holds none. */
+short *Compiler::makeStructs( ObjectDef *objectDef, int &numStructs )
+{
+	numStructs = 0;
+	for ( FieldList::Iter of = objectDef->fieldList; of.lte(); of++ ) {
+		if ( of->value->exists() ) {
+			UniqueType *ut = of->value->typeRef->resolveType( this );
+			if ( ut->ptr() )
+				numStructs += 1;
+		}
+	}
+
+	short *structs = new short[numStructs];
+	memset( structs, 0, sizeof(short) * numStructs );
+
+	short pos = 0;
+	for ( FieldList::Iter of = objectDef->fieldList; of.lte(); of++ ) {
+		if ( of->value->exists() ) {
+			UniqueType *ut = of->value->typeRef->resolveType( this );
+			if ( ut->ptr() ) {
+				structs[pos] = of->value->offset;
+				pos += 1;
+			}
+		}
+	}
+
+	return structs;
+}
+
+/* Whether sel is a list's or a map's element. Until #668's instructions count
+ * what a list or a map holds, nothing counts an element's struct value or
+ * key, so an element lists no structs to release. #668's implementation
+ * removes this when it counts them. */
+static bool isListOrMapEl( Compiler *pd, StructEl *sel )
+{
+	for ( NamespaceList::Iter nspace = pd->namespaceList; nspace.lte(); nspace++ ) {
+		for ( GenericList::Iter gen = nspace->genericList; gen.lte(); gen++ ) {
+			if ( ( gen->typeId == GEN_LIST || gen->typeId == GEN_MAP ) &&
+					gen->elUt->structEl == sel )
+				return true;
+		}
+	}
+	return false;
+}
+
 
 void Compiler::makeRuntimeData()
 {
@@ -1528,6 +1574,13 @@ void Compiler::makeRuntimeData()
 				( sel->structDef->isContext ? 1 : 0 );
 		runtimeData->sel_info[i].trees = makeTrees( sel->structDef->objectDef, treesLen );
 		runtimeData->sel_info[i].trees_len = treesLen;
+
+		if ( !isListOrMapEl( this, sel ) ) {
+			int structsLen;
+			runtimeData->sel_info[i].structs = makeStructs(
+					sel->structDef->objectDef, structsLen );
+			runtimeData->sel_info[i].structs_len = structsLen;
+		}
 	}
 
 	/*

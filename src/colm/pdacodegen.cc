@@ -210,6 +210,15 @@ void PdaCodeGen::writeRuntimeData( colm_sections *runtimeData, struct pda_tables
 				out << ti[j] << ", ";
 			out << "\n};\n\n";
 		}
+
+		if ( el->structs_len > 0 ) {
+			out << "static short struct_structs_" << i << "[] = {\n\t";
+
+			short *si = el->structs;
+			for ( int j = 0; j < el->structs_len; j++ )
+				out << si[j] << ", ";
+			out << "\n};\n\n";
+		}
 	}
 
 	/*
@@ -227,6 +236,13 @@ void PdaCodeGen::writeRuntimeData( colm_sections *runtimeData, struct pda_tables
 		else
 			out << "0, ";
 		out << el->trees_len << ", ";
+
+		/* structs. */
+		if ( el->structs_len > 0 )
+			out << "struct_structs_" << i << ", ";
+		else
+			out << "0, ";
+		out << el->structs_len << ", ";
 
 		out << " },\n";
 	}

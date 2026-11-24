@@ -760,6 +760,7 @@ struct Compiler
 
 	struct local_info *makeLocalInfo( Locals &locals );
 	short *makeTrees( ObjectDef *objectDef, int &numTrees );
+	short *makeStructs( ObjectDef *objectDef, int &numStructs );
 
 	/* 
 	 * Graphviz Generation

@@ -549,7 +549,7 @@ map_el_t *colm_map_insert( program_t *prg, map_t *map, map_el_t *map_el )
 
 map_el_t *colm_vmap_insert( program_t *prg, map_t *map, struct_t *key, struct_t *value )
 {
-	struct colm_struct *s = colm_struct_new( prg, map->generic_info->el_struct_id );
+	struct colm_struct *s = colm_struct_new_el( prg, map->generic_info->el_struct_id );
 
 	colm_struct_set_field( s, struct_t*, map->generic_info->el_offset, key );
 	colm_struct_set_field( s, struct_t*, 0, value );

@@ -231,8 +231,13 @@ void colm_run_program( program_t *prg, int argc, const char **argv )
 	colm_run_program2( prg, argc, argv, 0 );
 }
 
+/* Frees every struct left. Each is on the heap list, and this walk frees it,
+ * so the downrefs that their teardowns make do nothing (clearing_heap).
+ * Nothing clears the flag: the program is deleted next. */
 static void colm_clear_heap( program_t *prg, tree_t **sp )
 {
+	prg->clearing_heap = 1;
+
 	struct colm_struct *hi = prg->heap.head;
 	while ( hi != 0 ) {
 		struct colm_struct *next = hi->next;

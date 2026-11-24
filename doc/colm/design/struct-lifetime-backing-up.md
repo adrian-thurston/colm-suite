@@ -93,7 +93,9 @@ this rule: a record counts each tree it names.
 6. Each unit that a `_WV` starts is ended by the write after it. A unit
    left open makes `colm_make_reverse_code()` read the last byte of the
    unit's last word as its length, and the reference its record holds is
-   never released. [#762] leaves such a unit open today.
+   never released. A call of a built-in that records no reverse code, a
+   stream's `close()` or `auto_trim()` or an input's `auto_trim()`, loads
+   its object as for a read, so it starts no unit ([#762]).
 
 ## Why each hold is needed
 

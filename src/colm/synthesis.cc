@@ -1732,9 +1732,14 @@ bool LangVarRef::isFinishCall( VarRefLookup &lookup ) const
 
 void LangVarRef::callOperation( Compiler *pd, CodeVect &code, VarRefLookup &lookup ) const
 {
-	/* This is for writing if it is a non-const builtin. */
+	/* This is for writing if it is a non-const builtin with an undo. One with
+	 * the same instruction for both forms records no reverse code: a stream's
+	 * close() and auto_trim(), and an input's auto_trim(). Loading its object
+	 * for a write that is undone would start a unit of reverse code that
+	 * nothing ends, so it loads the object as for a read. */
 	bool forWriting = lookup.objMethod->func == 0 && 
-			!lookup.objMethod->isConst;
+			!lookup.objMethod->isConst &&
+			lookup.objMethod->opcodeWV != lookup.objMethod->opcodeWC;
 
 	if ( lookup.objMethod->useCallObj ) {
 		/* Load the object, if any. */

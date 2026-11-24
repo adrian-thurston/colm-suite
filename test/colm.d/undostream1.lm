@@ -1,0 +1,119 @@
+#
+# A stream's close() and auto_trim(), and an input's auto_trim(), called
+# through a pointer in a production's action: through a global, through a
+# local, and in a function the action calls. None of them may leave a unit of
+# reverse code open, which crashes the parser at the end of the action. The
+# argument picks the call.
+#
+# The parse reduces each item, then fails at the !, and backs up to take the
+# second production of start. Backing up undoes each action's change to Count,
+# but not the call, as it doesn't undo a send to a stream either. The close
+# writes out what the first action sent to File, which reading the file back
+# shows. Without a close, it is still in File's buffer. Out, and the input of
+# Q, trim what is sent to them once auto_trim() has turned trimming on.
+#
+
+lex
+	token id / [a-z]+ /
+	literal `; `. `!
+	ignore / [ \n]+ /
+end
+
+global Arg: str = argv->pop()
+global Count: int = 0
+global File: stream = open( "working/undostream1.out", "w" )
+global Out: stream = new stream()
+global Q: parser<text> = new parser<text>()
+
+void call( S: stream )
+{
+	S->close()
+}
+
+def item
+	[id]
+	{
+		Count = Count + 1
+		send File "<" [$r1] ">"
+		if ( Arg == "close" )
+			File->close()
+		elsif ( Arg == "trim" )
+			Out->auto_trim( true )
+		elsif ( Arg == "local" ) {
+			L: stream = File
+			L->close()
+		}
+		elsif ( Arg == "function" )
+			call( File )
+		elsif ( Arg == "input" ) {
+			I: _input = Q->gets()
+			I->auto_trim( true )
+		}
+	}
+
+def start
+	[item* `; `.]
+|	[id* `; `!]
+
+lex
+	token ch / any /
+end
+
+def text
+	[ch*]
+
+parse S: start[ " a b ; !\n" ]
+print( "Count: ", Count, "\n" )
+
+send File "<after>"
+send Out [S]
+print( "Out: {", Out->tree, "}\n" )
+
+send Q [S] eos
+print( "Q: {", Q->tree, "}\n" )
+
+parse T: text[ open( "working/undostream1.out", "r" ) ]
+print( "File: {", T, "}\n" )
+##### ARGS #####
+close
+##### EXP #####
+Count: 0
+Out: { a b ; !
+}
+Q: { a b ; !
+}
+File: {<a>}
+##### ARGS #####
+trim
+##### EXP #####
+Count: 0
+Out: {a b ; !}
+Q: { a b ; !
+}
+File: {}
+##### ARGS #####
+local
+##### EXP #####
+Count: 0
+Out: { a b ; !
+}
+Q: { a b ; !
+}
+File: {<a>}
+##### ARGS #####
+function
+##### EXP #####
+Count: 0
+Out: { a b ; !
+}
+Q: { a b ; !
+}
+File: {<a>}
+##### ARGS #####
+input
+##### EXP #####
+Count: 0
+Out: { a b ; !
+}
+Q: {a b ; !}
+File: {}

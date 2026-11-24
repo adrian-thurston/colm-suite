@@ -19,8 +19,10 @@ stays as dead code, or as a second check beside the new one.
   `evaluateCall()` and `LangTerm::checkSendChange()`. `evaluateSetupValue()`
   keeps only [what goes in](#what-goes-in-12). `endReachableSetups()` keeps
   only its count of `otherCodeRuns`, which `restartTypes` needs, under a
-  name that says so. `ctxValueInPlace` loses its context uses, the send
-  target and what a change puts in. [#714]'s takes of a global still use it.
+  name that says so (`countOtherCode()`). `ctxValueInPlace` loses its
+  context uses, the send target and what a change puts in, when [#773]
+  turns `checkContextValue()` into the loan's escape: until then, its take
+  refusal needs them. [#714]'s takes of a global still use it.
 - **The parts of [#720]'s rule that loans replace** (PR #749):
   `checkContextValue()`'s refusal of a tree that can hold a reference value,
   read through a context object, used as a value: printed, matched, its text
@@ -96,7 +98,7 @@ A `ref<T>` takes only a tree already. The error, at the place's type:
 
 ## The ownership state
 
-`Compiler::Owns`, kept as `setupWindows` is, holds an entry for each root
+`Compiler::owns`, a list of `Compiler::Own`, holds an entry for each root
 the code has done something to. A *root* is a local variable or a parameter
 (an `ObjectField`), or the *running context*: the object the code's parse
 was given, which `this` and a context's variables named alone reach
@@ -114,8 +116,8 @@ says one of:
   is **unique** (12).
 
 A root with no entry is the code's to use. `CodeBlock::compile()` saves and
-clears the state for each block, as it does the windows, and a function or
-an iterator starts with none: its parameters are lent to it by its caller.
+clears the state for each block, and a function or an iterator starts with
+none: its parameters are lent to it by its caller.
 
 ### Uses
 
@@ -127,8 +129,16 @@ loan has ended:
 
     cannot use C: it is lent to P (12:7) until P->finish()
     cannot use C: it is lent to the parse (12:7) for its statement
+    cannot use C: it is lent to each (12:7) until its loop ends
+    cannot use C: it was moved at 12:7
     cannot use C: it went with the parser made at 12:7
     cannot use X: it is a loan on C, which was lent at 15:3
+
+A use of the running context, through `this` or a context variable, says
+`the context object` in place of `it`, as in
+`cannot use L: the context object is lent to the parse (12:7) for its
+statement`. The error is at the root's name. The receiver of a call is
+checked before its arguments, though it is loaded after them.
 
 `loadObj()` only checks. The state changes where a value is given: an
 assignment, a return, a call's arguments, a parse's and a `new parser`'s
@@ -144,7 +154,9 @@ and the place assigned to has the object. A parameter, `this`, a context
 variable named alone or a field read through `->` can't move:
 
     cannot move C: the caller lends it for the call
+    cannot move this: the parse lends it for the action
     cannot move Sub out of C: give the field another object in its place
+    cannot move Sub out of the context object: give the field another object in its place
 
 Giving a variable or a field another object ends what was recorded of the
 old one: its entry goes, and loans on it end.
@@ -178,20 +190,34 @@ leaves it to whatever takes the new parser:
 Then, on `P`:
 
 - `P->finish()` or `P->eof()` (`ObjectMethod::ParseFinish`, in
-  `evaluateCall()`) marks `P` finished, and the root is the code's again.
+  `evaluateCall()`) marks `P` finished, and the root is the code's again. So
+  does a send to `P` that ends with `eos`, which sends the end of the input
+  as `finish()` does.
 - A send, a `send_tree`, a second `finish()`, or `P->gets()` on a finished
   `P` is refused:
 
         cannot send to P: it was finished at 14:1
+        cannot finish P: it was finished at 14:1
+        cannot get the input of P: it was finished at 14:1
 
   `P->gets()` is refused before the `finish()` too: pushes onto the input
   it gives are sends the state can't follow.
+
+        cannot get the input of P: it is lent a context object until P->finish()
 - `P->tree` and `P->error` are read through `P` as before. `P->tree` of a
   type that can hold a reference value is refused until `P` is finished
   (16). Reading a tree before the input has ended already stops the program
   (`IN_GET_PARSER_MEM_R`), unless the parse failed or is a `parse_stop`.
 - Any other use of `P` as a value, in `LangVarRef::evaluate()`, moves the
-  root with the parser for good.
+  root with the parser for good. So does a send's value, which is the
+  parser, when it is kept, as in `Q = send P "a"`. Only a send that is a
+  whole statement leaves `P` where it is. A finished `P` can't be used as a
+  value at all: a function given it could send to it again ([#439]). Nor
+  can a `P` lent what a parameter, `this`, a context variable or a field
+  holds, since that can't go with it (10):
+
+        cannot use P as a value: it was finished at 14:1
+        cannot use P as a value: what it is lent (12:7) can't go with it
 - Giving `P` another parser, and the end of the statement list `P` is
   declared in (`compileStmtList()`), end the lend: nothing can send to the
   old parser.
@@ -233,13 +259,19 @@ Nothing saves compiler state across a branch today, so this adds it:
   `if` if it is on either side, and a parser variable is finished only if it
   is on both. A `P` finished on one side only can't be sent to, and doesn't
   give its root back. Entries for variables declared in a branch go with
-  the branch's statement list.
+  the branch's statement list. The loader records the scope that each
+  nested statement list declares its variables in on the statement that
+  owns the list (`LangStmt::scope`), and `compileStmtList()` drops the
+  entries of that scope's variables at the list's end.
 - **Loops** (`compileLoopBody()`, and a `while` loop's condition): at the
-  end of the body, a root from outside the loop must be in the state it was
-  in at the start, or the next pass would use what the last one lent or
-  moved:
+  end of the body, what the body lent, moved or finished of what is outside
+  the loop must be as it was at the start, or the next pass would use what
+  the last one lent or moved. What the body gives back is safe on the next
+  pass. The error is at the loop:
 
         C is lent in the loop's body (14:5), and isn't back by its end
+        C is moved in the loop's body (14:5), and isn't given another object by its end
+        P is finished in the loop's body (14:5), and the next pass can't send to it
 
   A loan that ended in the body is checked the same way.
 
@@ -370,8 +402,11 @@ In `test/colm.d`.
   after a lend.
 - **Reads between sends.** `ctxset2`, `loopchg5`, `loopchg6` and
   `structsplit3` read the object while a parser holds it, and are rewritten
-  or become errors. The run-time stops `loopchg5` and `loopchg6` reach stay,
-  for a global's list or map in a parse that isn't restartable.
+  or become errors. `loopchg5` reaches its stops through a global's list or
+  map in a parse that isn't restartable. `loopchg6`'s stop, backing up over
+  a change while a loop is over the list, can't be reached by a program
+  that compiles, and `loopchg6` is refused at its loop. The stop stays in
+  the runtime.
 - **Context types.** `ctxset1` drops its context-typed global, and
   `ctxchg3`, `ctxchg11`, `ctxchg14` and `ctxchg18`, whose globals hold a
   context object, are refused at the global. `weak11` drops its
@@ -386,6 +421,10 @@ In `test/colm.d`.
   refusal. A run case each for what is new: a change and a second parse
   after a parse, an object back after `finish()`, a unique local moved in,
   and a loan read after its parse.
+- **The cases.** [#771] added `ctxown1`–`ctxown22`, one refusal each, and
+  the run cases `ctxlend1`–`ctxlend3`, the last [#757]'s programs.
+  `ctxhold5`'s runs became `ctxhold5`, `ctxhold10` and `ctxhold11` (refused),
+  `ctxhold12` and `ctxhold13`.
 
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706
@@ -396,3 +435,5 @@ In `test/colm.d`.
 [#755]: https://github.com/adrian-thurston/colm-suite/issues/755
 [#756]: https://github.com/adrian-thurston/colm-suite/issues/756
 [#757]: https://github.com/adrian-thurston/colm-suite/issues/757
+[#771]: https://github.com/adrian-thurston/colm-suite/issues/771
+[#773]: https://github.com/adrian-thurston/colm-suite/issues/773

@@ -3,8 +3,9 @@
 For [#714]. This says what must hold of a global while a parser whose
 actions could change it can back up, and what colm checks. The
 [design](global-change-design.md) says how the compiler checks it. It is the
-companion of the [rule for context objects](context-change-requirements.md),
-[#706].
+companion of the
+[ownership rule for context objects](context-ownership-requirements.md),
+[#767].
 
 ## Terms
 
@@ -60,13 +61,14 @@ companion of the [rule for context objects](context-change-requirements.md),
 - A tree that the program sends to a parser as itself, whose attribute holds
   a list, map or struct, through a global or not: the [rule for context
   objects](context-change-requirements.md) refuses it ([#729]).
-- Two parsers given one context object ([#718]).
+- Two parsers given one context object: the
+  [ownership check](context-ownership-design.md) refuses it ([#771]).
 - Host programs: exports give a host trees, never structs.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#683]: https://github.com/adrian-thurston/colm-suite/issues/683
 [#687]: https://github.com/adrian-thurston/colm-suite/issues/687
-[#706]: https://github.com/adrian-thurston/colm-suite/issues/706
 [#714]: https://github.com/adrian-thurston/colm-suite/issues/714
-[#718]: https://github.com/adrian-thurston/colm-suite/issues/718
 [#729]: https://github.com/adrian-thurston/colm-suite/issues/729
+[#767]: https://github.com/adrian-thurston/colm-suite/issues/767
+[#771]: https://github.com/adrian-thurston/colm-suite/issues/771

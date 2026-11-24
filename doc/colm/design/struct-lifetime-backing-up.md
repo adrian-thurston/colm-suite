@@ -6,9 +6,8 @@ them, to meet requirement 7 of the
 [requirements](struct-lifetime-requirements.md). It uses the calls of
 [#667]'s [runtime model](struct-lifetime-runtime.md), the instructions of
 [#668]'s [design](struct-lifetime-instructions.md) and the cell of [#670]'s
-[weak references](weak-reference-design.md). It also gives a weak reference
-to the hold that [#718] added to a context object after those designs. A
-number in brackets, as (7), is a requirement's.
+[weak references](weak-reference-design.md). A number in brackets, as (7),
+is a requirement's.
 
 ## Before
 
@@ -257,47 +256,6 @@ up over the action.
   nil: the record keeps the old cell, which counts nothing, so it keeps no
   old target alive ([#670]).
 
-## A context object's hold
-
-[#718] gave each context object a slot past its fields (`context_hold()`),
-which names the parser that holds the object, so that no parser with
-another owner is given it while that parser can still back up. It also
-gave each parser `pda_run->hold_owner`, the parser whose backing up backs
-it up ([design](context-change-design.md)). Both are plain pointers, which
-nothing counts. Once parsers are freed, the slot can name a freed parser:
-a `parse`'s parser is freed at the end of the parse ([#668]), and the next
-parse given the object follows the slot, in `IN_SET_PARSER_CONTEXT`.
-`ctxhold6`, and `ctxhold8`'s `after` run, do that. The maintainer chose,
-in planning #669, to settle it here, with a cell.
-
-- The slot keeps a weak reference, a [#670] cell, to the parser it names.
-  It reads nil once that parser is freed: no parser holds the object
-  then, and any parser can be given it.
-- So a `new parser` holds its object until it is freed, not to the end of
-  the program, as [context requirement 10](context-change-requirements.md)
-  and the [context-change design](context-change-design.md) say today.
-  Once the program drops such a parser, another parser can be given its
-  object, where today the program stops. A freed parser can't back up,
-  and backing up is all that the hold guards against. Those lines change
-  when this is built.
-- `IN_SET_PARSER_CONTEXT` reads the slot's parser with `colm_weak_get()`,
-  and names the owner in it with `colm_weak_set()`. Setting up a parser is
-  never undone, so the cell moves from parser to parser.
-- `Compiler::makeWeaks()` ([#670]) lists a context's slot, the word past
-  its fields, in `weaks`, so freeing the object frees the cell.
-- A strong reference in the slot would make a cycle: the object would hold
-  its parser, which holds the object as its context, or holds, through
-  its reverse code, the parse that was given it.
-- `pda_run->hold_owner` stays a plain pointer. It names another parser
-  only for a parse that an action starts (`IN_SET_PARSER_OWNER`,
-  `IN_RELEASE_PARSER_CONTEXT`). No program can name such a parser, so,
-  once the parse has ended, only the reverse code of the action's parser
-  holds it (rule 1). That parser is the owner, or is held the same way by
-  a parser nearer the owner. So the parse is freed with its owner at the
-  latest, and `parser_owner()`, which runs only in program code, never
-  reads a freed parser.
-- [#757] is about which parser holds an object, not how the slot keeps it.
-
 ## Cycles
 
 [#671]'s check has no edge for what a parser's reverse code holds, and
@@ -339,12 +297,6 @@ and `weaks_len` in `pdarun.h`, comes with this design, ahead of the rest
   unit when its struct has gone: once `colm_make_reverse_code()` has moved
   a unit into a block, the unit's length is gone, so a `_BKT` can't skip
   the rest of it. An old value must be held strongly anyway (7).
-- **A list on each parser of the objects it holds**, for the context's
-  hold: it is taken apart from both ends, as a cell is, so it would be a
-  second weak mechanism.
-- **Leaving the context's hold to an issue of its own**: the maintainer
-  chose to settle it here, since no parser can be freed without it.
-- **A strong reference in the context's slot**: a cycle (above).
 - **Edges for the reverse code in [#671]'s graph**: they would add no
   cycle that the graph misses (above).
 
@@ -374,22 +326,13 @@ other designs' Validation, with `COLM_LEAK_CHECK` and `--valgrind` clean:
   its old target, or nil when the target was freed in between ([#670]).
 - A production action that stores a new struct in a global, then rejects:
   the struct is freed as the parser backs up over the action.
-- Two parses given one context object, one after the other, the first's
-  parser freed at its end: the second is given the object (`ctxhold6`,
-  `ctxhold8`).
-- A `new parser` given a context object, which the program then drops: a
-  parser given the object after the drop parses, where today the program
-  stops with `giving a parser a context that another parser holds`.
 
 ## Building it
 
 This, [#667]'s runtime and [#668]'s instructions are built together, as
 [#667] says: once a struct can be freed, every undo must hold what it can
-put back. The cell's part of [#670]'s runtime comes with them, for a
-context object's hold: the cell, its five calls, `prg->weak_pool`,
-`colm_weak_clear()` in step 1 of freeing, and `makeWeaks()` with `weaks`
-in `struct_el_info`, which list only a context's slot until then. The rest
-of [#670]'s runtime, the instructions of `weak<T>` among it, comes after.
+put back. [#670]'s runtime, the instructions of `weak<T>` among it, comes
+after.
 
 [#663]: https://github.com/adrian-thurston/colm-suite/issues/663
 [#667]: https://github.com/adrian-thurston/colm-suite/issues/667
@@ -398,6 +341,4 @@ of [#670]'s runtime, the instructions of `weak<T>` among it, comes after.
 [#670]: https://github.com/adrian-thurston/colm-suite/issues/670
 [#671]: https://github.com/adrian-thurston/colm-suite/issues/671
 [#714]: https://github.com/adrian-thurston/colm-suite/issues/714
-[#718]: https://github.com/adrian-thurston/colm-suite/issues/718
-[#757]: https://github.com/adrian-thurston/colm-suite/issues/757
 [#762]: https://github.com/adrian-thurston/colm-suite/issues/762

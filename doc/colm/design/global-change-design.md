@@ -19,16 +19,15 @@ reverse code or the runtime changes.
   `globalUses` when the reference starts at a global
   (`LangVarRef::isGlobalRef()`, which makes `loadObj()`'s choice). A child
   named on its own in a switch case starts where the switch's variable
-  does, and the use names the global that variable starts at. These are
-  the places [#706]'s checks are made:
+  does, and the use names the global that variable starts at. These are:
   - a change: in `assignValue()`; in `evaluateCall()`, for a call on what a
-    global holds that changes it (the `change` that `checkContextChange()`
-    gets, which counts a parser's `finish`); and in
-    `LangTerm::checkSendChange()`, for a send to a parser, not to a stream;
+    global holds that changes it (its `change`, which counts a parser's
+    `finish`); and in `LangTerm::checkSendChange()`, for a send to a
+    parser, not to a stream;
   - a take: in `LangVarRef::evaluate()`, of a value that `heldRef()`
     counts, unless it is read in place (`ctxValueInPlace`), and in
     `evaluateCall()`, of such a value that a call on what a global holds
-    gives. `heldRef()` counts what [#706]'s checks count: what
+    gives. `heldRef()` counts what `checkContextValue()` counts: what
     `ctxHeldRef()` does, and a tree type that `Compiler::treeHoldsRef()`
     finds (`sharesRef()`): one with an attribute, or a tree below it with
     one, that can hold a list, map, parser, stream or struct. It finds them
@@ -48,11 +47,10 @@ reverse code or the runtime changes.
 - `LangTerm::evaluateNew()`: the type of every `new parser`.
 - `LangTerm::evaluateParse()`: the type of a parse with an item after the
   first that runs other code. `Compiler::otherCodeRuns` counts the calls of
-  `endReachableSetups()`, which [#706] makes wherever other code runs: a call
-  of a function, a parse, a send to a parser, a `finish`, a user iterator's
-  loop and a yield. `evaluateCall()` counts a call that changes what it is
-  called on, such as `pop_tail`, too. An item whose evaluation changes the
-  count runs code.
+  `countOtherCode()`, made wherever other code runs: a call of a function, a
+  parse, a send to a parser, a `finish`, a user iterator's loop and a yield.
+  `evaluateCall()` counts a call that changes what it is called on, such as
+  `pop_tail`, too. An item whose evaluation changes the count runs code.
 
 ## What a restartable parser runs
 
@@ -92,8 +90,9 @@ The error is at the global's name:
 - Restartable parsers only, not every parser: the maintainer's brief. Ragel's
   parser and the manual's lexing examples change globals in parses that
   aren't restartable.
-- At compile time, as [#706]'s check is, once all the code is compiled: what
-  a parser runs is known only then, as for `checkRefCopies()`.
+- At compile time, as the ownership check of a context object is, once all
+  the code is compiled: what a parser runs is known only then, as for
+  `checkRefCopies()`.
 - A parse's first item may run code: nothing has been sent when it runs.
 - Sends to and `finish` of a parser that a global holds, and takes, are
   refused too: the maintainer's answer. A send to a stream isn't: what goes
@@ -111,10 +110,6 @@ The error is at the global's name:
   it does for a context object ([#720]). Kept simple at a small cost:
   printing or matching such a tree, which uses it as a value, counts too.
 
-## Limits
-
-- Two parsers that the program drives, given one context object ([#718]).
-
 ## Tests
 
 In `test/colm.d`. `globchg1`–`globchg16` (changes) and
@@ -128,15 +123,15 @@ them. `globread1` runs what stays: reads in place and a send to a stream in
 a restartable parser, and a change undone in a parse whose only item that
 runs code is its first. `globread2` reads such a tree's attributes in place.
 `nilset2` and `undomap10` became parses that aren't restartable, and
-`sendown1`–`sendown4` kept their parsers in a context, until [#718] made a
-parser hold its context object. Then each parser reached another through an
-attribute of a tree sent to it, until [#720]'s rule refused a tree that can
-hold a parser too, and the four were removed: no program that compiles
-reaches the stops they tested.
+`sendown1`–`sendown4` kept their parsers in a context, until [#718]'s hold,
+which [#771] replaced, made a parser hold its context object. Then each
+parser reached another through an attribute of a tree sent to it, until
+[#720]'s rule refused a tree that can hold a parser too, and the four were
+removed: no program that compiles reaches the stops they tested.
 
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#683]: https://github.com/adrian-thurston/colm-suite/issues/683
 [#687]: https://github.com/adrian-thurston/colm-suite/issues/687
-[#706]: https://github.com/adrian-thurston/colm-suite/issues/706
 [#718]: https://github.com/adrian-thurston/colm-suite/issues/718
 [#720]: https://github.com/adrian-thurston/colm-suite/issues/720
+[#771]: https://github.com/adrian-thurston/colm-suite/issues/771

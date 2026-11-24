@@ -309,8 +309,7 @@ when a cycle of strong references holds it, which [#671]'s check rules out
 - This and the designs of [#668] and [#669] are built together. Once a
   struct can be freed, every holder must count its reference, and every
   undo must hold what it can put back. Weak references ([#670]) come
-  after, as #663's plan has them, but for the cell and its calls, which
-  [#669]'s design builds with these for a context object's hold.
+  after, as #663's plan has them.
 - The lost-structs report fails each test case that loses a struct. So
   [#671]'s check comes before the report, or with it.
   `test/colm.d/lookup1.lm` builds strong cycles: a `lang_object` holds

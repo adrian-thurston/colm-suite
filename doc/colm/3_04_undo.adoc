@@ -30,6 +30,20 @@ context is a struct that holds a grammar. `new NAME()` makes an object of it,
 and the program reaches its variables through the object, as in
 `+Decls->Types+`.
 
+A context object has one holder. A context can be the type of a local
+variable, a parameter, a function's return and a variable of another
+context, and of nothing else: not of a global, declared with `global` or
+`export`, a field of a struct that isn't a context, a list's value, a map's
+key or value, an attribute of a def or a token, or the `T` of a `weak<T>`.
+Code that reached the object through one of these, as a function reaches a
+global, could use it while a parser it was given can back up. Colm stops at
+such a type with an error such as
+`+G can't hold a ctx: a context object is held only by a local variable, a parameter, a return or a field of a context+`,
+which names the global, field or attribute, or says `+a list's value+`,
+`+a map's key+`, `+a map's value+` or `+weak<T>'s T+` in place of `G`. A
+`context` with no def or token in it is a plain struct, and goes anywhere a
+struct goes.
+
 The variables start at 0, false or nil, as a struct's fields do. They can't
 have a first value: that is a parse error. Make the lists and maps that a
 parse uses before the parse, as the object is set up:
@@ -284,10 +298,7 @@ variable another new object starts the setup of that one.
 The setup doesn't reach into a loop's body, or into a `while` loop's condition,
 unless the object is made in the body: the body runs again after the
 statements that follow it in the body, and the condition runs again after the
-body. Nor does it reach into a function. The setup of an object in a global
-also ends at the first statement that calls a function, parses, sends to a
-parser or finishes one, or yields, which runs the loop's body: that code can
-reach the global.
+body. Nor does it reach into a function.
 
 Anywhere else, colm doesn't compile a change to a context object through a
 reference to it: between two sends to its parser, after its parse, in a

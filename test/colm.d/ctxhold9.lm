@@ -8,6 +8,7 @@
 # ended, the parser whose action started it holds the object, and a later
 # parse in that parser's actions can be given it, as can a parse after that
 # parser has ended (later).
+# The global can't hold a context object: colm refuses it first.
 context inner
 	L: list<str>
 
@@ -130,24 +131,5 @@ elsif ( A == "later" ) {
 	parse W: inner::start( C->Sub )[ "* ; ^\n" ]
 	print( "L ", C->Sub->L->length, "\n" )
 }
-##### ARGS #####
-bare
-##### EXP #####
-before
-parsed, L 1
-##### EXIT #####
-1
-##### ARGS #####
-item
-##### EXP #####
-before
-##### EXIT #####
-1
-##### ARGS #####
-later
-##### EXP #####
-before
-a b: L 2
-L 3
-##### EXIT #####
-0
+##### COMP_ERR #####
+42:11: G can't hold an inner: a context object is held only by a local variable, a parameter, a return or a field of a context

@@ -1,8 +1,8 @@
 # weak<T> of each kind of struct a strong reference can be, used as the
-# strong one is: a parser and a stream sent to, a list and a map, a context
-# given to a parse, an _input set and read in a token action. And an alias of
-# weak<T>, a loop over a map's weak values, and a list of weak values at both
-# ends.
+# strong one is: a parser and a stream sent to, a list and a map, an _input
+# set and read in a token action. And an alias of weak<T>, a loop over a
+# map's weak values, and a list of weak values at both ends. A context can't
+# be weak<T>'s T, so the parse is given the context object itself.
 lex
 	token id /[a-z]+/
 	ignore /[ \n]+/
@@ -89,11 +89,10 @@ for Z: node in WM
 for K: str in map_keys( WM )
 	print( "weak map key ", K, "\n" )
 
-# A weak context given to a parse, whose token action pushes and pulls
-# through a weak _input.
+# A context given to a parse, whose token action pushes and pulls through a
+# weak _input.
 C: ctx = new ctx()
-WC: weak<ctx> = C
-parse R: ctx::start( WC ) [ "e f" ]
+parse R: ctx::start( C ) [ "e f" ]
 print( "context ", R, "\n" )
 ##### EXP #####
 parser a b c d

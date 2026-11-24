@@ -1,0 +1,14 @@
+# A list can't hold a context object as its value.
+context ctx
+	lex
+		token id /[a-z]+/
+		ignore /space+/
+	end
+
+	def start
+		[id*]
+end
+
+L: list<ctx>
+##### COMP_ERR #####
+12:9: a list's value can't hold a ctx: a context object is held only by a local variable, a parameter, a return or a field of a context

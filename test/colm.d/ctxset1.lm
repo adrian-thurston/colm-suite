@@ -94,12 +94,6 @@ while ( I < 2 ) {
 	I = I + 1
 }
 
-# A global's object, up to the first statement that runs other code.
-global Last: ctx = new ctx()
-Last->S = "global"
-Last->L = new list<str>()
-print( "Last ", Last->S, ", L ", Last->L->length, "\n" )
-
 # The variable given a new object starts its setup again.
 C = new ctx()
 C->L = new list<str>()
@@ -119,5 +113,4 @@ M c=103
 Recs 2, L 3
 loop 0: N 2, Inner x y
 loop 1: N 12, Inner x y
-Last global, L 0
 again: N 1, L 1

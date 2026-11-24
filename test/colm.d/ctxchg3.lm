@@ -1,4 +1,5 @@
 # A function a parse item calls runs while the parse can back up.
+# The global can't hold a context object: colm refuses it first.
 include 'ctxrule.lmi'
 
 global C: ctx = new ctx()
@@ -12,4 +13,4 @@ str f()
 
 parse S: ctx::start( C )[ "a " f() "b" ]
 ##### COMP_ERR #####
-9:2: cannot change C, a context object, outside its setup
+5:11: C can't hold a ctx: a context object is held only by a local variable, a parameter, a return or a field of a context

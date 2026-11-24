@@ -293,13 +293,13 @@ Nothing saves compiler state across a branch today, so this adds it:
 - **if and else** (`IfType`, which `else if`, `switch` and `require` compile
   to): the state is copied before the then-list, kept after it, put back for
   the else part, and the two are merged. A root is lent or moved after the
-  `if` if it is on either side, and a parser variable is finished only if it
-  is on both. A `P` finished on one side only can't be sent to, and doesn't
-  give its root back. Entries for variables declared in a branch go with
-  the branch's statement list. The loader records the scope that each
-  nested statement list declares its variables in on the statement that
-  owns the list (`LangStmt::scope`), and `compileStmtList()` drops the
-  entries of that scope's variables at the list's end.
+  `if` if it is on either side, and a parser variable finished on either
+  side is finished after it. A `P` finished on one side only can't be sent
+  to, and doesn't give its root back. Entries for variables declared in a
+  branch go with the branch's statement list. The loader records the scope
+  that each nested statement list declares its variables in on the
+  statement that owns the list (`LangStmt::scope`), and `compileStmtList()`
+  drops the entries of that scope's variables at the list's end.
 - **Loops** (`compileLoopBody()`, and a `while` loop's condition): at the
   end of the body, what the body lent, moved or finished of what is outside
   the loop must be as it was at the start, or the next pass would use what

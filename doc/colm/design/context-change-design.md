@@ -149,6 +149,12 @@ before the type's name (`article()`). `treesend8` is the program of the
 removed `sendown2`: two parsers that reach each other through parser
 attributes of trees sent with `send_tree`.
 
+`ctxtake10`, `ctxtake11`, `ctxtake12` and `ctxtake16`–`ctxtake19` make their
+take between two sends, while the object is lent to the parser. Since
+[#771], each stops at the use of the lent `C`, `cannot use C: it is lent to
+P (...) until P->finish()`, before the take is checked. [#773] sorts them
+again.
+
 [#368]: https://github.com/adrian-thurston/colm-suite/issues/368
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439
 [#550]: https://github.com/adrian-thurston/colm-suite/issues/550

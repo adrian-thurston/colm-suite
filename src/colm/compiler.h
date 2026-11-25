@@ -1117,7 +1117,6 @@ struct Compiler
 	bool treeHoldsRef( LangEl *lel );
 
 	void checkRestartable();
-	void reportGlobalUses( CodeBlock *block, Function *func );
 
 	/* A make_token argument after the id and the text whose type is a
 	 * struct or a generic, kept as it is compiled, for checkStrongCycles():

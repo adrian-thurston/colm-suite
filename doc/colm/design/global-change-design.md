@@ -4,8 +4,10 @@ How the compiler meets the [requirements](global-change-requirements.md).
 The check runs in `src/colm/synthesis.cc`, in two parts. As each block is
 compiled, what its revert code does to globals is noted with it. Once all the
 code is compiled, `Compiler::checkRestartable()` finds what restartable
-parsers run, and refuses what is noted there. Nothing in the bytecode, the
-reverse code or the runtime changes.
+parsers run and refuses what is noted there, and finds what parses given a
+context run and refuses there what [#770] does: a take, or a change that puts
+a reference value in. Nothing in the bytecode, the reverse code or the
+runtime changes.
 
 ## Noting what a block does
 
@@ -36,6 +38,14 @@ reverse code or the runtime changes.
     loop over a list or a map of such trees doesn't read it in place
     (`forInPlace()`): each value is a copy that shares what its attributes
     hold, so the list or the map is taken.
+- A change notes whether it puts a reference value in
+  (`GlobalUse::putsRef`): a value that `heldRef()` counts. In
+  `assignValue()` it is the assigned value's type. In `evaluateCall()` it is
+  an argument's (`argHeldRef()`), whose type `evaluateArgs()` keeps in
+  `CallArg::exprUT`: a built-in's arguments are values. In
+  `checkSendChange()` it is a stream sent to the parser, which the parser's
+  input then holds, as `evaluateSendParser()` reports. It goes by type, so a
+  `new` object counts.
 - `evaluateCall()` and `compileForIter()` note the functions and iterators a
   block calls (`CodeBlock::calls`), and `evaluateParse()` the types it parses
   (`CodeBlock::parses`).
@@ -67,10 +77,32 @@ from `restartTypes`, queueing each type and block once (`RestartReach`):
   types it parses. Backing up over an action backs up a parse it started
   (`IN_PARSE_FRAG_BKT`).
 
-It then goes over the blocks in the order `compileByteCode()` compiled them,
-functions and iterators, productions, tokens, preeof blocks, and reports the
-first `GlobalUse` of the first block that is reached
-(`Compiler::reportGlobalUses()`), so the error is the same one every time.
+`RestartReach::walk()` takes these steps until nothing more is queued.
+
+## What a parse given a context runs
+
+A parse given a context is one of a type defined in a context, whose
+`LangEl::contextIn` is set: `checkContextGiven()` makes each parse of it, and
+each `new parser`, be given an object of the context. Its actions can put a
+list a global holds into the object (`L = GL`), or a list the object holds
+into a global (`GL = L`). A parse that isn't restartable can still do both,
+and once the object is lent to a `new parser` whose actions change the list,
+the program can change it through the global between sends.
+
+`checkRestartable()` walks out a second time, from every type defined in a
+context, in the same steps (`RestartReach::walk()`). In what that walk
+reaches, a take is refused, and a change that puts a reference value in.
+Other changes stay, and backing up undoes them.
+
+## Reporting
+
+`checkRestartable()` then goes over the blocks in the order
+`compileByteCode()` compiled them, functions and iterators, productions,
+tokens, preeof blocks, and reports the first `GlobalUse` that the first
+block's rule refuses (`reportGlobalUses()`), so the error is the same one
+every time. A block that a restartable parser runs is under its whole rule,
+whether a parse given a context runs it too or not. A block that only a
+parse given a context runs is under that parse's rule.
 
 ## Errors
 
@@ -83,7 +115,12 @@ The error is at the global's name:
   `cannot take what find gives out of G, a global, in ...`;
 - in a function or an iterator `f`, the error says
   `in f, which an action of a restartable parser runs` in place of
-  `in an action of a restartable parser`.
+  `in an action of a restartable parser`;
+- in what only a parse given a context runs, the errors say
+  `in an action of a parse given a context` and
+  `in f, which an action of a parse given a context runs`. A change that
+  puts a reference value in is `cannot change G, a global, in ...`, as any
+  change is.
 
 ## Choices
 
@@ -109,19 +146,46 @@ The error is at the global's name:
 - A tree that can hold a list, map or struct below it counts as a take, as
   it does for a context object ([#720]). Kept simple at a small cost:
   printing or matching such a tree, which uses it as a value, counts too.
+- In a parse given a context, restartable or not, takes and changes that
+  put a reference value in are refused ([#770]), as requirement 13 of
+  [owning a context object](context-ownership-requirements.md) asks.
+- What goes into a global goes by type, and a `new` object counts: the
+  maintainer's answer. Nothing else holds it yet, but telling it apart
+  helps little until a local holding only a new object can be told apart
+  too. `attrval1` sets its global's tree in a parse given no context.
+- A stream sent to a parser that a global holds puts it in: the
+  maintainer's answer. The parser's input holds it, and the program's sends
+  to that parser would read from the context object's stream while a parser
+  lent the object can back up over its own reads.
+- Every type defined in a context starts the second walk, parsed or not.
+  The walk takes the defs and tokens outside the context that its grammar
+  uses, and their actions, which then can't take out or put in in a parse
+  given no context either: an action's code is compiled once.
 
 ## Tests
 
-In `test/colm.d`. `globchg1`–`globchg16` (changes) and
+In `test/colm.d`. `globchg1`–`globchg17` (changes) and
 `globtake1`–`globtake6` (takes) are compile errors, one each, and say in
 their first lines what they show. `globchg1`, `globchg2` and `globchg9` are
 [#687]'s, [#683]'s and [#368]'s programs, through a global. `globchg3` is a
 parse whose second item calls a function, and `globchg16` one whose second
-item pops the list. `globtake5` and `globtake6` take a tree whose attribute
-holds a list out of a global, into a variable and as a loop over a list of
-them. `globread1` runs what stays: reads in place and a send to a stream in
-a restartable parser, and a change undone in a parse whose only item that
-runs code is its first. `globread2` reads such a tree's attributes in place.
+item pops the list. `globchg17` changes a global through a child named on
+its own in a switch case. `globtake5` and `globtake6` take a tree whose
+attribute holds a list out of a global, into a variable and as a loop over
+a list of them. `globread1` runs what stays: reads in place and a send to a
+stream in a restartable parser, and a change undone in a parse whose only
+item that runs code is its first. `globread2` reads such a tree's
+attributes in place.
+`globctx1`–`globctx6` are [#770]'s compile errors in parses given a context
+that aren't restartable. `globctx1` and `globctx2` take a global's list into
+the object and put the object's list into a global, and lend the object to
+a `new parser` whose push the program pops through the global between sends:
+both segfaulted before the check. `globctx3` takes in a function an action
+calls, `globctx4` pushes the object's struct onto a global's list,
+`globctx5` sends the object's stream to a global's parser, and `globctx6`
+takes in the action of a def outside the context that its grammar uses.
+`globread3` runs what stays there: a global int changed, a str pushed onto a
+global's list, and the list read in place, undone when the parse backs up.
 `nilset2` and `undomap10` became parses that aren't restartable, and
 `sendown1`–`sendown4` kept their parsers in a context, until [#718]'s hold,
 which [#771] replaced, made a parser hold its context object. Then each
@@ -134,4 +198,5 @@ removed: no program that compiles reaches the stops they tested.
 [#687]: https://github.com/adrian-thurston/colm-suite/issues/687
 [#718]: https://github.com/adrian-thurston/colm-suite/issues/718
 [#720]: https://github.com/adrian-thurston/colm-suite/issues/720
+[#770]: https://github.com/adrian-thurston/colm-suite/issues/770
 [#771]: https://github.com/adrian-thurston/colm-suite/issues/771

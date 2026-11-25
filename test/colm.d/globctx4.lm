@@ -1,0 +1,31 @@
+# The context object's struct pushed onto a global's list, by a parse given
+# a context that isn't restartable: a call that changes a global, given a
+# struct, puts it into the global.
+struct rec
+	N: int
+end
+
+global GR: list<rec> = new list<rec>()
+
+context ctx
+	R: rec
+
+	lex
+		token id /[a-z]+/
+		literal `;
+		ignore /[ \n]+/
+	end
+
+	def start
+		[id* `;]
+		{
+			R = new rec()
+			GR->push_tail( R )
+		}
+end
+
+C: ctx = new ctx()
+parse S: ctx::start( C )[ "a b ;" ]
+print( S, "\n" )
+##### COMP_ERR #####
+23:4: cannot change GR, a global, in an action of a parse given a context: keep the data in a context

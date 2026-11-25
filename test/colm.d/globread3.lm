@@ -1,0 +1,46 @@
+# What the actions of a parse given a context that isn't restartable can
+# still do with globals: change a global int, push a str onto a global's
+# list, and read the list in place, its length and its values. The parse
+# backs up from A1 to A2, which undoes the changes, and the actions run
+# again.
+global N: int = 0
+global GL: list<str> = new list<str>()
+
+context ctx
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			N = N + 1
+			GL->push_tail( "i" )
+			print( "item: N ", N, ", GL ", GL->length, ":" )
+			for V: str in GL
+				print( " ", V )
+			print( "\n" )
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 item* `; NL]
+end
+
+GL->push_tail( "x" )
+C: ctx = new ctx()
+parse S: ctx::start( C )[ "* * ;\n" ]
+print( "S: ", S )
+print( "N ", N, ", GL ", GL->length, "\n" )
+##### EXP #####
+item: N 1, GL 2: x i
+item: N 2, GL 3: x i i
+item: N 1, GL 2: x i
+item: N 2, GL 3: x i i
+S: * * ;
+N 2, GL 3

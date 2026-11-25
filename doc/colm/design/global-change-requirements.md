@@ -1,7 +1,7 @@
 # Changing a global in a restartable parser: requirements
 
-For [#714]. This says what must hold of a global while a parser whose
-actions could change it can back up, and what colm checks. The
+For [#714] and [#770]. This says what must hold of a global while a parser
+whose actions could change it can back up, and what colm checks. The
 [design](global-change-design.md) says how the compiler checks it. It is the
 companion of the
 [ownership rule for context objects](context-ownership-requirements.md),
@@ -19,6 +19,9 @@ companion of the
 - What a parser *runs*: the actions of the productions of what it parses,
   the token actions and preeof blocks of the lex blocks it scans with, and
   the functions and iterators these call.
+- A *parse given a context* is a parse, or a `new parser`, of a type defined
+  in a context, which is given an object of the context. It can be
+  restartable or not.
 
 ## Why
 
@@ -50,8 +53,24 @@ companion of the
    goes to a stream isn't undone.
 7. Each refusal is a compile error at the global, saying what can't be done
    and where, and that the data goes in a context.
-8. Programs whose parsers aren't restartable compile as before: ragel's
-   parser, `src/cgil`, `grammar/` and the manual's examples.
+8. Programs whose parsers aren't restartable compile as before, unless 9
+   refuses them. Ragel's parser, `src/cgil`, `grammar/` and the manual's
+   examples all still compile.
+9. In what a parse given a context runs, restartable or not, the code can't
+   take a list, map, struct, parser or stream out of a global, as 5 says,
+   nor put one into a global: assign one to it or to a field of a struct it
+   holds, give one to a call that changes what it holds, such as
+   `push_tail` or `insert`, or send a stream to a parser it holds, whose
+   input then holds the stream. Either would leave a global and the context
+   object holding one value. Once the object is lent to a restartable
+   parser, the program could change the value through the global while that
+   parser can back up over changes to it: requirement 13 of
+   [owning a context object](context-ownership-requirements.md). The check
+   goes by the type of what goes in, so a new one counts too, though nothing
+   else holds it yet. Its other changes to globals stay, and backing up
+   undoes them, as 2 says.
+10. These refusals are 7's, saying they are in an action of a parse given a
+    context.
 
 ## Out of scope
 
@@ -71,4 +90,5 @@ companion of the
 [#714]: https://github.com/adrian-thurston/colm-suite/issues/714
 [#729]: https://github.com/adrian-thurston/colm-suite/issues/729
 [#767]: https://github.com/adrian-thurston/colm-suite/issues/767
+[#770]: https://github.com/adrian-thurston/colm-suite/issues/770
 [#771]: https://github.com/adrian-thurston/colm-suite/issues/771

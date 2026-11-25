@@ -443,6 +443,24 @@ such as `+parse S: start[ stdin ]+`, runs nothing else while it can back up:
 its actions can change globals, and backing up undoes the changes, as it does
 a context's.
 
+A parse given a context, restartable or not, has one more rule. What it
+runs, as above, can't take a list, map, struct, parser or stream out of a
+global, nor put one into a global: assign one to the global or to a field of
+a struct it holds, give one to a call that changes what the global holds, as
+`+GR->push_tail( R )+` does, or send a stream to a parser the global holds.
+Either way the global and the context's object would hold the same one, and
+once the object is lent to a parser that the program sends to, the program
+could change it through the global between the sends. Colm goes by the type
+of what goes in, so a new one counts too, as in `+G.L = new list<int>()+`,
+though nothing else holds it yet. Colm stops with the error
+`cannot take GL, a global, out in an action of a parse given a context: keep the data in a context`.
+For one put into the global, the error says `cannot change GL, a global, in`
+in place of `cannot take GL, a global, out in`, and in a function `f` that
+such an action calls, it says
+`in f, which an action of a parse given a context runs`. The other changes,
+such as `N = N + 1` or `+GL->push_tail( "x" )+`, stay in a parse that isn't
+restartable, and backing up undoes them.
+
 == Rejecting a reduction with data
 
 `reject` makes a reduction a parse error, as

@@ -843,6 +843,19 @@ static bool heldRef( Compiler *pd, UniqueType *ut )
 	return ctxHeldRef( ut ) || sharesRef( pd, ut );
 }
 
+/* An argument of a call that heldRef() counts. A built-in's arguments are
+ * values, whose types evaluateArgs() keeps. */
+static bool argHeldRef( Compiler *pd, CallArgVect *args )
+{
+	if ( args == 0 )
+		return false;
+	for ( CallArgVect::Iter pe = *args; pe.lte(); pe++ ) {
+		if ( (*pe)->exprUT != 0 && heldRef( pd, (*pe)->exprUT ) )
+			return true;
+	}
+	return false;
+}
+
 /* A for loop reads what it goes over in place if it is named, and the loop's
  * values aren't what could be changed. */
 static bool forInPlace( Compiler *pd, UniqueType *searchUT, CallArgVect *args )
@@ -996,9 +1009,10 @@ bool LangVarRef::isGlobalRef( Compiler *pd ) const
 /* In revert code, a change to what a global holds, or a value taken out of
  * a global that code holding it could change, is kept with the block being
  * compiled. Compiler::checkRestartable() refuses it if a restartable parser
- * runs the block: see doc/colm/design/global-change-design.md. */
+ * runs the block, and a take, or a change that puts a reference value in, if
+ * a parse given a context does: see doc/colm/design/global-change-design.md. */
 void LangVarRef::noteGlobalUse( Compiler *pd, GlobalUse::Kind kind,
-		const String &what ) const
+		const String &what, bool putsRef ) const
 {
 	if ( !pd->revertOn || pd->curBlock == 0 || !isGlobalRef( pd ) )
 		return;
@@ -1014,6 +1028,7 @@ void LangVarRef::noteGlobalUse( Compiler *pd, GlobalUse::Kind kind,
 	use.loc = qual->length() > 0 ? qual->data[0].loc : loc;
 	use.global = root->qual->length() > 0 ? root->qual->data[0].data : root->name;
 	use.what = what;
+	use.putsRef = putsRef;
 	pd->curBlock->globalUses.append( use );
 }
 
@@ -1851,6 +1866,7 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 		}
 		else {
 			UniqueType *exprUT = evaluateSetupValue( pd, code, expression );
+			(*pe)->exprUT = exprUT;
 			// pd->unwindCode.remove( 0, 1 );
 
 			/* A token action pushes onto its own parser's input, through
@@ -2256,10 +2272,11 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 
 	checkContextValue( pd, lookup, lookup.uniqueType, false );
 
-	/* A call on what a global holds. */
+	/* A call on what a global holds. A change given a reference value puts
+	 * it in, as push_tail and insert do. */
 	if ( qual->length() > 0 ) {
 		if ( change )
-			noteGlobalUse( pd, GlobalUse::Change, String() );
+			noteGlobalUse( pd, GlobalUse::Change, String(), argHeldRef( pd, args ) );
 		if ( pd->revertOn && heldRef( pd, lookup.uniqueType ) )
 			noteGlobalUse( pd, GlobalUse::Take, "what " + name + " gives" );
 	}
@@ -3156,8 +3173,11 @@ void LangTerm::evaluateSendStream( Compiler *pd, CodeVect &code ) const
 	popExprWords( pd, words );
 }
 
-void LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) const
+/* Gives whether a stream was sent: the parser's input holds it. */
+bool LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) const
 {
+	bool sentStream = false;
+
 	/* A send changes the parser. Sending to a parser variable isn't a use of
 	 * it as a value. */
 	pd->ctxValueInPlace = true;
@@ -3231,8 +3251,10 @@ void LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) 
 							"send its text" );
 				}
 
-				if ( ut == pd->uniqueTypeStream )
+				if ( ut == pd->uniqueTypeStream ) {
 					isStream = true;
+					sentStream = true;
+				}
 
 				if ( item->trim == ConsItem::TrimYes )
 					trim = TRIM_YES;
@@ -3267,14 +3289,16 @@ void LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) 
 
 	/* The parser is the send's value. */
 	popExprWords( pd, words );
+	return sentStream;
 }
 
-/* A send to a parser runs its actions. */
-void LangTerm::checkSendChange( Compiler *pd, UniqueType *varUt ) const
+/* A send to a parser runs its actions, and a stream sent to it, which its
+ * input then holds, puts a reference value in. */
+void LangTerm::checkSendChange( Compiler *pd, UniqueType *varUt, bool putsRef ) const
 {
 	/* What is sent to a stream isn't undone. */
 	if ( varUt->parser() ) {
-		varRef->noteGlobalUse( pd, GlobalUse::Change, String() );
+		varRef->noteGlobalUse( pd, GlobalUse::Change, String(), putsRef );
 		pd->countOtherCode();
 	}
 }
@@ -3315,6 +3339,7 @@ void LangTerm::checkSendTarget( Compiler *pd ) const
 UniqueType *LangTerm::evaluateSend( Compiler *pd, CodeVect &code ) const
 {
 	UniqueType *varUt = varRef->lookup( pd );
+	bool sentStream = false;
 
 	if ( varUt == pd->uniqueTypeStream )
 		evaluateSendStream( pd, code );
@@ -3324,13 +3349,13 @@ UniqueType *LangTerm::evaluateSend( Compiler *pd, CodeVect &code ) const
 		bool dropped = pd->sendDropped;
 		pd->sendDropped = false;
 		checkSendTarget( pd );
-		evaluateSendParser( pd, code, true );
+		sentStream = evaluateSendParser( pd, code, true );
 		sendFinish( pd, dropped );
 	}
 	else
 		error(loc) << "can only send to parsers and streams" << endl;
 
-	checkSendChange( pd, varUt );
+	checkSendChange( pd, varUt, sentStream );
 	return varUt;
 }
 
@@ -3338,18 +3363,19 @@ UniqueType *LangTerm::evaluateSend( Compiler *pd, CodeVect &code ) const
 UniqueType *LangTerm::evaluateSendTree( Compiler *pd, CodeVect &code ) const
 {
 	UniqueType *varUt = varRef->lookup( pd );
+	bool sentStream = false;
 
 	if ( varUt->parser() ) {
 		bool dropped = pd->sendDropped;
 		pd->sendDropped = false;
 		checkSendTarget( pd );
-		evaluateSendParser( pd, code, false );
+		sentStream = evaluateSendParser( pd, code, false );
 		sendFinish( pd, dropped );
 	}
 	else
 		error(loc) << "can only send_tree to parsers" << endl;
 
-	checkSendChange( pd, varUt );
+	checkSendChange( pd, varUt, sentStream );
 	return varUt;
 }
 
@@ -3891,7 +3917,7 @@ void LangVarRef::assignValue( Compiler *pd, CodeVect &code,
 	if ( lookup.objField->isConst )
 		error(loc) << "field \"" << name << "\" is const" << endp;
 
-	noteGlobalUse( pd, GlobalUse::Change, String() );
+	noteGlobalUse( pd, GlobalUse::Change, String(), heldRef( pd, exprUT ) );
 
 	/* A context variable named alone is a field of the running context. A
 	 * local or a parameter given another object isn't used. */
@@ -5514,8 +5540,8 @@ void Compiler::checkRefCopies()
 	}
 }
 
-/* The types and the code blocks that restartable parsers reach, each queued
- * once. */
+/* The types and the code blocks that a walk reaches, each queued once: what
+ * restartable parsers run, or what parses given a context run. */
 struct RestartReach
 {
 	BstSet<LangEl*> typeSet;
@@ -5550,7 +5576,75 @@ struct RestartReach
 				type( lel );
 		}
 	}
+
+	/* What the types and blocks queued run, and what that runs, until
+	 * nothing more is queued. */
+	void walk( LelList &langEls )
+	{
+		long nextType = 0, nextBlock = 0;
+		while ( nextType < types.length() || nextBlock < blocks.length() ) {
+			while ( nextType < types.length() ) {
+				LangEl *lel = types[nextType++];
+
+				for ( LelProdList::Iter prod = lel->prodList; prod.lte(); prod++ ) {
+					block( prod->redBlock );
+					for ( ProdElList::Iter pel = *prod->prodElList; pel.lte(); pel++ )
+						type( pel->langEl );
+				}
+
+				block( lel->transBlock );
+				if ( lel->tokenDef != 0 )
+					lexBlock( langEls, lel->tokenDef->regionSet );
+			}
+
+			while ( nextBlock < blocks.length() ) {
+				CodeBlock *codeBlock = blocks[nextBlock++];
+
+				for ( Vector<Function*>::Iter func = codeBlock->calls; func.lte(); func++ )
+					block( (*func)->codeBlock );
+				for ( Vector<LangEl*>::Iter lel = codeBlock->parses; lel.lte(); lel++ )
+					type( *lel );
+			}
+		}
+	}
 };
+
+/* The first use of a global in a block that its rule refuses, as an action,
+ * or in func, if it is a function's or an iterator's. What a restartable
+ * parser runs can't change a global, or take a value out of one. What any
+ * other parse given a context runs can't take one out, or put a reference
+ * value in. */
+static void reportGlobalUses( CodeBlock *block, Function *func,
+		RestartReach &restart, RestartReach &context )
+{
+	if ( block == 0 )
+		return;
+
+	bool restartable = restart.blockSet.find( block ) != 0;
+	if ( !restartable && context.blockSet.find( block ) == 0 )
+		return;
+
+	for ( Vector<GlobalUse>::Iter use = block->globalUses; use.lte(); use++ ) {
+		if ( !restartable && use->kind == GlobalUse::Change && !use->putsRef )
+			continue;
+
+		std::ostream &out = error(use->loc) << "cannot ";
+		if ( use->kind == GlobalUse::Change )
+			out << "change " << use->global << ", a global, in ";
+		else if ( use->what.length() == 0 )
+			out << "take " << use->global << ", a global, out in ";
+		else
+			out << "take " << use->what << " out of " << use->global << ", a global, in ";
+
+		const char *parse = restartable ? "a restartable parser" :
+				"a parse given a context";
+		if ( func != 0 )
+			out << func->name << ", which an action of " << parse << " runs";
+		else
+			out << "an action of " << parse;
+		out << ": keep the data in a context" << endp;
+	}
+}
 
 /* A restartable parser is one the program can run its own code in while the
  * parser can still back up over its actions: one made with new parser, which
@@ -5561,80 +5655,38 @@ struct RestartReach
  * that could be changed through it. What it runs: the reduction actions of
  * what it parses, the token actions and preeof blocks of the lex blocks it
  * scans with, the functions and iterators these call, and what the parses
- * they start run. See doc/colm/design/global-change-design.md. */
+ * they start run. A parse given a context, restartable or not, is a parse of
+ * a type defined in a context. In what it runs, refuse each value taken out
+ * of a global, and each change that puts a reference value into one: either
+ * would let the global and the context object hold one value, which the
+ * program could change through the global while a parser lent the object
+ * can back up. See doc/colm/design/global-change-design.md. */
 void Compiler::checkRestartable()
 {
-	RestartReach reach;
+	RestartReach restart;
 	for ( LangElSet::Iter lel = restartTypes; lel.lte(); lel++ )
-		reach.type( *lel );
+		restart.type( *lel );
+	restart.walk( langEls );
 
-	long nextType = 0, nextBlock = 0;
-	while ( nextType < reach.types.length() || nextBlock < reach.blocks.length() ) {
-		while ( nextType < reach.types.length() ) {
-			LangEl *lel = reach.types[nextType++];
-
-			for ( LelProdList::Iter prod = lel->prodList; prod.lte(); prod++ ) {
-				reach.block( prod->redBlock );
-				for ( ProdElList::Iter pel = *prod->prodElList; pel.lte(); pel++ )
-					reach.type( pel->langEl );
-			}
-
-			reach.block( lel->transBlock );
-			if ( lel->tokenDef != 0 )
-				reach.lexBlock( langEls, lel->tokenDef->regionSet );
-		}
-
-		while ( nextBlock < reach.blocks.length() ) {
-			CodeBlock *block = reach.blocks[nextBlock++];
-
-			for ( Vector<Function*>::Iter func = block->calls; func.lte(); func++ )
-				reach.block( (*func)->codeBlock );
-			for ( Vector<LangEl*>::Iter lel = block->parses; lel.lte(); lel++ )
-				reach.type( *lel );
-		}
+	/* A type defined in a context is parsed only given an object of it
+	 * (checkContextGiven()). */
+	RestartReach context;
+	for ( LelList::Iter lel = langEls; lel.lte(); lel++ ) {
+		if ( lel->contextIn != 0 )
+			context.type( lel );
 	}
+	context.walk( langEls );
 
 	/* In the order the blocks were compiled, so the error is always the
 	 * same one. */
-	for ( FunctionList::Iter func = functionList; func.lte(); func++ ) {
-		if ( reach.blockSet.find( func->codeBlock ) )
-			reportGlobalUses( func->codeBlock, func );
-	}
-	for ( ProdList::Iter prod = prodList; prod.lte(); prod++ ) {
-		if ( prod->redBlock != 0 && reach.blockSet.find( prod->redBlock ) )
-			reportGlobalUses( prod->redBlock, 0 );
-	}
-	for ( LelList::Iter lel = langEls; lel.lte(); lel++ ) {
-		if ( lel->transBlock != 0 && reach.blockSet.find( lel->transBlock ) )
-			reportGlobalUses( lel->transBlock, 0 );
-	}
-	for ( RegionList::Iter region = regionList; region.lte(); region++ ) {
-		if ( region->preEofBlock != 0 && reach.blockSet.find( region->preEofBlock ) )
-			reportGlobalUses( region->preEofBlock, 0 );
-	}
-}
-
-/* The first use of a global in a block that a restartable parser runs, as
- * an action, or in func, if it is a function's or an iterator's. */
-void Compiler::reportGlobalUses( CodeBlock *block, Function *func )
-{
-	if ( block->globalUses.length() == 0 )
-		return;
-
-	GlobalUse &use = block->globalUses[0];
-	std::ostream &out = error(use.loc) << "cannot ";
-	if ( use.kind == GlobalUse::Change )
-		out << "change " << use.global << ", a global, in ";
-	else if ( use.what.length() == 0 )
-		out << "take " << use.global << ", a global, out in ";
-	else
-		out << "take " << use.what << " out of " << use.global << ", a global, in ";
-
-	if ( func != 0 )
-		out << func->name << ", which an action of a restartable parser runs";
-	else
-		out << "an action of a restartable parser";
-	out << ": keep the data in a context" << endp;
+	for ( FunctionList::Iter func = functionList; func.lte(); func++ )
+		reportGlobalUses( func->codeBlock, func, restart, context );
+	for ( ProdList::Iter prod = prodList; prod.lte(); prod++ )
+		reportGlobalUses( prod->redBlock, 0, restart, context );
+	for ( LelList::Iter lel = langEls; lel.lte(); lel++ )
+		reportGlobalUses( lel->transBlock, 0, restart, context );
+	for ( RegionList::Iter region = regionList; region.lte(); region++ )
+		reportGlobalUses( region->preEofBlock, 0, restart, context );
 }
 
 /*

@@ -1,0 +1,9 @@
+# A local moved into a context object can't be used again.
+include 'ctxrule.lmi'
+
+L: list<str> = new list<str>()
+C: ctx = new ctx()
+C->L = L
+L->push_tail( "a" )
+##### COMP_ERR #####
+7:1: cannot use L: it was moved at 6:8

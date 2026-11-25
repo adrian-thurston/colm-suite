@@ -1,0 +1,14 @@
+# A local given to a function isn't unique: the function could keep it.
+include 'ctxrule.lmi'
+
+int count( L: list<str> )
+{
+	return L->length
+}
+
+L: list<str> = new list<str>()
+count( L )
+C: ctx = new ctx()
+C->L = L
+##### COMP_ERR #####
+12:8: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

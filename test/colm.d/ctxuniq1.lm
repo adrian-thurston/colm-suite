@@ -1,0 +1,27 @@
+# A list built in a local, filled by a loop and used only through ->, moves
+# into a context object. The first parse backs up over its action's push.
+include 'ctxpush.lmi'
+
+Words: list<str> = new list<str>()
+Words->push_tail( "a" )
+Words->push_tail( "b" )
+
+L: list<str> = new list<str>()
+for W: str in Words
+	L->push_tail( W )
+
+C: ctx = new ctx()
+C->L = L
+parse S: ctx::start( C )[ "* ;\n" ]
+print( C->L->length, "\n" )
+parse T: ctx::start( C )[ "* * ; ^\n" ]
+print( C->L->length, "\n" )
+for X: str in C->L
+	print( X, "\n" )
+##### EXP #####
+2
+4
+a
+b
+x
+x

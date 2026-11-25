@@ -1,0 +1,10 @@
+# A struct read out of a local is held by two places: the local isn't unique.
+include 'ctxrule.lmi'
+
+L: list<rec> = new list<rec>()
+L->push_tail( new rec() )
+X: rec = L->head
+C: ctx = new ctx()
+C->Recs = L
+##### COMP_ERR #####
+8:11: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

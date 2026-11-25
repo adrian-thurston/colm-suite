@@ -1,0 +1,14 @@
+# A local used as a value in a loop's body isn't unique after the loop.
+include 'ctxrule.lmi'
+
+global GL: list<str>
+L: list<str> = new list<str>()
+I: int = 0
+while ( I < 1 ) {
+	GL = L
+	I = I + 1
+}
+C: ctx = new ctx()
+C->L = L
+##### COMP_ERR #####
+12:8: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

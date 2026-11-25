@@ -8,4 +8,4 @@ C: ctx = new ctx()
 parse S: ctx::start( C )[ "a" ]
 C->L = GL
 ##### COMP_ERR #####
-9:8: only a new object, nil or what C holds can go into C
+9:8: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

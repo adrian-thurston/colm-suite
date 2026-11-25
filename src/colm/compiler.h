@@ -975,7 +975,8 @@ struct Compiler
 	ObjectField *unwindLoop;
 
 	/* What the code being compiled has done to a context object, held by a
-	 * root, and to a parser variable lent one: see
+	 * root, and to a parser variable lent one, and which locals are unique,
+	 * free to move into a context object (requirement 12): see
 	 * doc/colm/design/context-ownership-design.md. A root is a local
 	 * variable or a parameter, or the running context (var 0), which this
 	 * and the context's variables named alone reach. A root or a parser
@@ -994,18 +995,25 @@ struct Compiler
 			Moved, MovedWithParser,
 
 			/* The parser variable var, finished. */
-			Finished
+			Finished,
+
+			/* The local var has held only a new object since it was given
+			 * one, used only through ->. */
+			Unique
 		};
 
-		/* The root or the parser variable, and where it was lent, moved or
-		 * finished. LentToParser: the parser variable, and whether what was
-		 * lent is a field of the root. LentToLoop: the iterator. */
+		/* The root or the parser variable, and where it was lent, moved,
+		 * finished or given its new object. LentToParser: the parser
+		 * variable, and whether what was lent is a field of the root.
+		 * LentToLoop: the iterator. The loop depth the entry was made at,
+		 * which only Unique reads. */
 		ObjectField *var;
 		Kind kind;
 		InputLoc loc;
 		ObjectField *parser;
 		bool field;
 		String iter;
+		int depth;
 	};
 	Vector<Own> owns;
 	int loopDepth;
@@ -1024,10 +1032,12 @@ struct Compiler
 	bool newParserField;
 
 	/* A store through a context reference is being compiled: the root of
-	 * the reference, and the context object it goes into. */
+	 * the reference, and the context object it goes into. Or, with
+	 * ctxStoreUnique, a store through a unique local, the root. */
 	bool ctxStore;
 	ObjectField *ctxStoreRoot;
 	String ctxStoreName;
+	bool ctxStoreUnique;
 
 	/* A send's target is being loaded; the send's value, its parser, goes
 	 * nowhere; the code being compiled is thrown away, so nothing it does is
@@ -1046,7 +1056,9 @@ struct Compiler
 	void mergeOwns( const Vector<Own> &other );
 	void endScopeOwns( NameScope *scope, bool within );
 	void checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc );
-	void leaveLoop( const Vector<Own> &test, NameScope *scope );
+	void leaveLoop( const Vector<Own> &test, const Vector<Own> &end, NameScope *scope );
+	bool uniqueHere( ObjectField *var );
+	void endUnique( ObjectField *var );
 	void checkLentCalls();
 
 	ObjectField *makeDataEl();

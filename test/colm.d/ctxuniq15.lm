@@ -1,0 +1,11 @@
+# A parser in a local, sent to, moves into a context object's field, and
+# can't be sent to again.
+include 'ctxrule.lmi'
+
+P: accum<ctx::inner> = new accum<ctx::inner>( new ctx() )
+send P "a b"
+C: ctx = new ctx()
+C->Inner = P
+send P "c"
+##### COMP_ERR #####
+9:6: cannot use P: it was moved at 8:12

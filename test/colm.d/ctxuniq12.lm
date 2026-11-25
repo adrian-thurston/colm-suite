@@ -1,0 +1,12 @@
+# A local used as a value on one side of an if isn't unique after it.
+include 'ctxrule.lmi'
+
+global GL: list<str>
+L: list<str> = new list<str>()
+I: int = 0
+if ( I == 0 )
+	GL = L
+C: ctx = new ctx()
+C->L = L
+##### COMP_ERR #####
+10:8: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

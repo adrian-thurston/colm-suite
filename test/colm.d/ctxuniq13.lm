@@ -1,0 +1,10 @@
+# A local put into another doesn't move: the one it went into isn't unique.
+include 'ctxrule.lmi'
+
+R: rec = new rec()
+M: map<str, rec> = new map<str, rec>()
+M->insert( "a", R )
+C: ctx = new ctx()
+C->M = M
+##### COMP_ERR #####
+8:8: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

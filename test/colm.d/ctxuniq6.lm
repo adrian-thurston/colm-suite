@@ -1,0 +1,21 @@
+# A local that a global's list was pushed into holds what the global holds.
+global GL: list<str> = new list<str>()
+
+context ctx
+	LL: list<list<str>>
+
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[w*]
+end
+
+L: list<list<str>> = new list<list<str>>()
+L->push_tail( GL )
+C: ctx = new ctx()
+C->LL = L
+##### COMP_ERR #####
+19:9: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

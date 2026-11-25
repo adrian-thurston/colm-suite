@@ -60,12 +60,14 @@ companion of the [rule for context objects](context-change-requirements.md),
    nor put one into a global: assign one to it or to a field of a struct it
    holds, give one to a call that changes what it holds, such as
    `push_tail` or `insert`, or send a stream to a parser it holds, whose
-   input then holds the stream. A new one counts too. Either would leave a
-   global and the context object holding one value. Once the object is lent
-   to a restartable parser, the program could change the value through the
-   global while that parser can back up over changes to it: requirement 13
-   of [owning a context object](context-ownership-requirements.md). Its
-   other changes to globals stay, and backing up undoes them, as 2 says.
+   input then holds the stream. Either would leave a global and the context
+   object holding one value. Once the object is lent to a restartable
+   parser, the program could change the value through the global while that
+   parser can back up over changes to it: requirement 13 of
+   [owning a context object](context-ownership-requirements.md). The check
+   goes by the type of what goes in, so a new one counts too, though nothing
+   else holds it yet. Its other changes to globals stay, and backing up
+   undoes them, as 2 says.
 10. These refusals are 7's, saying they are in an action of a parse given a
     context.
 

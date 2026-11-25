@@ -1,4 +1,4 @@
-# What a context object's setup may do, and reading the object, in place,
+# What can go into a context object, and reading the object, in place,
 # after its parse. Inner is weak: a parser holds its context, so a context
 # can't hold a parser of its own types strongly.
 
@@ -94,7 +94,7 @@ while ( I < 2 ) {
 	I = I + 1
 }
 
-# The variable given a new object starts its setup again.
+# The variable given a new object, which is filled and parsed in its turn.
 C = new ctx()
 C->L = new list<str>()
 C->M = new map<str, int>()

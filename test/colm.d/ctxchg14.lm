@@ -1,4 +1,4 @@
-# A function call ends the setup of a global's object.
+# A context object held by a global, which colm doesn't compile.
 # The global can't hold a context object: colm refuses it first.
 include 'ctxrule.lmi'
 

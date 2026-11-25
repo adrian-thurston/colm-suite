@@ -1098,7 +1098,8 @@ void LangVarRef::noteGlobalUse( Compiler *pd, GlobalUse::Kind kind,
 
 /* What goes into a context object through a context reference: a new object,
  * nil, something read through the same root, or a unique local, which moves.
- * Anything else could be held elsewhere too, and changed from there while a
+ * A new object that the new's capture holds too isn't new. Anything else
+ * could be held elsewhere too, and changed from there while a
  * parser the object is lent to can back up. A tree that shares such a value
  * is never new: a cons or a parse can put into it what is held elsewhere. So
  * the object gets one from its parse's actions. What goes into a unique local
@@ -1116,8 +1117,8 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 	pd->ctxStoreUnique = false;
 
 	LangTerm *term = expr->type == LangExpr::TermType ? expr->term : 0;
-	bool fresh = term != 0 && ( term->type == LangTerm::NewType ||
-			term->type == LangTerm::NilType );
+	bool fresh = term != 0 && ( ( term->type == LangTerm::NewType &&
+			term->varRef == 0 ) || term->type == LangTerm::NilType );
 	bool through = false;
 	ObjectField *valueRoot;
 	ObjectField *moving = 0;
@@ -1153,6 +1154,10 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 
 	if ( !intoUnique && ctxHeldRef( ut ) && !fresh && !through && moving == 0 ) {
 		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
+		if ( term != 0 && term->type == LangTerm::NewType ) {
+			error(loc) << "cannot put the new object into " << name << ": " <<
+					term->varRef->name << " holds it too" << endp;
+		}
 		error(loc) << "only a new object, nil, what " << name <<
 				" holds or a variable used only through -> since its new "
 				"can go into " << name << endp;

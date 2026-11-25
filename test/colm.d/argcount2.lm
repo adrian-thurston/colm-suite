@@ -1,0 +1,11 @@
+# The same for an iterator.
+iter each( S: str )
+{
+	yield S
+}
+
+for X: str in each( "a", "b", "c" ) {
+	print( X, "\n" )
+}
+##### COMP_ERR #####
+7:15: wrong number of arguments

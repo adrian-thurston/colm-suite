@@ -2103,15 +2103,18 @@ static void noteLentCall( Compiler *pd, Function *func, const InputLoc &loc )
 /* A function lends a parameter as if nothing else reached its object, so
  * two of the arguments of a context type can't reach one object: C and C,
  * or C and C->Sub. An argument that the running context reaches can't go to
- * a function that names the context, which checkLentCalls() finds. */
+ * a function that names the context, which checkLentCalls() finds. The
+ * arguments of a context type that a variable reaches go in ctxArgs, for
+ * checkContextArgsKept(). An argument past the parameters is left to
+ * evaluateArgs(), which says the count is wrong. */
 static void checkContextArgs( Compiler *pd, Function *func, UniqueType **paramUTs,
-		CallArgVect *args )
+		long numParams, CallArgVect *args, Vector<LangVarRef*> &ctxArgs )
 {
 	if ( func == 0 || args == 0 )
 		return;
 
 	Vector<ObjectField*> roots;
-	for ( int a = 0; a < args->length(); a++ ) {
+	for ( int a = 0; a < args->length() && a < numParams; a++ ) {
 		UniqueType *paramUT = paramUTs[a];
 		LangExpr *argExpr = args->data[a]->expr;
 		ObjectField *root;
@@ -2122,6 +2125,7 @@ static void checkContextArgs( Compiler *pd, Function *func, UniqueType **paramUT
 			continue;
 
 		LangVarRef *argRef = argExpr->term->varRef;
+		ctxArgs.append( argRef );
 		for ( int r = 0; r < roots.length(); r++ ) {
 			if ( roots[r] == root ) {
 				error(argRef->loc) << "cannot give " << func->name <<
@@ -2139,6 +2143,33 @@ static void checkContextArgs( Compiler *pd, Function *func, UniqueType **paramUT
 			arg.arg = argRef->qual->length() > 0 ? argRef->qual->data[0].data :
 					argRef->name;
 			pd->curBlock->contextArgs.append( arg );
+		}
+	}
+}
+
+/* An argument after one of a context type can take its object away, as
+ * new parser<T>( C ) does, so that the function gets the object twice: as
+ * the parameter, and in the parser. Once the arguments are made, the object
+ * each of ctxArgs gave must still be where it was. */
+static void checkContextArgsKept( Compiler *pd, Function *func,
+		const Vector<LangVarRef*> &ctxArgs )
+{
+	for ( int a = 0; a < ctxArgs.length(); a++ ) {
+		ObjectField *root;
+		ctxArgs[a]->ownRoot( pd, root );
+		Compiler::Own *own = pd->findOwn( root );
+		if ( own == 0 || root == 0 )
+			continue;
+
+		if ( own->kind == Compiler::Own::Moved ||
+				own->kind == Compiler::Own::MovedWithParser )
+		{
+			std::ostream &out = error(ctxArgs[a]->loc) << "cannot give " <<
+					func->name << " " << root->name << ": another argument " <<
+					( own->kind == Compiler::Own::Moved ? "moves it at " :
+					"takes it with the parser made at " );
+			ownPlace( out, own->loc );
+			out << endp;
 		}
 	}
 }
@@ -2207,7 +2238,9 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	}
 
 	noteLentCall( pd, func, loc );
-	checkContextArgs( pd, func, lookup.objMethod->paramUTs, args );
+	Vector<LangVarRef*> ctxArgs;
+	checkContextArgs( pd, func, lookup.objMethod->paramUTs,
+			lookup.objMethod->numParams, args, ctxArgs );
 
 	/* Evaluate and push the arguments. A change through a context reference
 	 * puts them into the object. */
@@ -2215,6 +2248,7 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 		setCtxStore( pd, this, lookup );
 	ObjectField **paramRefs = evaluateArgs( pd, code, lookup, args );
 	pd->ctxStore = false;
+	checkContextArgsKept( pd, func, ctxArgs );
 
 	/* The instruction of a built-in or a host function takes its arguments.
 	 * What popRefQuals() pops after it lies under no call. */
@@ -4179,8 +4213,9 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 		pd->countOtherCode();
 
 	noteLentCall( pd, func, iterCall->langTerm->varRef->loc );
+	Vector<LangVarRef*> ctxArgs;
 	checkContextArgs( pd, func, lookup.objMethod->paramUTs,
-			iterCall->langTerm->args );
+			lookup.objMethod->numParams, iterCall->langTerm->args, ctxArgs );
 
 	if ( func != 0 && pd->revertOn && pd->curBlock != 0 )
 		pd->curBlock->calls.append( func );
@@ -4190,6 +4225,7 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 	ObjectField **paramRefs = iterCall->langTerm->varRef->evaluateArgs(
 			pd, code, lookup, iterCall->langTerm->args );
 	pd->ctxValueInPlace = false;
+	checkContextArgsKept( pd, func, ctxArgs );
 
 	/* A tree iterator walks a tree. Its parameter is a ref<any>, which takes
 	 * any argument, so the argument is checked here. A loop that names no

@@ -332,8 +332,10 @@ context's variable or a field, which is given another object in its place.
 An iterator's parameter is lent for the whole loop, so the loop's body can't
 use the object either. A function lends a parameter as if nothing else
 reached its object, so a call can't give it two objects of a context that one
-variable reaches, as `+f( C, C )+` and `+f( C, C->Sub )+` would, nor give a
-function that uses the context's variables one of them, or `this`.
+variable reaches, as `+f( C, C )+` and `+f( C, C->Sub )+` would, nor an
+object and a parser that takes it, as
+`+f( C, new parser<ctx::start>( C ) )+` would. Nor can a call give a function
+that uses the context's variables one of them, or `this`.
 
 In an action, a parse or a parser made with `new` that is given `this`, or one
 of the context's variables, is lent the action's own context object. Until

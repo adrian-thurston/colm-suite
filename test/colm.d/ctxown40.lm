@@ -1,0 +1,23 @@
+# The same for an iterator, whose loop the parser could outlive.
+include 'ctxpush.lmi'
+
+global G: parser<ctx::start>
+
+iter each( O: ctx, P: parser<ctx::start> )
+{
+	G = P
+	Y: str = "y"
+	yield Y
+}
+
+C: ctx = new ctx()
+C->L = new list<str>()
+for S: str in each( C, new parser<ctx::start>( C ) ) {
+	print( "loop\n" )
+}
+send G "* ;"
+print( "popped ", C->L->pop_tail(), "\n" )
+send G "\n"
+print( G->finish(), "\n" )
+##### COMP_ERR #####
+15:21: cannot give each C: another argument takes it with the parser made at 15:24

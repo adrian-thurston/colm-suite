@@ -1,0 +1,23 @@
+# The same with the parser given through a function first.
+include 'ctxpush.lmi'
+
+parser<ctx::start> id( P: parser<ctx::start> )
+{
+	return P
+}
+
+int f( O: ctx, P: parser<ctx::start> )
+{
+	send P "* ;"
+	print( "popped ", O->L->pop_tail(), "\n" )
+	send P "\n"
+	print( P->finish(), "\n" )
+	return 0
+}
+
+C: ctx = new ctx()
+C->L = new list<str>()
+f( C, id( new parser<ctx::start>( C ) ) )
+print( "after\n" )
+##### COMP_ERR #####
+20:4: cannot give f C: another argument takes it with the parser made at 20:11

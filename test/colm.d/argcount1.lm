@@ -1,0 +1,10 @@
+# A call given more arguments than the function has parameters is an error,
+# which colm reports as it is.
+int f( I: int )
+{
+	return 0
+}
+
+f( 1, 2, 3 )
+##### COMP_ERR #####
+8:1: wrong number of arguments

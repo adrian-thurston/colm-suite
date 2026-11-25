@@ -9,6 +9,8 @@ EXTRA_DIST = \
 	accumbt5.lm \
 	actattr1.lm \
 	actlong1.lm \
+	argcount1.lm \
+	argcount2.lm \
 	argv1.lm \
 	argv2.lm \
 	attrtype1.lm \
@@ -151,6 +153,9 @@ EXTRA_DIST = \
 	ctxown36.lm \
 	ctxown37.lm \
 	ctxown38.lm \
+	ctxown39.lm \
+	ctxown40.lm \
+	ctxown41.lm \
 	ctxplace1.lm \
 	ctxplace2.lm \
 	ctxplace3.lm \

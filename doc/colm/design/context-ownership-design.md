@@ -283,8 +283,20 @@ name. That call is noted (`CodeBlock::contextArgs`), and refused once
     cannot give Sub to f: f uses the context's variables, which reach the
     same object
 
-Only a context object can be an argument through a root: what else a
-context object holds can't be taken out of it until loans ([#773]).
+A parser carries its context object too. An argument after a context
+argument can take that argument's object away, as
+`f( C, new parser<ctx::start>( C ) )` does, directly or through a function
+that returns the parser. Then the function gets the object twice, as its
+parameter and in its parser. So once the arguments are made
+(`checkContextArgsKept()`, after `evaluateArgs()`, and before an
+iterator's arguments are lent to its loop), the root of each context
+argument must not have moved:
+
+    cannot give f C: another argument takes it with the parser made at
+    12:7
+
+Nothing else a context object holds can be an argument through a root,
+since it can't be taken out of the object until loans ([#773]).
 
 ### Branches and loops
 
@@ -465,9 +477,11 @@ In `test/colm.d`.
   refusal. A run case each for what is new: a change and a second parse
   after a parse, an object back after `finish()`, a unique local moved in,
   and a loan read after its parse.
-- **The cases.** [#771] added `ctxown1`–`ctxown38`, one refusal each, and
+- **The cases.** [#771] added `ctxown1`–`ctxown41`, one refusal each, and
   the run cases `ctxlend1`–`ctxlend3`, the last [#757]'s programs.
-  `ctxown28`–`ctxown38` share `ctxpush.lmi`.
+  `ctxown28`–`ctxown41` share `ctxpush.lmi`. `argcount1` and `argcount2`
+  give a call more arguments than it has parameters, which the argument
+  check leaves for `evaluateArgs()` to report.
   `ctxhold5`'s runs became `ctxhold5`, `ctxhold10` and `ctxhold11` (refused),
   `ctxhold12` and `ctxhold13`.
 

@@ -239,17 +239,19 @@ iterator that names the context:
 
 A `yield` runs the body of the loop over the iterator, and in an action
 that body can use the context's variables. So a yield is refused while the
-running context is lent, or while a parameter is lent to a parser: the
-caller could have given it what the body uses. A local of the function or
-the iterator, lent, is safe: the body can't reach it.
+running context is lent, or while a parameter is lent: the caller could
+have given it what the body uses. A local of the function or the iterator,
+lent, is safe: the body can't reach it.
 
     cannot yield while the context object is lent (12:7): the loop's body
     could use it
     cannot yield while O is lent (12:7): the loop's body could use it
 
 A function that an iterator calls can yield too, for the iterator. So a
-call made while the running context is lent, or while a parameter is lent
-to a parser, is noted the same way. Each block notes whether it yields
+call made while the running context is lent, or while a parameter is lent,
+is noted the same way. That is a lend to a parser, to a loop, or to a parse
+whose item makes the call: the yield would run the body between two of the
+parse's sends. Each block notes whether it yields
 (`CodeBlock::yields`), and the pass after compiling closes that over the
 functions it calls, but not over the iterators, whose yields go to their own
 loops. It refuses a noted call of a function that can yield:
@@ -477,9 +479,9 @@ In `test/colm.d`.
   refusal. A run case each for what is new: a change and a second parse
   after a parse, an object back after `finish()`, a unique local moved in,
   and a loan read after its parse.
-- **The cases.** [#771] added `ctxown1`–`ctxown41`, one refusal each, and
+- **The cases.** [#771] added `ctxown1`–`ctxown42`, one refusal each, and
   the run cases `ctxlend1`–`ctxlend3`, the last [#757]'s programs.
-  `ctxown28`–`ctxown41` share `ctxpush.lmi`. `argcount1` and `argcount2`
+  `ctxown28`–`ctxown42` share `ctxpush.lmi`. `argcount1` and `argcount2`
   give a call more arguments than it has parameters, which the argument
   check leaves for `evaluateArgs()` to report.
   `ctxhold5`'s runs became `ctxhold5`, `ctxhold10` and `ctxhold11` (refused),

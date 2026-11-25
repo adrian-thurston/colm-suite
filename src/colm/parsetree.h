@@ -3525,10 +3525,10 @@ struct CodeBlock
 	Vector<LangEl*> parses;
 
 	/* A call of a function or an iterator, made while the running context
-	 * is lent, or a parameter is lent to a parser: the function, where the
-	 * call is, what is lent and where. Checked once all the code is
-	 * compiled: the function can't name the context, if the running context
-	 * is lent, nor yield to a loop's body, which could use what is lent. */
+	 * is lent, or a parameter is lent: the function, where the call is,
+	 * what is lent and where. Checked once all the code is compiled: the
+	 * function can't name the context, if the running context is lent, nor
+	 * yield to a loop's body, which could use what is lent. */
 	struct LentCall
 	{
 		Function *func;

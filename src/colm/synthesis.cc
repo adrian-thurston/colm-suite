@@ -2072,7 +2072,7 @@ void LangVarRef::popRefQuals( Compiler *pd, CodeVect &code,
 
 
 /* A call of func is made while the running context is lent, or, for a
- * function, while a parameter is lent to a parser. checkLentCalls() refuses
+ * function, while a parameter is lent. checkLentCalls() refuses
  * it once all the code is compiled if func names the context, or can yield
  * to a loop's body, which could use what is lent. */
 static void noteLentCall( Compiler *pd, Function *func, const InputLoc &loc )
@@ -2086,8 +2086,7 @@ static void noteLentCall( Compiler *pd, Function *func, const InputLoc &loc )
 				own.kind == Compiler::Own::LentToParser ||
 				own.kind == Compiler::Own::LentToLoop;
 		bool running = own.var == 0 && lent;
-		bool param = own.var != 0 && own.var->isParam() &&
-				own.kind == Compiler::Own::LentToParser && !func->isUserIter;
+		bool param = own.var != 0 && own.var->isParam() && lent && !func->isUserIter;
 		if ( running || param ) {
 			CodeBlock::LentCall call;
 			call.func = func;
@@ -4671,9 +4670,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 				bool lent = own.kind == Compiler::Own::LentToParse ||
 						own.kind == Compiler::Own::LentToParser ||
 						own.kind == Compiler::Own::LentToLoop;
-				if ( ( own.var == 0 && lent ) || ( own.var != 0 &&
-						own.var->isParam() && own.kind == Compiler::Own::LentToParser ) )
-				{
+				if ( lent && ( own.var == 0 || own.var->isParam() ) ) {
 					std::ostream &out = error(loc) << "cannot yield while " <<
 							( own.var == 0 ? String( "the context object" ) : own.var->name ) <<
 							" is lent (";

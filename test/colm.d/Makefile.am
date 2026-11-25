@@ -156,6 +156,7 @@ EXTRA_DIST = \
 	ctxown39.lm \
 	ctxown40.lm \
 	ctxown41.lm \
+	ctxown42.lm \
 	ctxplace1.lm \
 	ctxplace2.lm \
 	ctxplace3.lm \

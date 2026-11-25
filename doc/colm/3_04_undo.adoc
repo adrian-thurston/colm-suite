@@ -343,7 +343,8 @@ the lend ends, the action can't use `this` or the context's variables, nor
 call a function or an iterator that does. A `yield` runs the body of the loop
 over the iterator, which can use them too. So an iterator, or a function an
 iterator calls, can't yield while the context object, or one of its
-parameters, is lent to a parser, nor call then a function that can yield.
+parameters, is lent, nor call then a function that can yield, even in the
+item of a parse.
 
 A lend or a move on one side of an `if` holds after it. A parser finished on
 one side only can't be sent to after the `if`, and keeps what it was lent. A

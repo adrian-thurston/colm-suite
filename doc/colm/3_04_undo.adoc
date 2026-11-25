@@ -359,18 +359,35 @@ or `+cannot use C: it went with the parser made at 9:12+`.
 
 What the program puts into a context object through a reference to it, as
 `+C->L = ...+` and `+C->L->push_tail( ... )+` do, is new: an object made with
-`new`, `nil`, or something the object holds already, as in
-`+Lookup->curNamespace->push_tail( Lookup->rootNamespace )+`. Anything else
-could be changed through another reference while a parser can back up. Colm
-stops with the error
-`only a new object, nil or what C holds can go into C`.
+`new`, `nil`, something the object holds already, as in
+`+Lookup->curNamespace->push_tail( Lookup->rootNamespace )+`, or a local
+variable that nothing else can reach. Anything else could be changed through
+another reference while a parser can back up. Colm stops with the error
+`+only a new object, nil, what C holds or a variable used only through -> since its new can go into C+`.
+
+Such a local variable was given a new object, by
+`+L: list<str> = new list<str>()+` or by the statement `+new L: list<str>()+`,
+and has been used since only through `+->+`, as `+L->push_tail( "a" )+` and
+`+L->length+` use it. Nothing but a new object, `nil` or what it holds has
+gone into it. `+C->L = L+` moves the variable into the object: like a context
+object moved, it can't be used until it is given another object. These end
+it: using it as a value, by passing it to a function, putting it into another
+variable or anywhere else, returning or testing it, or keeping a send's value;
+taking a list, map, struct or parser out of it, as `+X: rec = L->head+` does,
+or with a `for` loop over values that are such; and putting anything else
+into it, another variable included. A variable made outside a loop can't move
+inside the loop's body, which runs again. After an `if` or a loop, it goes in
+only if nothing on any path ended it. A `new` whose capture holds the object
+too, as in `+C->L = new X: list<str>()+`, isn't new. Colm stops with the
+error `cannot put the new object into C: X holds it too`.
+
 An `int` or a `str` can come from anywhere, and so can a tree, which is copied
 when it is written. But a copy of a tree shares the list, map, struct, parser
 or stream that an attribute of it, or of a tree below it, holds. So a tree of
 a type that can hold one there gets into a context object only through its
 parse's actions. Only `nil` or what the object holds goes in this way, not
-even a tree that `cons` or `parse` makes, since what makes it can give it a
-list held elsewhere. Colm stops with the error
+even a tree that `cons` or `parse` makes, nor one in a variable, since what
+makes it can give it a list held elsewhere. Colm stops with the error
 `only nil or what C holds can go into C: a T can hold a list, map, parser, stream or struct`.
 
 Outside its parse's actions, the program reads a context object's variables,

@@ -123,8 +123,9 @@ checks it.
     a loan (14). What outside code puts into the object, or into what the
     object holds, is a new object, `nil`, what the object holds already, or
     a local variable that has held only a new object since it was given one,
-    has been used since only through `->`, and has had only such values put
-    into it. That variable then can't be used again: its object moved.
+    has been used since only through `->`, and has had only a new object,
+    `nil` or what it holds already put into it. That variable then can't be
+    used again: its object moved.
 13. The parse's own code doesn't take a reference value out of a global, or
     put one into a global, in any parse given a context object, whether it
     is restartable or not. In what a restartable parser runs, [#714] already

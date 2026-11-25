@@ -347,12 +347,41 @@ through the same root, or a unique local, which then moves:
     only a new object, nil, what C holds or a variable used only through ->
     since its new can go into C
 
-The unique state is the setup window as it was, for a local of any reference
-type: the assignment of a `new` term opens it, and it ends at any use of the
-local as a value other than its move into an object, or a store into it of
-anything that couldn't go into an object. A tree that can hold a reference
-value is never unique: what `cons` and `parse` make can hold what is held
-elsewhere ([#720]).
+The unique state is an entry in `Compiler::owns`, `Own::Unique`, for a local
+of a type that `ctxHeldRef()` counts: a list, a map, a struct that isn't a
+context, a parser, or a weak one of these. A context object moves already
+([Moves](#moves-5)). The entry opens where the local is given a `new` term
+with no capture, by an assignment, or by the statement `new L: T()`, whose
+capture is all that holds the object. Anywhere else, a `new` with a capture
+isn't new, since the capture holds the object too: into a context object, as
+`C->L = new X: list<str>()`, it is refused at the `new`.
+
+    cannot put the new object into C: X holds it too
+
+The entry ends wherever something else could reach what the local holds:
+
+- a use of the local as a value (`LangVarRef::evaluate()`), other than in
+  place. A send's target, a `for` loop over values that aren't reference
+  values, and a value read through the same root are read in place;
+- a send's value, kept (`LangTerm::sendFinish()`);
+- a take: a reference value read out of it other than in place, as
+  `X = L->head` and `M->find( K )` read one (`uniqueTake()`, beside each
+  `checkContextValue()`), and a `for` loop whose values are reference values
+  (`compileForIter()`), which walks the list through a ref, not as a value;
+- a store into it (`setCtxStore()`, then `evaluateSetupValue()`) of a
+  reference value that isn't new, `nil` or read through it. Another local
+  counts: nothing moves into a local, which only stops being unique;
+- a capture that puts an object into it (`LangTerm::evaluateCapture()`);
+- another value given to it.
+
+The entry keeps the loop depth it was made at. A local made unique outside a
+loop doesn't move in the loop's body, which runs again (`uniqueHere()`).
+After an `if`, a local is unique only if both sides left it so
+(`mergeOwns()`), and after a loop only if the body's end and each `break`
+did (`leaveLoop()`). The loop check doesn't count a unique local: one unique
+before the loop doesn't move in it. A tree that can hold a reference value is
+never unique: what `cons` and `parse` make can hold what is held elsewhere
+([#720]).
 
 The parse's own code, through the context's names and `this`, isn't checked
 here. What it puts in comes from new objects, the object itself, its locals
@@ -422,6 +451,18 @@ a call such as `push_tail` given one, or a stream sent to a parser it holds.
   maintainer's answer. They add code that the new check makes unneeded.
 - Lending part of an object lends all of it: an object can hold, in one
   field, what another holds, as `C->Other = C->Sub->L` puts it there.
+- What goes into a unique local and keeps it unique is new, `nil` or what it
+  holds, and another local doesn't move there: the maintainer's answer
+  ([#772]). A move there refused programs that use no context, which push a
+  struct or a list into a new list and use it again (`elstruct1`,
+  `forvar16`, `loopvar13` and `weak1`). A struct built in a local still goes
+  in two levels deep, by moving into what the object holds, as
+  `C->Recs->push_tail( R )` does. Not taken: the inner local moving when the
+  outer one moves, which needs a list of what went into each local, and a
+  change wherever the state ends.
+- A `new` with a capture isn't new where it goes: the maintainer's answer
+  ([#772]). The capture could change what the object holds while a parser
+  lent the object could back up.
 - Kept simple at a small cost:
   - `return`, `break` and `exit` don't end a path.
   - A parse's first item can't use the object, though nothing has been sent
@@ -485,7 +526,10 @@ In `test/colm.d`.
   give a call more arguments than it has parameters, which the argument
   check leaves for `evaluateArgs()` to report.
   `ctxhold5`'s runs became `ctxhold5`, `ctxhold10` and `ctxhold11` (refused),
-  `ctxhold12` and `ctxhold13`.
+  `ctxhold12` and `ctxhold13`. [#772] added `ctxuniq1`–`ctxuniq16`: the run
+  cases `ctxuniq1`–`ctxuniq3`, a list, a map and a struct moved in, and a
+  refusal each in the rest, `ctxuniq14` the `new` with a capture.
+  `ctxtake6`, a list made before setup, now runs.
 
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706
@@ -497,4 +541,5 @@ In `test/colm.d`.
 [#756]: https://github.com/adrian-thurston/colm-suite/issues/756
 [#757]: https://github.com/adrian-thurston/colm-suite/issues/757
 [#771]: https://github.com/adrian-thurston/colm-suite/issues/771
+[#772]: https://github.com/adrian-thurston/colm-suite/issues/772
 [#773]: https://github.com/adrian-thurston/colm-suite/issues/773

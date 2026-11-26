@@ -274,12 +274,12 @@ the parse while the parser can still back up over the action isn't only lost:
 when the parser backs up, it can corrupt the list or map, or crash the
 program.
 
-So colm doesn't compile a use of a context object from outside its parse
-while a parser it is lent to can still back up, as the next section
-describes.
+So colm doesn't compile a use of a context object, or of what it holds, from
+outside its parse while a parser it is lent to can still back up, as the next
+two sections describe.
 A global has a guard of its own: where the program can run while a parser
 can back up, the parser's actions can't change a global, as the section after
-it describes.
+them describes.
 
 [[context-lending]]
 == Lending a context object
@@ -303,8 +303,19 @@ compile a second, with the error
 parser in `P` until `+P->finish()+`, `+P->eof()+`, or a send to `P` that ends
 with `eos`. Until then the program can't use `C`. After it, the program has
 `C` back, and sends nothing more to `P`, nor finishes it again. `+P->tree+`
-and `+P->error+` are read through `P` as before. While `P` is lent an object,
-`+P->gets()+` is a compile error: a push onto the input it gives is a send.
+and `+P->error+` are read through `P` as before, but a tree of a type that can
+hold a list, map, parser, stream or struct comes only from a finished `P`.
+Until then the parser's actions could change what the tree's attributes hold,
+and back up over the change. So `+P->tree+` before `+P->finish()+` is a
+compile error:
+`+cannot read P->tree: P is lent a context object until P->finish(), and a T can hold a list, map, parser, stream or struct+`.
+So is the tree of a parser that has its object for good, which can take input
+after its end: one made with `+new parser<ctx::start>( new ctx() )+`, one in a
+field, or one that went with its object. Its `+finish()+` gives the error
+`+cannot use what P->finish() gives: the parser has its context object for good, and a T can hold a list, map, parser, stream or struct+`,
+unless the tree goes nowhere, as in a statement of its own.
+While `P` is lent an object, `+P->gets()+` is a compile error: a push onto
+the input it gives is a send.
 Giving `P` another parser, or `nil`, ends the lend, as does the end of the
 block that declares `P`: nothing can send to that parser any more.
 
@@ -358,8 +369,9 @@ or moved, such as `+cannot use C: it is lent to P (12:7) until P->finish()+`
 or `+cannot use C: it went with the parser made at 9:12+`.
 
 What the program puts into a context object through a reference to it, as
-`+C->L = ...+` and `+C->L->push_tail( ... )+` do, is new: an object made with
-`new`, `nil`, or something the object holds already, as in
+`+C->L = ...+` and `+C->L->push_tail( ... )+` do, or through a loan on it, as
+below, is new: an object made with `new`, `nil`, or something the object
+holds already, as in
 `+Lookup->curNamespace->push_tail( Lookup->rootNamespace )+`. Anything else
 could be changed through another reference while a parser can back up. Colm
 stops with the error
@@ -367,23 +379,62 @@ stops with the error
 An `int` or a `str` can come from anywhere, and so can a tree, which is copied
 when it is written. But a copy of a tree shares the list, map, struct, parser
 or stream that an attribute of it, or of a tree below it, holds. So a tree of
-a type that can hold one there gets into a context object only through its
-parse's actions. Only `nil` or what the object holds goes in this way, not
-even a tree that `cons` or `parse` makes, since what makes it can give it a
-list held elsewhere. Colm stops with the error
+a type that can hold one there gets into a context object only through a
+parse given the object. Only `nil`, what the object holds, or the tree of a
+parse given the object goes in this way, not a tree that `cons` or another
+parse makes, since what makes it can give it a list held elsewhere. Colm
+stops with the error
 `only nil or what C holds can go into C: a T can hold a list, map, parser, stream or struct`.
 
-Outside its parse's actions, the program reads a context object's variables,
-and the lists, maps, structs and parsers they hold in place, through `+->+`,
-as `+C->L->length+`, `+C->M->find( K )+` and `+C->P->tree+` do, or with a
-`for` loop over values that aren't lists, maps, structs or parsers. It can't
-take such a list, map, struct or parser out, where it could be changed: put it
-into a variable, pass it to a function, return it, or test it, or take one out
-of what a call gives, such as the struct `find` gives from a map of structs.
-Colm stops with the error `cannot take L out of C, a context object`.
-A tree of a type that can hold one of these counts as one too. The program
-reads its attributes in place, as `+C->T.L->length+` does, and using the tree
-itself as a value, even to print or match it, takes it out.
+[[context-loans]]
+== Loans
+
+Outside its parse's actions, the program reads what a context object holds
+in place, through `+->+`, as `+C->L->length+` and `+C->M->find( K )+` do. It
+can also read a list, map, struct or parser that the object holds into a
+local variable, as `+L: list<str> = C->L+` does. The variable then holds a
+_loan_ on the object. So does the tree of a parse given the object, as `S`
+in `+parse S: ctx::start( C )[ "a" ]+`, and the tree that `+P->finish()+`
+gives, if its type can hold a list, map, parser, stream or struct. So does
+what is got from a loan: a field or an attribute read from it, a `for` loop's
+variable over it, a pattern's variable in a `match` of it, and what a
+function given it returns.
+
+While a loan lasts, the program uses it as it uses the object: it reads it,
+changes what it holds, prints it, matches it, tests it, loops over it and
+returns it. What it puts into a loan goes into the object, so it follows the
+rule above. A loan can go back into the object it is a loan on, as
+`+C->Other = L+` puts it, and to a function that keeps nothing of it and puts
+into it only what the object holds.
+
+A loan ends where its object is lent, moved, or given another object: a
+parser lent the object could change what the loan reaches, and back up over
+the change. A use of the loan after that is a compile error, such as
+`+cannot use L: it is a loan on C, which was lent at 15:3+`, with
+`which was moved at`, `which went with the parser made at` or
+`which was given another object at` in place of `which was lent at`. The tree
+of a finished `P` is a loan the same way, and reading `+P->tree+` once its
+object is lent again gives
+`+cannot read P->tree: it is a loan on C, which was lent at 15:3+`. A loop's
+body can't take a loan into a variable from outside the loop, nor end one:
+the next pass would start from what the last one left, as
+`+X takes a loan on C in the loop's body (14:5), and still holds it at its end+`
+and
+`+X's loan on C ends in the loop's body (14:5), and the next pass could use it+`
+say.
+
+A loan stays in local variables. Anywhere else, in a global, a field, a list
+or a map, an attribute of a tree that `cons` or `make_token` makes, a `ref`
+parameter, which writes into its caller's variable, or a function the host
+defines, it could be changed while a parser the object is lent to can back
+up. Colm stops with the error
+`cannot take L out of C, a context object`. A function given a loan doesn't
+keep it, or what it gets from it, anywhere but in its own local variables,
+and puts into it only what the object holds. Otherwise the call is a compile
+error, `cannot give L, a loan on C, to f: f keeps its parameter L` or
+`cannot give R, a loan on C, to f: f can put into its parameter Q what C doesn't hold`.
+Nor can a call give a function both an object and a loan on it, as
+`+f( C, C->L )+` would: the function could lend the one and use the other.
 
 [[restartable]]
 == Globals in a restartable parser

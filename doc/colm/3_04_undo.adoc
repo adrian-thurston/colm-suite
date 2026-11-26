@@ -397,6 +397,8 @@ as `+C->L->length+`, `+C->M->find( K )+` and `+C->P->tree+` do, or with a
 take such a list, map, struct or parser out, where it could be changed: put it
 into a variable, pass it to a function, return it, or test it, or take one out
 of what a call gives, such as the struct `find` gives from a map of structs.
+Nor can it keep the value of a send to a parser or a stream the object holds,
+as `+Q = send C->P "a"+` would, since a send's value is what it was sent to.
 Colm stops with the error `cannot take L out of C, a context object`.
 A tree of a type that can hold one of these counts as one too. The program
 reads its attributes in place, as `+C->T.L->length+` does, and using the tree

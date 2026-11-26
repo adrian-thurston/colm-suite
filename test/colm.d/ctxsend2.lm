@@ -1,0 +1,21 @@
+# A send's value, kept, is the stream in the context object: it can't be
+# taken out, as C->I can't.
+context ctx
+	I: stream
+
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[w*]
+end
+
+C: ctx = new ctx()
+C->I = new stream()
+X: stream = send C->I "a"
+send X "b"
+print( "compiled\n" )
+##### COMP_ERR #####
+17:21: cannot take I out of C, a context object

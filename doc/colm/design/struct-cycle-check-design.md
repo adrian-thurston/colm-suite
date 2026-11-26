@@ -115,7 +115,9 @@ such fields alone make chains of objects, never a cycle:
 - an assignment notes the move of its right-hand side (`noteMove()`)
   before `assignValue()` loads the target's root, so a local put into a
   place reached through itself is refused at the target: `C->Sub = C`
-  and `C->Sub->Sub = C` give `cannot use C: it was moved at 12:10`.
+  gives `cannot use C: it was moved at 12:10`, and `C->Sub->Sub = C`
+  gives `cannot use C: it was moved at 12:15` (`ctxcycle3`,
+  `ctxcycle4`).
 
 Only a context's field or a parser's context leads to a context, so any
 other cycle through a context passes a parser, and has a place that

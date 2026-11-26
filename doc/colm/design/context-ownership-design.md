@@ -160,10 +160,12 @@ variable named alone or a field read through `->` can't move:
 
 The move is noted (`noteMove()`, in `LangStmt::compile()`'s `AssignType`
 case) before `assignValue()` loads the target's root. So a local put into
-a place reached through itself, as `C->Sub = C` or `C->Sub->Sub = C`, is
-refused at the target, `cannot use C: it was moved at 12:10`, and no
-object comes to hold itself. `checkStrongCycles()` counts on this: it
-accepts a cycle made only of contexts' fields that hold contexts ([#779]).
+a place reached through itself is refused at the target, and no object
+comes to hold itself: `C->Sub = C` gives
+`cannot use C: it was moved at 12:10`, and `C->Sub->Sub = C` gives
+`cannot use C: it was moved at 12:15` (`ctxcycle3`, `ctxcycle4`).
+`checkStrongCycles()` counts on this: it accepts a cycle made only of
+contexts' fields that hold contexts ([#779]).
 
 Giving a variable or a field another object ends what was recorded of the
 old one: its entry goes, and loans on it end.

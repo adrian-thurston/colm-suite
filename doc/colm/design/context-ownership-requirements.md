@@ -74,9 +74,10 @@ checks it.
    a field of a struct that isn't a context, a list's value, a map's key or
    value, a def's or a token's attribute, or the `T` of a `weak<T>`. A
    struct is a context when a def or a token is defined in it. A context's
-   field can be of its own context, or of a context with a field of its
-   own: one owner makes such objects a chain, never a cycle (5), and the
-   struct cycle check lets such fields be strong ([#779]).
+   field can be of its own context, or of a context with a field of the
+   first one's context, as two contexts that hold each other have: one
+   owner makes such objects a chain, never a cycle (5), and the struct
+   cycle check lets such fields be strong ([#779]).
 5. Putting a context object that a local variable holds into another
    variable or into a field of a context object, or returning it, moves it.
    The local can't be used again until it is given another object. Nothing

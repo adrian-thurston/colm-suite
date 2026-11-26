@@ -19,16 +19,20 @@ stays as dead code, or as a second check beside the new one.
   `evaluateCall()` and `LangTerm::checkSendChange()`. `evaluateSetupValue()`
   keeps only [what goes in](#what-goes-in-12). `endReachableSetups()` keeps
   only its count of `otherCodeRuns`, which `restartTypes` needs, under a
-  name that says so (`countOtherCode()`). `ctxValueInPlace` loses its
-  context uses, the send target and what a change puts in, when [#773]
-  turns `checkContextValue()` into the loan's escape: until then, its take
-  refusal needs them. [#714]'s takes of a global still use it.
-- **The parts of [#720]'s rule that loans replace** (PR #749):
-  `checkContextValue()`'s refusal of a tree that can hold a reference value,
-  read through a context object, used as a value: printed, matched, its text
-  taken with `$`, or looped over. What stays of `checkContextValue()` is a
-  loan's escape. `sharesRef()` and `Compiler::treeHoldsRef()` stay: [#714]
-  and [#729] use them, and so do loans.
+  name that says so (`countOtherCode()`). `ctxValueInPlace` lost its
+  context use with [#773]: `evaluateSetupValue()` set it for a value read
+  through the root it goes into, which no read refusal is left to need. Its
+  other uses, a send's target and a `for` loop's value (`forInPlace()`),
+  are [#714]'s, for a take out of a global, so it is
+  `Compiler::globalInPlace` now.
+- **The parts of [#720]'s rule that loans replace** (PR #749), gone with
+  [#773]: `checkContextValue()`'s refusal of any use as a value of a
+  reference value read through a context object, a tree that can hold one
+  among them: put into a variable, given to a function, tested, printed,
+  matched, its text taken with `$`, or looped over. What stays of
+  `checkContextValue()` is a loan's escape, checked where a value is
+  stored ([Loans](#loans)). `sharesRef()` and `Compiler::treeHoldsRef()`
+  stay: [#714] and [#729] use them, and so do loans.
 - **[#718]'s run-time hold** (PR #750): `IN_SET_PARSER_OWNER`,
   `IN_RELEASE_PARSER_CONTEXT`, `PARSER_NEW`, `PARSER_PARSE` and
   `PARSER_RESTART_PARSE`, the hold test in `IN_SET_PARSER_CONTEXT` (its stop
@@ -44,8 +48,11 @@ stays as dead code, or as a second check beside the new one.
   shows only how a window opens or ends, such as `ctxchg13` and
   `ctxchg15`–`ctxchg18`, unless its program shows something the new check
   refuses or allows. The rest are sorted as [Tests](#tests) says.
-- **Documents.** `context-change-requirements.md` and
-  `context-change-design.md` are deleted.
+- **Documents.** The requirements and the design of [#706]'s and [#720]'s
+  rules for changing a context object are deleted ([#773]), once their
+  section on trees into a parse moved here
+  ([17](#trees-into-a-parse-17)). The requirements link to them as they were
+  at a commit before.
   `global-change-requirements.md` and `global-change-design.md` lose what
   they say of the hold and the windows.
   [`struct-lifetime-backing-up.md`](struct-lifetime-backing-up.md) loses
@@ -60,10 +67,10 @@ stays as dead code, or as a second check beside the new one.
 
 - `heldRef()`, `ctxHeldRef()`, `sharesRef()` and
   `Compiler::treeHoldsRef()`, which say what a reference value is.
-- `checkTreeIntoParse()` (17).
-- `checkContextValue()`'s refusal of a reference value read out of a context
-  object into anything but a local variable, which becomes the loan's escape
-  ([Loans](#loans)).
+- `checkTreeIntoParse()` ([17](#trees-into-a-parse-17)).
+- `checkContextValue()`, as the check of a store: a reference value read out
+  of a context object can be kept only in a local variable, or in the object
+  it came from ([Loans](#loans)).
 - [#714]'s `checkRestartable()`, which the
   [globals check](#globals-in-a-context-parse) widens.
 - `checkContextGiven()`, `checkParserContext()`, and the refusal of a second
@@ -297,8 +304,13 @@ argument must not have moved:
     cannot give f C: another argument takes it with the parser made at
     12:7
 
-Nothing else a context object holds can be an argument through a root,
-since it can't be taken out of the object until loans ([#773]).
+A loan on a context object is an argument too ([Loans](#loans)). Given with
+an argument of a context type that has the loan's root, as `f( C, C->L )`
+and `f( X, C )` for a loan `X` on `C` are, the function could lend the one
+and use the other, so `checkContextArgs()` refuses it with the same error.
+A loan on the running context is noted in `CodeBlock::contextArgs` as an
+argument the running context reaches is, and refused for a function or an
+iterator that names the context.
 
 ### Branches and loops
 
@@ -359,38 +371,198 @@ here. What it puts in comes from new objects, the object itself, its locals
 and globals, and the [globals check](#globals-in-a-context-parse) refuses
 the last.
 
+A store through a loan ([Loans](#loans)) reaches what the object holds, so it
+is a store through a context reference too, on the loan's root, as
+`X->L = G` is for a loan `X` on `C`. `setCtxStore()` notes it when the target
+is qualified and starts at a local whose loan has a context root, and the
+error names the root, or says `the context object`. Read through the same
+root now means a value whose loan is on just that root, and *held*: what
+holds only what its roots hold, or new objects. A function's result isn't
+held, since the function could give a global's list; the tree of a parse
+given the object is, since the parse's own code takes nothing out of a
+global (13), and the store rule above keeps what goes into a loan the
+object's.
+
+## Trees into a parse (17)
+
+A tree that is sent with `send_tree`, is an item of a `parse_tree`, or is
+pushed onto a parser's input goes into the parse as itself. A tree that
+shares a list, map, parser, stream or struct is refused there
+(`checkTreeIntoParse()`), wherever the code is, and whether the parser can
+back up or not:
+
+- a `send_tree` item: `LangTerm::evaluateSendParser()`, when it isn't
+  sending strings;
+- a `parse_tree` item: `LangTerm::evaluateParse()`, when `tree` is set;
+- a `push` or a `push_ignore` onto an input (`IN_INPUT_PUSH_WV`,
+  `IN_INPUT_PUSH_IGNORE_WV`), in `evaluateArgs()`, unless it is made
+  through `input`, the inbuilt object a token action pushes onto its own
+  parser's input with (`isInbuiltObject()`).
+
+The errors:
+`cannot send_tree a T, which can hold a list, map, parser, stream or struct: send its text`,
+`cannot parse_tree a T, which can hold a list, map, parser, stream or struct: parse its text`
+and
+`cannot push a T, which can hold a list, map, parser, stream or struct, outside a token action: push its text`.
+
 ## Loans
 
-A loan entry, on a local, names the roots it is a loan on (14):
+A *loan* is a value of a type `heldRef()` counts that came out of a context
+object: a reference value, or a tree that can hold one. The compiler records
+it on the local that holds it, as an entry of its own in `Compiler::owns`
+(`Own::Loan`), beside any other the variable has: `findOwn()` skips it and
+`findLoan()` finds it, `addOwn()` and `addLoan()` each replace only their
+own kind, and `removeOwn()`, for a variable given another value, takes both.
+The entry names the roots it is a loan on, each a `Compiler::LoanRoot` that
+says whether its loan has ended, how and where, and says whether the value
+is held ([What goes in](#what-goes-in-12)).
 
-- **Made** by an assignment to an unqualified local of a reference value read
-  through a context reference, or given by a call on what an object holds,
-  as `X = C->L` and `R = C->M->find( K )`, which
-  `checkContextValue()` refuses today; by the capture of a parse lent `C`, of
-  a type that can hold a reference value; by `P->tree` and `P->finish()` once
-  `P` is finished; and from a loan, by an assignment, a field or attribute
-  read, a `for` loop's variable, and what a call given it returns.
-- **Ended** where its root is lent, moved, or given another object: the
-  entry keeps where, for the error.
-- **Escapes**: a loan, or a reference value read out of an object, stored
-  anywhere but a local or the object it came from, is refused as today:
-  `cannot take L out of C, a context object`. A loan given to a user
-  function or iterator is noted (`CodeBlock::loanArgs`: the function, the
-  parameter, where).
+### What a value is a loan on
 
-Inside any function, each parameter of a reference type is a root of the
-same kind. Storing it, or a value got from it, anywhere but a local marks
-the parameter as kept (`ObjectField::keeps`), as does giving it to a
-parameter that keeps. A `return` doesn't: the caller's result is a loan on
-what the arguments were. The pass after compiling finds `keeps` with a
-fixpoint over the calls, as `checkRefCopies()` does `refWrite`, and reports
-the first noted loan given to a parameter that keeps:
+`valueLoan()` and `varRefLoan()` find it from the expression's form and the
+ownership state, after the expression is evaluated, and evaluate nothing
+(14):
+
+- a reference read through a context reference (`firstCtxPart` set): its
+  root;
+- a reference that starts at a local holding a loan: that loan's roots;
+- inside a function, a reference that starts at a parameter of a reference
+  type other than a context: the parameter, a *parameter root*, which is
+  never lent and only feeds `keeps` and `fills` below;
+- the tree of a finished parser variable `P`, read as `P->tree`, and what
+  its `finish()` or `eof()` gives: the root `P` was lent, which `P`'s
+  `Finished` entry keeps (`Compiler::finishParser()`);
+- a built-in call on any of these: what it is called on;
+- a call of a function or an iterator: each argument's loan, and the root of
+  each argument of a context type, not held;
+- a parse given an object a root reaches, of a type `sharesRef()` counts:
+  that root;
+- a cast, a `match`, a search, a send's value and the `^` and `@` of a loan:
+  its loan. The checks go by type, so a cast to a type that can't hold a
+  reference value hides one ([#755]).
+
+### Where loans are made, and end
+
+A local (`UserLocalType` or `ParamValType`, not a tree loop's variable) given
+a loan in an assignment holds it. So does a parse's capture, given the
+object a root reaches; a `for` loop's variable, from its argument or, for a
+user iterator, from what the iterator is given (added just after the body's
+start state is taken, so `endScopeOwns()` drops it at the body's end); and a
+pattern's variable in a `match` of a loan, which covers a `switch` too.
+
+`Compiler::endLoans()` ends the loans on a root where it is lent to a parse,
+a parser or a loop, moved, gone with a parser, or given another object (an
+assignment to the root), and keeps where, for the error. A use of a local
+whose loan has ended fails in `checkOwnedUse()`, which
+`LangVarRef::preEvaluateRef()` now calls too, for a ref argument and a
+`yield`:
+
+    cannot use X: it is a loan on C, which was lent at 15:3
+    cannot use X: it is a loan on C, which was moved at 15:3
+    cannot use X: it is a loan on C, which went with the parser made at 15:3
+    cannot use X: it is a loan on C, which was given another object at 15:3
+
+A loan on the running context says `a loan on the context object`.
+
+### Stores
+
+A loan, or a reference value read out of an object, is kept only in a local
+variable or in the object it came from (15). Every other store is
+`checkContextValue()`'s, once its value is evaluated:
+
+- an assignment to anything but such a local: a global, a qualified field, a
+  context's variable named alone, a reduction's `lhs` or `r1`, a `ref`
+  parameter, which writes into its caller's variable, and a tree loop's
+  variable, which writes into the walked tree;
+- a value argument of a built-in that changes what it is called on, such as
+  `push_tail`, `insert`, `set` or `push`, and any argument of a function the
+  host defines, which `evaluateCall()` tells `evaluateArgs()` of with
+  `Compiler::argsGoIn`;
+- an item and a field initializer of a `cons`, the attributes `make_token`
+  is given and the children `make_tree` is given;
+- a stream sent to a parser, which goes into its input as itself.
+
+A store through a context reference, or through a loan, goes through
+`evaluateSetupValue()` instead ([What goes in](#what-goes-in-12)). The error
+is today's, at the value:
+
+    cannot take L out of C, a context object
+    cannot take what f gives out of C, a context object
+
+For a loan that isn't read through `->`, it names the root, or says
+`cannot take X out of the context object`. Every other use of a value is in
+place, and fine while the loan lasts: printing it, sending it as text,
+testing and comparing it, `!`, `$`, `$$` and `%`, `match`, a loop over it, a
+send to it, a built-in call that doesn't change what it is called on, a
+statement's dropped value, and `return`. Printing or matching `C->T` reads
+through `C`, which can't be lent there, so [#720]'s refusal of those goes.
+
+### Functions
+
+Inside a function, what is stored of a parameter root marks the parameter
+as kept (`ObjectField::keeps`), and what is put into what it reaches, unless
+it is new, `nil` or held and got from that parameter alone, marks it as
+filled (`ObjectField::fills`). A store into what a parameter reaches is one
+whose target is qualified and starts at the parameter, or at a local whose
+loan is on parameters and no context object. A `return` and a `yield` mark
+nothing: the caller's result is a loan on what the arguments were.
+
+A loan on a context object given to a function or an iterator the program
+defines is noted (`CodeBlock::loanArgs`: the function, the parameter, where,
+what and the root), in the block being compiled on its revert compile, or
+in `rootCodeBlock`, which is compiled once. A parameter root given to
+another function's parameter adds `refFlow()`s from its flags to that
+parameter's. `checkRefCopies()` closes every flow, so
+`Compiler::checkLoanArgs()`, after `checkLentCalls()`, sees the flags closed
+over the calls, and reports the first noted loan given to a parameter that
+keeps or fills:
 
     cannot give X, a loan on C, to f: f keeps its parameter L
+    cannot give X, a loan on C, to f: f can put into its parameter Q what C
+    doesn't hold
 
-Using a loan in place, printing it, matching it or looping over it, is a
-use, and is fine while the loan lasts. Printing or matching `C->T` reads
-through `C`, which can't be lent there, so [#720]'s refusal of those goes.
+### Trees out of a parser (16)
+
+`VarRefLookup::parserTree` is the part of a reference that reads the tree of
+a parser of a type defined in a context. Where `checkOwnedUse()` is called,
+`checkParserTree()` lets a tree of a type `sharesRef()` counts be read only
+through a local parser variable `P` that is finished, and whose root hasn't
+been lent, moved or given another object since:
+
+    cannot read P->tree: P is lent a context object until P->finish(), and a
+    T can hold a list, map, parser, stream or struct
+    cannot read P->tree: it is a loan on C, which was lent at 15:3
+    cannot read Q->tree: the parser has its context object for good, and a T
+    can hold a list, map, parser, stream or struct
+
+The last is a parser made with `new parser<T>( new ctx() )`, one in a field,
+a parameter, or one that went with its object: it can take input after its
+end ([#439]). Its `finish()` and `eof()` of such a type are refused the same
+way, unless the tree goes nowhere, as in a statement of its own
+(`Compiler::callDropped`), since a parser given its object for good must
+still be finished:
+
+    cannot use what Q->finish() gives: the parser has its context object
+    for good, and a T can hold a list, map, parser, stream or struct
+
+### Loans in branches and loops
+
+`mergeOwns()` merges a loan only with the same variable's loan: the roots are
+unioned, a root ended on either side has ended, and the value is held only
+if it is on both sides. A `Finished` entry's root merges the same way. An
+`if`'s own scope, which holds the variables its test's patterns declare, is
+dropped after the merge, since the else side kept what the test gave them,
+and `leaveLoop()` drops the loop's scope from the state its test left.
+
+A loop's body can't make a loan in a variable from outside the loop, nor end
+one: the next pass would start with the loan, which the body's statements
+before the assignment weren't compiled for, or use it before the body ends
+it. `checkLoopOwns()` refuses either at the loop:
+
+    X takes a loan on C in the loop's body (14:5), and still holds it at its
+    end
+    X's loan on C ends in the loop's body (14:5), and the next pass could
+    use it
 
 ## Globals in a context parse
 
@@ -430,6 +602,31 @@ a call such as `push_tail` given one, or a stream sent to a parser it holds.
     arguments can't reach one object.
   - A loan given to a function that keeps anything got from it is refused,
     even if the function keeps it in the same object.
+  - A dropped `finish()` of a parser given its object for good is allowed: it
+    gives no tree, and the parser has to be finished.
+  - A loan made in a loop's body in a variable from outside it is refused,
+    as a lend there is.
+  - A `ref` parameter, a tree loop's variable and a host function's argument
+    are stores: each puts the value where a local doesn't hold it.
+  - A store through a loan is one into the object, even into the tree's own
+    attribute, which writes only the local's copy: colm can't follow which
+    of a loan tree's attributes still hold what the object holds. So
+    `pointer1`'s `Input.Foo = Held`, through a parse's tree, is refused, as
+    the maintainer accepted.
+- What the parse's own code keeps of its object, in a local read from a
+  context variable named alone or through `this`, while it lends the
+  object, is left out ([#773]): the maintainer's answer. A rule for it needs
+  more than loans: the parse's own code puts what its object holds into its
+  trees and into new structs (c++.lm's `DD->lookupObj = lookupNs->tail`).
+- What goes into a loan inside a function has its own summary,
+  `ObjectField::fills`, beside `keeps`: the maintainer's answer. Requirement
+  12 lets outside code put into what the object holds only new objects,
+  `nil` or what it holds already, and a function given a loan is outside
+  code.
+- A value is held, and can go back into its object, only if it holds what
+  its roots hold or new objects. Without that, what a function given a loan
+  gives, which can be a global's list, would count as read through the
+  root.
 - Not taken: a parser made with its context, owning it: a language change,
   with no way to give one object to one parse after another.
 - Not taken: lifetime annotations. The checks stay in one function, with a
@@ -442,6 +639,9 @@ a call such as `push_tail` given one, or a stream sent to a parser it holds.
 - A parser that was given its object for good takes input after its end
   ([#439]). Nothing outside can reach its object, and it gives no tree that
   could.
+- The parse's own code can read what its object holds into a local, by a
+  context variable's name or through `this`, lend the object to a new
+  parser, and use the local between the sends. Nothing refuses it.
 
 ## Tests
 
@@ -486,6 +686,30 @@ In `test/colm.d`.
   check leaves for `evaluateArgs()` to report.
   `ctxhold5`'s runs became `ctxhold5`, `ctxhold10` and `ctxhold11` (refused),
   `ctxhold12` and `ctxhold13`.
+- **Loans.** [#773] added `ctxloan1`–`ctxloan27`, one refusal each:
+  - a loan used after its root is lent to a parse (1), to a parser (2), with
+    a parse's capture (3) and `finish()`'s tree (4) as the loan, and after
+    its root is moved (5), goes with a parser (6) or is given another object
+    (7);
+  - a loan stored in a global (8), a struct's field (9), a local's list
+    (10), a `cons` (11), a host function's argument (12) and a caller's
+    variable through a `ref` parameter (26);
+  - a loan given to a function that keeps its parameter (13), or gives it to
+    one that does (14), or puts a global's list into it (15), and outside
+    code putting one into a loan (16);
+  - `P->tree` while `P` is lent (17), `finish()` of a parser that has its
+    object for good (18), and `P->tree` once its object is lent again (19);
+  - a function given the object and a loan on it (20), and a loan on the
+    running context given to a function that names the context (25);
+  - a loan made (21) or ended (22) in a loop's body, a `for` loop's variable
+    used after a lend (23), a `match`'s variable stored (24), and an ended
+    loan given by `ref` (27).
+
+  `ctxloan28` and `ctxloan29` run: loans read and changed after their
+  parse, a function's result, a loan given to a function that keeps
+  nothing, put back into its object, and taken on one side of an `if`. They
+  share `ctxloan.lmi`. `ctxtake1`–`ctxtake5`, `ctxtake8` and `ctxtake15` run
+  now, and `pointer1` is refused at its store through a parse's tree.
 
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706

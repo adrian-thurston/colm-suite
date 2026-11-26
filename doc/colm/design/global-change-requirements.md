@@ -79,7 +79,8 @@ companion of the
   those of any undone write.
 - A tree that the program sends to a parser as itself, whose attribute holds
   a list, map or struct, through a global or not: the [rule for context
-  objects](context-change-requirements.md) refuses it ([#729]).
+  objects](context-ownership-requirements.md#trees-into-a-parse) refuses it
+  ([#729]).
 - Two parsers given one context object: the
   [ownership check](context-ownership-design.md) refuses it ([#771]).
 - Host programs: exports give a host trees, never structs.

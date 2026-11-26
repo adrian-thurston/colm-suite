@@ -27,15 +27,17 @@ runtime changes.
     `finish`); and in `LangTerm::checkSendChange()`, for a send to a
     parser, not to a stream;
   - a take: in `LangVarRef::evaluate()`, of a value that `heldRef()`
-    counts, unless it is read in place (`ctxValueInPlace`), and in
+    counts, unless it is read in place (`globalInPlace`), and in
     `evaluateCall()`, of such a value that a call on what a global holds
-    gives. `heldRef()` counts what `checkContextValue()` counts: what
-    `ctxHeldRef()` does, and a tree type that `Compiler::treeHoldsRef()`
-    finds (`sharesRef()`): one with an attribute, or a tree below it with
-    one, that can hold a list, map, parser, stream or struct. It finds them
-    once, adding each def or token whose attributes or production children
-    reach one until no more do, and `any` counts once any type does. A `for`
-    loop over a list or a map of such trees doesn't read it in place
+    gives. `heldRef()` counts a reference value, as a loan on a context
+    object is one: what `ctxHeldRef()` does, a list, map, parser, stream or
+    struct other than a context, and a tree type that
+    `Compiler::treeHoldsRef()` finds (`sharesRef()`): one with an
+    attribute, or a tree below it with one, that can hold a list, map,
+    parser, stream or struct. It finds them once, adding each def or token
+    whose attributes or production children reach one until no more do,
+    and `any` counts once any type does. A `for` loop over a list or a map
+    of such trees doesn't read it in place
     (`forInPlace()`): each value is a copy that shares what its attributes
     hold, so the list or the map is taken.
 - A change notes whether it puts a reference value in

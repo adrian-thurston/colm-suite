@@ -9,7 +9,7 @@ for a time the code shows, and what is read out of it is a loan that ends
 when it is lent again. There are no lifetime annotations, and nothing is
 checked when the program runs.
 
-It replaces the [rules for changing a context object](context-change-requirements.md)
+It replaces the [rules for changing a context object](https://github.com/adrian-thurston/colm-suite/blob/e31a7d40255e49adfecea5850755617530b0ff6d/doc/colm/design/context-change-requirements.md)
 of [#706] and [#720], and the run-time hold of [#718], which are removed
 (20), and it settles [#756] and [#757]. [#729]'s rule for trees sent into a
 parse stays. The [design](context-ownership-design.md) says how the compiler
@@ -143,9 +143,10 @@ checks it.
       it, a `for` loop's value over it, and what a call given it returns.
 15. A loan stays in local variables. It can go back into the object it is a
     loan on, and to a function whose parameter keeps it, and what the
-    function gets from it, in its own local variables. It ends where its
-    object is lent or moved, or the variable that holds the object is given
-    another one. A use of it after that doesn't compile.
+    function gets from it, in its own local variables. A function given a
+    loan puts into it only what 12 lets outside code put into the object.
+    It ends where its object is lent or moved, or the variable that holds
+    the object is given another one. A use of it after that doesn't compile.
 16. A parser doesn't give a tree of a type that can hold a reference value,
     with `tree` or `finish()`, while it is lent an object, nor ever if it
     was given its object for good (10), such as a parser made with
@@ -189,6 +190,11 @@ checks it.
   a context object.
 - When a struct is freed ([#663]). Owning here is a compile-time rule about
   which code can reach an object, and frees nothing.
+- What the parse's own code keeps of its object while it lends it, as in a
+  token action that reads a context variable into a local, lends `this` to
+  a new parser, and uses the local between the sends. It needs a rule of
+  its own: the parse's own code puts what its object holds into its trees
+  and into new structs.
 
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439
 [#663]: https://github.com/adrian-thurston/colm-suite/issues/663

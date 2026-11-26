@@ -3429,13 +3429,18 @@ void LangTerm::checkSendChange( Compiler *pd, UniqueType *varUt, bool putsRef ) 
 /* A send's value is what it was sent to, a parser or a stream. Kept, it is
  * the local the target starts at, used as a value, or something read out of
  * it: either way that local isn't unique any more. Read out of a context
- * object, it is taken out, which checkContextValue() refuses. */
+ * object, it is taken out, which checkContextValue() refuses, and read out of
+ * a global, it is a take, as evaluate() notes one. */
 static void sendValueKept( Compiler *pd, const LangVarRef *varRef, bool dropped )
 {
 	if ( dropped )
 		return;
 
-	varRef->checkContextValue( pd, varRef->lookupField( pd ), varRef->lookup( pd ), false );
+	UniqueType *ut = varRef->lookup( pd );
+	varRef->checkContextValue( pd, varRef->lookupField( pd ), ut, false );
+	if ( pd->revertOn && heldRef( pd, ut ) )
+		varRef->noteGlobalUse( pd, GlobalUse::Take,
+				varRef->qual->length() > 0 ? varRef->name : String() );
 
 	ObjectField *root;
 	if ( varRef->ownRoot( pd, root ) && root != 0 )

@@ -532,7 +532,8 @@ In `test/colm.d`.
   cases `ctxuniq1`–`ctxuniq3`, a list, a map and a struct moved in, and a
   refusal each in the rest, `ctxuniq14` the `new` with a capture. It added
   `ctxsend1` and `ctxsend2` too, a kept send's value taken out of a context
-  object. `ctxtake6`, a list made before setup, now runs.
+  object, and `ctxsend3` and `ctxsend4`, one taken out of a global in a parse
+  given a context. `ctxtake6`, a list made before setup, now runs.
 
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706

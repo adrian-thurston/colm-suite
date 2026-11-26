@@ -169,6 +169,8 @@ EXTRA_DIST = \
 	ctxplace10.lm \
 	ctxsend1.lm \
 	ctxsend2.lm \
+	ctxsend3.lm \
+	ctxsend4.lm \
 	ctxset1.lm \
 	ctxset2.lm \
 	ctxtake1.lm \

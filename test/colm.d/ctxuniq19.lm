@@ -1,0 +1,12 @@
+# A struct a call gives out of a local is held in two places: the local isn't
+# unique.
+include 'ctxrule.lmi'
+
+global GR: rec
+M: map<str, rec> = new map<str, rec>()
+M->insert( "a", new rec() )
+GR = M->find( "a" )
+C: ctx = new ctx()
+C->M = M
+##### COMP_ERR #####
+10:8: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

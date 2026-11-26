@@ -221,6 +221,9 @@ EXTRA_DIST = \
 	ctxuniq16.lm \
 	ctxuniq17.lm \
 	ctxuniq18.lm \
+	ctxuniq19.lm \
+	ctxuniq20.lm \
+	ctxuniq21.lm \
 	ctxvar1.lm \
 	ctxvarmsg1.lm \
 	cycle1.lm \

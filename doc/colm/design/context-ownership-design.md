@@ -528,10 +528,11 @@ In `test/colm.d`.
   give a call more arguments than it has parameters, which the argument
   check leaves for `evaluateArgs()` to report.
   `ctxhold5`'s runs became `ctxhold5`, `ctxhold10` and `ctxhold11` (refused),
-  `ctxhold12` and `ctxhold13`. [#772] added `ctxuniq1`–`ctxuniq16`: the run
+  `ctxhold12` and `ctxhold13`. [#772] added `ctxuniq1`–`ctxuniq21`: the run
   cases `ctxuniq1`–`ctxuniq3`, a list, a map and a struct moved in, and a
-  refusal each in the rest, `ctxuniq14` the `new` with a capture.
-  `ctxtake6`, a list made before setup, now runs.
+  refusal each in the rest, `ctxuniq14` the `new` with a capture. It added
+  `ctxsend1` and `ctxsend2` too, a kept send's value taken out of a context
+  object. `ctxtake6`, a list made before setup, now runs.
 
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706

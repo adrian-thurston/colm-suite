@@ -1,0 +1,43 @@
+# In an action, a list that a context variable's object holds is a loan on
+# the running context. A function that uses the context's variables could
+# lend it and use the list.
+context inner
+	L: list<str>
+
+	lex
+		token iw /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def istart
+		[iw*]
+end
+
+context outer
+	Sub: inner
+	N: int
+
+	int count( L: list<str> )
+	{
+		N = N + 1
+		return L->length
+	}
+
+	lex
+		token ow /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[ow*]
+		{
+			print( count( Sub->L ), "\n" )
+		}
+end
+
+O: outer = new outer()
+O->Sub = new inner()
+O->Sub->L = new list<str>()
+parse S: outer::start( O )[ "a" ]
+##### COMP_ERR #####
+34:23: cannot give L to count: count uses the context's variables, which reach the same object

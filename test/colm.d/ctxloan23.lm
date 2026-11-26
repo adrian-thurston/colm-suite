@@ -1,0 +1,13 @@
+# A for loop's variable over what the object holds is a loan, which a
+# parse in the body ends.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+C->Recs = new list<rec>()
+C->Recs->push_tail( new rec() )
+for R: rec in C->Recs {
+	parse S: ctx::start( C )[ "a" ]
+	print( R->N, "\n" )
+}
+##### COMP_ERR #####
+10:9: cannot use R: it is a loan on C, which was lent at 9:2

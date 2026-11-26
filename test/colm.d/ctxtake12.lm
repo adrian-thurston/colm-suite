@@ -1,7 +1,7 @@
-# What find gives from a context's map of trees whose attribute holds a list
-# is a copy that shares the list.
-# Between the sends, C is lent to P, so the use of C is refused before the
-# take is.
+# What find gives from a context's map of trees whose attribute holds a list,
+# read between two sends, is a copy that shares the list.
+# Between the sends, C is lent to P, so the use of C is refused, as any use
+# of it is.
 lex
 	literal `h
 end

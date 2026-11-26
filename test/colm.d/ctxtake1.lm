@@ -1,9 +1,12 @@
-# A list the object holds, taken out into a variable.
+# A list the object holds, read into a variable after its parse: a loan,
+# through which the program changes the object's list.
 include 'ctxrule.lmi'
 
 C: ctx = new ctx()
 C->L = new list<str>()
 parse S: ctx::start( C )[ "a" ]
 L: list<str> = C->L
-##### COMP_ERR #####
-7:19: cannot take L out of C, a context object
+L->push_tail( "x" )
+print( C->L->length, "\n" )
+##### EXP #####
+1

@@ -1,10 +1,11 @@
-# A for loop over structs the object holds.
+# A for loop over structs the object holds: each value is a loan.
 include 'ctxrule.lmi'
 
 C: ctx = new ctx()
 C->Recs = new list<rec>()
+C->Recs->push_tail( new rec() )
 parse S: ctx::start( C )[ "a" ]
 for R: rec in C->Recs
 	print( R->N, "\n" )
-##### COMP_ERR #####
-7:18: cannot take Recs out of C, a context object
+##### EXP #####
+0

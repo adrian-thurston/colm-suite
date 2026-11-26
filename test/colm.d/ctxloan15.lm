@@ -1,0 +1,17 @@
+# A loan given to a function that puts a global's list into its
+# parameter: the object would hold what a global holds.
+include 'ctxloan.lmi'
+
+global GL: list<int> = new list<int>()
+
+void fill( Q: rec )
+{
+	Q->L = GL
+}
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+fill( C->R )
+##### COMP_ERR #####
+15:10: cannot give R, a loan on C, to fill: fill can put into its parameter Q what C doesn't hold

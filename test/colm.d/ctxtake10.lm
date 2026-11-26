@@ -1,8 +1,8 @@
 # The parse's action makes the context's tree, whose attribute holds a list,
-# and the program takes a copy of it out between two sends. The copy shares
-# the list.
-# Between the sends, C is lent to P, so the use of C is refused before the
-# take is.
+# and the program reads a copy of it into a variable between two sends. The
+# copy shares the list.
+# Between the sends, C is lent to P, so the use of C is refused, as any use
+# of it is.
 lex
 	literal `h
 end

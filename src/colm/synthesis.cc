@@ -564,16 +564,29 @@ long LangVarRef::loadQualificationRefs( Compiler *pd, CodeVect &code,
 	return count;
 }
 
-/* The entry of a root, or of a parser variable, or 0. */
+/* The entry of a root, or of a parser variable, or 0. A variable's loan has
+ * an entry of its own, which findLoan() finds. */
 Compiler::Own *Compiler::findOwn( ObjectField *var )
 {
 	for ( int i = 0; i < owns.length(); i++ ) {
-		if ( owns[i].var == var )
+		if ( owns[i].var == var && owns[i].kind != Own::Loan )
 			return &owns[i];
 	}
 	return 0;
 }
 
+/* The loan a local holds, or 0. */
+Compiler::Own *Compiler::findLoan( ObjectField *var )
+{
+	for ( int i = 0; i < owns.length(); i++ ) {
+		if ( owns[i].var == var && owns[i].kind == Own::Loan )
+			return &owns[i];
+	}
+	return 0;
+}
+
+/* The variable is given another value: what was recorded of it, and of its
+ * loan, goes. */
 void Compiler::removeOwn( ObjectField *var )
 {
 	for ( int i = owns.length() - 1; i >= 0; i-- ) {
@@ -582,17 +595,84 @@ void Compiler::removeOwn( ObjectField *var )
 	}
 }
 
+/* An entry for a root or a parser variable, in place of the one it had. A
+ * root lent or moved ends the loans on it. */
 void Compiler::addOwn( ObjectField *var, Own::Kind kind, const InputLoc &loc,
 		ObjectField *parser )
 {
-	removeOwn( var );
+	for ( int i = owns.length() - 1; i >= 0; i-- ) {
+		if ( owns[i].var == var && owns[i].kind != Own::Loan )
+			owns.remove( i );
+	}
+
 	Own own;
 	own.var = var;
 	own.kind = kind;
 	own.loc = loc;
 	own.parser = parser;
 	own.field = false;
+	own.held = false;
 	owns.append( own );
+
+	switch ( kind ) {
+		case Own::LentToParse: case Own::LentToParser: case Own::LentToLoop:
+			endLoans( var, EndLent, loc );
+			break;
+		case Own::Moved:
+			endLoans( var, EndMoved, loc );
+			break;
+		case Own::MovedWithParser:
+			endLoans( var, EndWithParser, loc );
+			break;
+		case Own::Finished: case Own::Loan:
+			break;
+	}
+}
+
+/* The local holds a loan on roots, in place of the one it held. */
+void Compiler::addLoan( ObjectField *var, const Vector<ObjectField*> &roots, bool held,
+		const InputLoc &loc )
+{
+	if ( throwaway > 0 )
+		return;
+
+	for ( int i = owns.length() - 1; i >= 0; i-- ) {
+		if ( owns[i].var == var && owns[i].kind == Own::Loan )
+			owns.remove( i );
+	}
+
+	Own own;
+	own.var = var;
+	own.kind = Own::Loan;
+	own.loc = loc;
+	own.parser = 0;
+	own.field = false;
+	own.held = held;
+	for ( int r = 0; r < roots.length(); r++ ) {
+		LoanRoot loan;
+		loan.root = roots[r];
+		loan.end = NotEnded;
+		own.loans.append( loan );
+	}
+	owns.append( own );
+}
+
+/* The root is lent, moved, or given another object: each loan on it, and
+ * each tree a finished parser lent it gives, ends here. */
+void Compiler::endLoans( ObjectField *root, LoanEnd how, const InputLoc &loc )
+{
+	if ( throwaway > 0 )
+		return;
+
+	for ( int i = 0; i < owns.length(); i++ ) {
+		Vector<LoanRoot> &loans = owns[i].loans;
+		for ( int r = 0; r < loans.length(); r++ ) {
+			if ( loans[r].root == root && loans[r].end == NotEnded ) {
+				loans[r].end = how;
+				loans[r].endLoc = loc;
+			}
+		}
+	}
 }
 
 /* A root is lent to the parser variable. */
@@ -616,20 +696,85 @@ void Compiler::releaseParser( ObjectField *parser )
 	}
 }
 
+/* The parser variable is finished: what it was lent is the code's again, and
+ * the tree it gives is a loan on that root. */
+void Compiler::finishParser( ObjectField *parser, const InputLoc &loc )
+{
+	ObjectField *root = 0;
+	for ( int i = 0; i < owns.length(); i++ ) {
+		if ( owns[i].kind == Own::LentToParser && owns[i].parser == parser )
+			root = owns[i].var;
+	}
+
+	releaseParser( parser );
+	addOwn( parser, Own::Finished, loc );
+
+	LoanRoot loan;
+	loan.root = root;
+	loan.end = NotEnded;
+	findOwn( parser )->loans.append( loan );
+}
+
+static bool sameLoans( const Compiler::Own &a, const Compiler::Own &b )
+{
+	if ( a.loans.length() != b.loans.length() )
+		return false;
+	for ( int r = 0; r < a.loans.length(); r++ ) {
+		if ( a.loans[r].root != b.loans[r].root || a.loans[r].end != b.loans[r].end )
+			return false;
+	}
+	return true;
+}
+
 static bool sameOwn( const Compiler::Own &a, const Compiler::Own &b )
 {
-	return a.var == b.var && a.kind == b.kind && a.parser == b.parser;
+	return a.var == b.var && a.kind == b.kind && a.parser == b.parser &&
+			sameLoans( a, b ) && a.held == b.held;
+}
+
+/* The loans of other go into own's: each root either has, ended if it
+ * ended on either side, with own's end first. It is held only if both
+ * are. */
+static void mergeLoans( Compiler::Own &own, const Compiler::Own &other )
+{
+	own.held = own.held && other.held;
+
+	for ( int o = 0; o < other.loans.length(); o++ ) {
+		bool found = false;
+		for ( int r = 0; r < own.loans.length(); r++ ) {
+			if ( own.loans[r].root == other.loans[o].root ) {
+				found = true;
+				if ( own.loans[r].end == Compiler::NotEnded )
+					own.loans[r] = other.loans[o];
+			}
+		}
+		if ( !found )
+			own.loans.append( other.loans[o] );
+	}
 }
 
 /* After an if, what either side did holds: a root lent or moved on either
  * side is lent or moved, and a parser finished on either can't be sent to,
- * and gives back only what both sides gave back. */
+ * and gives back only what both sides gave back. A loan held on either side
+ * is held after, on the roots of both sides, and a loan ended on either side
+ * has ended. */
 void Compiler::mergeOwns( const Vector<Own> &other )
 {
 	for ( int i = 0; i < other.length(); i++ ) {
+		if ( other[i].kind == Own::Loan ) {
+			Own *loan = findLoan( other[i].var );
+			if ( loan == 0 )
+				owns.append( other[i] );
+			else
+				mergeLoans( *loan, other[i] );
+			continue;
+		}
+
 		Own *own = findOwn( other[i].var );
 		if ( own == 0 )
 			owns.append( other[i] );
+		else if ( own->kind == Own::Finished && other[i].kind == Own::Finished )
+			mergeLoans( *own, other[i] );
 		else if ( !sameOwn( *own, other[i] ) ) {
 			bool otherMoved = other[i].kind == Own::Moved ||
 					other[i].kind == Own::MovedWithParser;
@@ -679,8 +824,84 @@ void Compiler::endScopeOwns( NameScope *scope, bool within )
 	}
 }
 
+static String rootName( ObjectField *root )
+{
+	return root != 0 ? root->name : String( "the context object" );
+}
+
+/* Why a loan has ended, for an error: it is a loan on C, which was lent at
+ * 12:7. */
+static void loanEnded( std::ostream &out, const Compiler::LoanRoot &loan )
+{
+	out << "it is a loan on " << rootName( loan.root ) << ", which ";
+	switch ( loan.end ) {
+		case Compiler::EndLent:
+			out << "was lent at ";
+			break;
+		case Compiler::EndMoved:
+			out << "was moved at ";
+			break;
+		case Compiler::EndWithParser:
+			out << "went with the parser made at ";
+			break;
+		case Compiler::EndGiven:
+			out << "was given another object at ";
+			break;
+		case Compiler::NotEnded:
+			break;
+	}
+	ownPlace( out, loan.endLoc );
+}
+
+/* A loan, or a finished parser's tree, that a loop's body made or ended. A
+ * loan the body made the next pass would start with, though the body's
+ * statements before it were compiled without it. One it ended the next pass
+ * would use before the body ends it. */
+static void checkLoopLoans( const Compiler::Own &own, const Vector<Compiler::Own> &start,
+		const InputLoc &loopLoc )
+{
+	const Compiler::Own *before = 0;
+	for ( int j = 0; j < start.length(); j++ ) {
+		if ( start[j].var == own.var &&
+				( start[j].kind == Compiler::Own::Loan ) == ( own.kind == Compiler::Own::Loan ) )
+			before = &start[j];
+	}
+
+	for ( int r = 0; r < own.loans.length(); r++ ) {
+		const Compiler::LoanRoot &loan = own.loans[r];
+		const Compiler::LoanRoot *was = 0;
+		for ( int b = 0; before != 0 && b < before->loans.length(); b++ ) {
+			if ( before->loans[b].root == loan.root )
+				was = &before->loans[b];
+		}
+
+		if ( was == 0 ) {
+			std::ostream &out = error( loopLoc ) << own.var->name << " takes a loan on " <<
+					rootName( loan.root ) << " in the loop's body (";
+			ownPlace( out, own.loc );
+			out << "), and still holds it at its end" << endp;
+		}
+		else if ( was->end == Compiler::NotEnded && loan.end != Compiler::NotEnded ) {
+			std::ostream &out = error( loopLoc ) << own.var->name << "'s loan on " <<
+					rootName( loan.root ) << " ends in the loop's body (";
+			ownPlace( out, loan.endLoc );
+			out << "), and the next pass could use it" << endp;
+		}
+	}
+
+	/* What it holds was read out of its roots at the start, and needn't be
+	 * at the end. */
+	if ( before != 0 && before->held && !own.held && own.loans.length() > 0 ) {
+		std::ostream &out = error( loopLoc ) << own.var->name << " takes a loan on " <<
+				rootName( own.loans[0].root ) << " in the loop's body (";
+		ownPlace( out, own.loc );
+		out << "), and still holds it at its end" << endp;
+	}
+}
+
 /* A loop's body runs again after its end: what it lends, moves or finishes
- * of what is outside it can't be as the next pass expects. */
+ * of what is outside it can't be as the next pass expects, nor the loans it
+ * makes or ends. */
 void Compiler::checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc )
 {
 	for ( int i = 0; i < owns.length(); i++ ) {
@@ -692,6 +913,19 @@ void Compiler::checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc 
 		}
 		if ( same )
 			continue;
+
+		/* A loan, or a finished parser whose tree's loan is all that
+		 * changed. */
+		bool loansOnly = own.kind == Own::Loan;
+		for ( int j = 0; j < start.length(); j++ ) {
+			if ( start[j].var == own.var && start[j].kind == own.kind &&
+					start[j].parser == own.parser )
+				loansOnly = true;
+		}
+		if ( loansOnly ) {
+			checkLoopLoans( own, start, loopLoc );
+			continue;
+		}
 
 		String name = own.var != 0 ? own.var->name : String( "the context object" );
 		std::ostream &out = error( loopLoc ) << name;
@@ -711,6 +945,8 @@ void Compiler::checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc 
 				ownPlace( out, own.loc );
 				out << "), and the next pass can't send to it" << endp;
 				break;
+			case Own::Loan:
+				break;
 		}
 	}
 }
@@ -723,6 +959,8 @@ void Compiler::leaveLoop( const Vector<Own> &test, NameScope *scope )
 {
 	Vector< Vector<Own> > breaks = breakOwns;
 	owns = test;
+	if ( scope != 0 )
+		endScopeOwns( scope, true );
 	for ( int b = 0; b < breaks.length(); b++ ) {
 		Vector<Own> after = owns;
 		owns = breaks[b];
@@ -857,7 +1095,8 @@ static bool argHeldRef( Compiler *pd, CallArgVect *args )
 }
 
 /* A for loop reads what it goes over in place if it is named, and the loop's
- * values aren't what could be changed. */
+ * values aren't what could be changed: a loop over a global's list or map
+ * takes nothing out of it. */
 static bool forInPlace( Compiler *pd, UniqueType *searchUT, CallArgVect *args )
 {
 	return !heldRef( pd, searchUT ) && args != 0 && args->length() == 1 &&
@@ -932,12 +1171,23 @@ void LangVarRef::checkOwnedUse( Compiler *pd ) const
 	if ( root == 0 && pd->revertOn && pd->curBlock != 0 )
 		pd->curBlock->namesContext = true;
 
+	const String &use = qual->length() > 0 ? qual->data[0].data : name;
+	const InputLoc &useLoc = qual->length() > 0 ? qual->data[0].loc : loc;
+
+	/* A loan whose root has been lent, moved or given another object. */
+	Compiler::Own *loan = root != 0 ? pd->findLoan( root ) : 0;
+	for ( int r = 0; loan != 0 && r < loan->loans.length(); r++ ) {
+		if ( loan->loans[r].end != Compiler::NotEnded ) {
+			std::ostream &out = error(useLoc) << "cannot use " << use << ": ";
+			loanEnded( out, loan->loans[r] );
+			out << endp;
+		}
+	}
+
 	Compiler::Own *own = pd->findOwn( root );
 	if ( own == 0 || own->kind == Compiler::Own::Finished )
 		return;
 
-	const String &use = qual->length() > 0 ? qual->data[0].data : name;
-	const InputLoc &useLoc = qual->length() > 0 ? qual->data[0].loc : loc;
 	std::ostream &out = error(useLoc) << "cannot use " << use << ": ";
 	out << ( root == 0 ? "the context object" : "it" );
 	switch ( own->kind ) {
@@ -967,27 +1217,430 @@ void LangVarRef::checkOwnedUse( Compiler *pd ) const
 			out << endp;
 			break;
 		case Compiler::Own::Finished:
+		case Compiler::Own::Loan:
 			break;
 	}
 }
 
-/* Outside its parse's actions, what a context object holds that could be
- * changed is read in place, never taken out, unless inPlace says the use is
- * one of the few that read it there. A tree that shares such a value is
- * taken out by any use of it as a value. */
-void LangVarRef::checkContextValue( Compiler *pd, const VarRefLookup &lookup,
-		UniqueType *ut, bool inPlace ) const
+/* A root that a context object is: the running context, or a variable of a
+ * context type. */
+static bool contextRoot( ObjectField *root )
 {
-	if ( lookup.firstCtxPart < 0 || !heldRef( pd, ut ) || inPlace )
+	if ( root == 0 )
+		return true;
+	UniqueType *ut = root->typeRef->uniqueType;
+	return ut->typeId == TYPE_STRUCT && ut->structEl->structDef->isContext;
+}
+
+/* In a function, a parameter of a reference type other than a context.
+ * What the function gets from it, and puts into it, sets its keeps and
+ * fills, for the loans a caller can give it. */
+static bool paramRoot( Compiler *pd, ObjectField *root )
+{
+	return pd->curFunction != 0 && root != 0 && root->isParam() &&
+			!contextRoot( root ) && heldRef( pd, root->typeRef->uniqueType );
+}
+
+/* What a value is a loan on: the roots, what the value is and, if it is read
+ * through a context reference, the part the error names. It is held when it
+ * holds only what its roots hold, or new objects, so it can go back into
+ * them. What a function gives isn't: the function could give a global's.
+ * A parse's tree is: the parse's own actions take nothing out of a global.
+ * See Loans in doc/colm/design/context-ownership-design.md. */
+struct ValueLoan
+{
+	ValueLoan() : held(true) {}
+
+	Vector<ObjectField*> roots;
+	String what;
+	String from;
+	InputLoc loc;
+	bool held;
+};
+
+static void addLoanRoot( ValueLoan &loan, ObjectField *root )
+{
+	for ( int r = 0; r < loan.roots.length(); r++ ) {
+		if ( loan.roots[r] == root )
+			return;
+	}
+	loan.roots.append( root );
+}
+
+static bool valueLoan( Compiler *pd, LangExpr *expr, ValueLoan &loan );
+
+/* The parser variable P a read of P->tree, or a call of P->finish(), goes
+ * through, or 0: a local named on its own before the part. */
+static ObjectField *parserVarBefore( const LangVarRef *varRef, int part )
+{
+	if ( part != 1 || !varRef->isLocalRef() )
+		return 0;
+	ObjectField *var = varRef->scope->findField( varRef->qual->data[0].data );
+	return var != 0 && var->typeRef->uniqueType->parser() ? var : 0;
+}
+
+/* What the value a reference reads is a loan on: through a context
+ * reference, through a local that holds a loan, from a parameter of a
+ * function, or the tree of a finished parser. The checks go by type: only
+ * a value of a type that heldRef() counts is a loan. */
+static bool varRefLoan( Compiler *pd, const LangVarRef *varRef, ValueLoan &loan )
+{
+	VarRefLookup lookup = varRef->lookupField( pd );
+	if ( !heldRef( pd, varRef->lookup( pd ) ) )
+		return false;
+
+	ObjectField *root;
+	if ( !varRef->ownRoot( pd, root ) )
+		return false;
+
+	loan.what = varRef->name;
+	loan.loc = varRef->loc;
+
+	if ( lookup.firstCtxPart >= 0 ) {
+		loan.from = varRef->qual->data[lookup.firstCtxPart].data;
+		addLoanRoot( loan, root );
+		return true;
+	}
+
+	Compiler::Own *own = root != 0 ? pd->findLoan( root ) : 0;
+	if ( own != 0 ) {
+		for ( int r = 0; r < own->loans.length(); r++ )
+			addLoanRoot( loan, own->loans[r].root );
+		loan.held = loan.held && own->held;
+		return true;
+	}
+
+	if ( paramRoot( pd, root ) ) {
+		addLoanRoot( loan, root );
+		return true;
+	}
+
+	ObjectField *parser = parserVarBefore( varRef, lookup.parserTree );
+	Compiler::Own *fin = parser != 0 ? pd->findOwn( parser ) : 0;
+	if ( fin != 0 && fin->kind == Compiler::Own::Finished && fin->loans.length() > 0 ) {
+		addLoanRoot( loan, fin->loans[0].root );
+		return true;
+	}
+
+	return false;
+}
+
+/* The root the parser variable is lent, or was lent before its finish(). */
+static bool parserLoanRoot( Compiler *pd, ObjectField *parser, ObjectField *&root )
+{
+	for ( int i = 0; i < pd->owns.length(); i++ ) {
+		Compiler::Own &own = pd->owns[i];
+		if ( own.kind == Compiler::Own::LentToParser && own.parser == parser ) {
+			root = own.var;
+			return true;
+		}
+		if ( own.kind == Compiler::Own::Finished && own.var == parser &&
+				own.loans.length() > 0 )
+		{
+			root = own.loans[0].root;
+			return true;
+		}
+	}
+	return false;
+}
+
+/* What a function or an iterator gives is a loan on what its arguments are,
+ * and on the context objects it is given: what it gives can be any of what
+ * it got. It isn't surely what they hold. */
+static bool argsLoan( Compiler *pd, ObjectMethod *method, CallArgVect *args,
+		ValueLoan &loan )
+{
+	loan.held = false;
+	for ( int a = 0; args != 0 && a < args->length() && a < method->numParams; a++ ) {
+		LangExpr *argExpr = args->data[a]->expr;
+		UniqueType *paramUT = method->paramUTs[a];
+		ObjectField *root;
+		if ( paramUT->typeId == TYPE_STRUCT && paramUT->structEl->structDef->isContext ) {
+			if ( argExpr->type == LangExpr::TermType &&
+					argExpr->term->type == LangTerm::VarRefType &&
+					argExpr->term->varRef->ownRoot( pd, root ) )
+				addLoanRoot( loan, root );
+		}
+		else {
+			ValueLoan argLoan;
+			if ( valueLoan( pd, argExpr, argLoan ) ) {
+				for ( int r = 0; r < argLoan.roots.length(); r++ )
+					addLoanRoot( loan, argLoan.roots[r] );
+			}
+		}
+	}
+	return loan.roots.length() > 0;
+}
+
+/* What a call gives is a loan on what it is called on, if it is a built-in;
+ * the tree a finish() gives is a loan on what the parser was lent; and what
+ * a function or an iterator gives is a loan on what its arguments are, and
+ * on the context objects it is given. */
+static bool callLoan( Compiler *pd, LangTerm *term, ValueLoan &loan )
+{
+	LangVarRef *varRef = term->varRef;
+	VarRefLookup lookup = varRef->lookupMethodObj( pd );
+	ObjectMethod *method = varRef->qual->length() == 0 && varRef->isNspaceQual() ?
+			lookup.inScope->findMethodHere( varRef->name ) :
+			lookup.inScope->findMethod( varRef->name );
+	if ( method == 0 || !heldRef( pd, method->returnUT ) )
+		return false;
+
+	loan.what = "what " + varRef->name + " gives";
+	loan.loc = varRef->loc;
+
+	Function *func = method->func;
+	if ( func != 0 ) {
+		if ( func->inHost || term->args == 0 )
+			return false;
+
+		return argsLoan( pd, method, term->args, loan );
+	}
+
+	if ( method->type == ObjectMethod::ParseFinish ) {
+		ObjectField *parser = parserVarBefore( varRef, varRef->qual->length() );
+		ObjectField *root;
+		if ( parser != 0 && parserLoanRoot( pd, parser, root ) ) {
+			addLoanRoot( loan, root );
+			return true;
+		}
+		return false;
+	}
+
+	/* A built-in gives what it is called on, or what that holds. */
+	if ( varRef->qual->length() == 0 )
+		return false;
+
+	ObjectField *root;
+	if ( !varRef->ownRoot( pd, root ) )
+		return false;
+
+	if ( lookup.firstCtxPart >= 0 ) {
+		loan.from = varRef->qual->data[lookup.firstCtxPart].data;
+		addLoanRoot( loan, root );
+		return true;
+	}
+
+	Compiler::Own *own = root != 0 ? pd->findLoan( root ) : 0;
+	if ( own != 0 ) {
+		for ( int r = 0; r < own->loans.length(); r++ )
+			addLoanRoot( loan, own->loans[r].root );
+		loan.held = own->held;
+		return true;
+	}
+
+	if ( paramRoot( pd, root ) ) {
+		addLoanRoot( loan, root );
+		return true;
+	}
+
+	ObjectField *parser = parserVarBefore( varRef, lookup.parserTree );
+	Compiler::Own *fin = parser != 0 ? pd->findOwn( parser ) : 0;
+	if ( fin != 0 && fin->kind == Compiler::Own::Finished && fin->loans.length() > 0 ) {
+		addLoanRoot( loan, fin->loans[0].root );
+		return true;
+	}
+
+	return false;
+}
+
+/* The tree of a parse given a context object is a loan on it, if its type
+ * can hold a reference value. */
+static bool parseLoan( Compiler *pd, LangTerm *term, ValueLoan &loan )
+{
+	UniqueType *targetUT = term->typeRef->uniqueType->generic->elUt;
+	if ( term->fieldInitArgs == 0 || !sharesRef( pd, targetUT ) )
+		return false;
+
+	for ( int i = 0; i < term->fieldInitArgs->length(); i++ ) {
+		LangExpr *argExpr = term->fieldInitArgs->data[i]->expr;
+		ObjectField *root;
+		if ( argExpr->type == LangExpr::TermType &&
+				argExpr->term->type == LangTerm::VarRefType &&
+				argExpr->term->varRef->lookup( pd )->typeId == TYPE_STRUCT &&
+				argExpr->term->varRef->ownRoot( pd, root ) )
+		{
+			loan.what = "what the parse gives";
+			loan.loc = term->loc;
+			addLoanRoot( loan, root );
+			return true;
+		}
+	}
+	return false;
+}
+
+/* What a value is a loan on, from the expression's form and the ownership
+ * state. Nothing is evaluated: a caller asks after the expression is, so the
+ * state says what it did. */
+static bool valueLoan( Compiler *pd, LangExpr *expr, ValueLoan &loan )
+{
+	if ( expr->type == LangExpr::UnaryType ) {
+		/* A trimmed tree is a copy, which shares what the tree's attributes
+		 * hold. */
+		if ( expr->op == '^' || expr->op == '@' )
+			return valueLoan( pd, expr->right, loan );
+		return false;
+	}
+
+	if ( expr->type != LangExpr::TermType )
+		return false;
+
+	LangTerm *term = expr->term;
+	switch ( term->type ) {
+		case LangTerm::VarRefType:
+		case LangTerm::MatchType:
+		case LangTerm::SendType:
+		case LangTerm::SendTreeType:
+			return varRefLoan( pd, term->varRef, loan );
+		case LangTerm::MethodCallType:
+			return callLoan( pd, term, loan );
+		case LangTerm::ParseType:
+		case LangTerm::ParseTreeType:
+		case LangTerm::ParseStopType:
+			return parseLoan( pd, term, loan );
+		case LangTerm::CastType:
+			if ( !heldRef( pd, term->typeRef->uniqueType ) )
+				return false;
+			return valueLoan( pd, term->expr, loan );
+		case LangTerm::SearchType:
+			if ( !heldRef( pd, term->typeRef->uniqueType ) )
+				return false;
+			return varRefLoan( pd, term->varRef, loan );
+		default:
+			break;
+	}
+	return false;
+}
+
+/* A store's value can't be a loan on a context object, nor anything else
+ * read out of one: anywhere but a local variable, or the object it came
+ * from, it could be changed while a parser the object is lent to can back
+ * up. What a function stores of a parameter of a reference type, the
+ * function keeps. */
+static void checkContextValue( Compiler *pd, LangExpr *expr )
+{
+	ValueLoan loan;
+	if ( !valueLoan( pd, expr, loan ) )
 		return;
 
-	std::ostream &out = error(loc) << "cannot take ";
-	if ( lookup.objMethod != 0 )
-		out << "what " << name << " gives";
-	else
-		out << name;
-	out << " out of " << qual->data[lookup.firstCtxPart].data <<
-			", a context object" << endp;
+	for ( int r = 0; r < loan.roots.length(); r++ ) {
+		if ( paramRoot( pd, loan.roots[r] ) )
+			loan.roots[r]->keeps = true;
+	}
+
+	for ( int r = 0; r < loan.roots.length(); r++ ) {
+		ObjectField *root = loan.roots[r];
+		if ( !contextRoot( root ) )
+			continue;
+
+		std::ostream &out = error(loan.loc) << "cannot take " << loan.what << " out of ";
+		if ( loan.from.length() > 0 )
+			out << loan.from << ", a context object" << endp;
+		else if ( root != 0 )
+			out << root->name << ", a context object" << endp;
+		else
+			out << "the context object" << endp;
+	}
+}
+
+/* The parameters of a function a store's target reaches, if it is
+ * qualified and starts at one, or at a local that holds a loan on parameters
+ * and on no context object. */
+static void storeParams( Compiler *pd, const LangVarRef *target, Vector<ObjectField*> &params )
+{
+	ObjectField *root;
+	if ( target->qual->length() == 0 || !target->ownRoot( pd, root ) || root == 0 )
+		return;
+
+	if ( paramRoot( pd, root ) ) {
+		params.append( root );
+		return;
+	}
+
+	Compiler::Own *own = pd->findLoan( root );
+	for ( int r = 0; own != 0 && r < own->loans.length(); r++ ) {
+		if ( contextRoot( own->loans[r].root ) ) {
+			params.empty();
+			return;
+		}
+		if ( paramRoot( pd, own->loans[r].root ) )
+			params.append( own->loans[r].root );
+	}
+}
+
+/* A store into anything but a local, or a context object through a reference
+ * to it or a loan on it. Its value can't be what a context object holds. In
+ * a function, a store into what a parameter reaches of anything but a new
+ * object, nil or what was read out of that parameter fills it. */
+static void storeValue( Compiler *pd, const LangVarRef *target, LangExpr *expr,
+		UniqueType *exprUT )
+{
+	checkContextValue( pd, expr );
+
+	Vector<ObjectField*> params;
+	storeParams( pd, target, params );
+	if ( params.length() == 0 || exprUT == 0 || !heldRef( pd, exprUT ) )
+		return;
+
+	if ( expr->type == LangExpr::TermType && ( expr->term->type == LangTerm::NewType ||
+			expr->term->type == LangTerm::NilType ) )
+		return;
+
+	ValueLoan loan;
+	bool own = valueLoan( pd, expr, loan ) && loan.held &&
+			loan.roots.length() == params.length();
+	for ( int r = 0; own && r < loan.roots.length(); r++ ) {
+		bool found = false;
+		for ( int p = 0; p < params.length(); p++ ) {
+			if ( params[p] == loan.roots[r] )
+				found = true;
+		}
+		own = found;
+	}
+
+	if ( !own ) {
+		for ( int p = 0; p < params.length(); p++ )
+			params[p]->fills = true;
+	}
+}
+
+/* A read of the tree of a parser of a type defined in a context, of a type
+ * that can hold a reference value: the parser's actions could still change
+ * what the tree's attributes hold, and back up over the change. Only a
+ * parser variable P, once finished, gives it, as a loan on what P was lent
+ * (requirement 16). */
+void LangVarRef::checkParserTree( Compiler *pd, const VarRefLookup &lookup ) const
+{
+	if ( lookup.parserTree <= 0 || !sharesRef( pd, lookup.parserTreeUT ) )
+		return;
+
+	const QualItem &before = qual->data[lookup.parserTree - 1];
+	LangEl *langEl = lookup.parserTreeUT->langEl;
+	ObjectField *parser = parserVarBefore( this, lookup.parserTree );
+
+	Compiler::Own *fin = parser != 0 ? pd->findOwn( parser ) : 0;
+	if ( fin != 0 && fin->kind == Compiler::Own::Finished ) {
+		for ( int r = 0; r < fin->loans.length(); r++ ) {
+			if ( fin->loans[r].end != Compiler::NotEnded ) {
+				std::ostream &out = error(before.loc) << "cannot read " <<
+						before.data << "->tree: ";
+				loanEnded( out, fin->loans[r] );
+				out << endp;
+			}
+		}
+		return;
+	}
+
+	std::ostream &out = error(before.loc) << "cannot read " << before.data << "->tree: ";
+	if ( parser != 0 && pd->lentToParser( parser ) ) {
+		out << before.data << " is lent a context object until " << before.data <<
+				"->finish()";
+	}
+	else {
+		out << "the parser has its context object for good";
+	}
+	out << ", and " << article( langEl->xmlTag ) << " " << langEl->xmlTag <<
+			" can hold a list, map, parser, stream or struct" << endp;
 }
 
 /* The name, or the qualification, starts at a global: loadObj() loads it
@@ -1032,12 +1685,14 @@ void LangVarRef::noteGlobalUse( Compiler *pd, GlobalUse::Kind kind,
 	pd->curBlock->globalUses.append( use );
 }
 
-/* What goes into a context object through a context reference: a new object,
- * nil, or something read through the same root. Anything else could be held
+/* What goes into a context object through a context reference, or through a
+ * loan on it: a new object, nil, or something read out of the same root,
+ * which a loan on it alone that is held is. Anything else could be held
  * elsewhere too, and changed from there while a parser the object is lent to
- * can back up. A tree that shares such a value is never new: a cons or a
- * parse can put into it what is held elsewhere. So the object gets one from
- * its parse's actions. */
+ * can back up. What a function gives isn't surely what the object holds. A
+ * tree that shares such a value is never new: a cons, or a parse given
+ * another object, can put into it what is held elsewhere. So the object gets
+ * one from a parse given it. */
 static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *expr )
 {
 	if ( !pd->ctxStore )
@@ -1050,15 +1705,12 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 	LangTerm *term = expr->type == LangExpr::TermType ? expr->term : 0;
 	bool fresh = term != 0 && ( term->type == LangTerm::NewType ||
 			term->type == LangTerm::NilType );
-	bool through = false;
-	ObjectField *valueRoot;
-	if ( term != 0 && term->type == LangTerm::VarRefType &&
-			term->varRef->ownRoot( pd, valueRoot ) )
-		through = valueRoot == root;
 
-	pd->ctxValueInPlace = through;
 	UniqueType *ut = expr->evaluate( pd, code );
-	pd->ctxValueInPlace = false;
+
+	ValueLoan loan;
+	bool through = valueLoan( pd, expr, loan ) && loan.held &&
+			loan.roots.length() == 1 && loan.roots[0] == root;
 
 	if ( sharesRef( pd, ut ) && !fresh && !through ) {
 		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
@@ -1080,15 +1732,28 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 	return ut;
 }
 
-/* A store through lookup goes into a context object: note it for
- * evaluateSetupValue(). */
+/* A store through lookup goes into a context object: through a context
+ * reference, or through a local that holds a loan on one, which reaches
+ * what the object holds. Note it for evaluateSetupValue(). */
 static void setCtxStore( Compiler *pd, const LangVarRef *varRef,
 		const VarRefLookup &lookup )
 {
 	pd->ctxStore = false;
+	ObjectField *root;
 	if ( lookup.firstCtxPart >= 0 && varRef->ownRoot( pd, pd->ctxStoreRoot ) ) {
 		pd->ctxStore = true;
 		pd->ctxStoreName = varRef->qual->data[lookup.firstCtxPart].data;
+	}
+	else if ( varRef->qual->length() > 0 && varRef->ownRoot( pd, root ) && root != 0 ) {
+		Compiler::Own *loan = pd->findLoan( root );
+		for ( int r = 0; loan != 0 && r < loan->loans.length(); r++ ) {
+			if ( contextRoot( loan->loans[r].root ) ) {
+				pd->ctxStore = true;
+				pd->ctxStoreRoot = loan->loans[r].root;
+				pd->ctxStoreName = rootName( loan->loans[r].root );
+				break;
+			}
+		}
 	}
 }
 
@@ -1402,9 +2067,9 @@ static void parserValueUse( Compiler *pd, ObjectField *var, const InputLoc &loc 
 
 UniqueType *LangVarRef::evaluate( Compiler *pd, CodeVect &code, bool forWriting ) const
 {
-	bool inPlace = pd->ctxValueInPlace;
+	bool inPlace = pd->globalInPlace;
 	bool sendTarget = pd->sendTarget;
-	pd->ctxValueInPlace = false;
+	pd->globalInPlace = false;
 	pd->sendTarget = false;
 
 	/* Lookup the loadObj. */
@@ -1413,6 +2078,7 @@ UniqueType *LangVarRef::evaluate( Compiler *pd, CodeVect &code, bool forWriting 
 	/* A variable used as a value is read itself. */
 	if ( qual->length() == 0 )
 		checkOwnedUse( pd );
+	checkParserTree( pd, lookup );
 
 	/* Load the object, if any. */
 	loadObj( pd, code, lookup.lastPtrInQual, forWriting );
@@ -1420,8 +2086,6 @@ UniqueType *LangVarRef::evaluate( Compiler *pd, CodeVect &code, bool forWriting 
 	/* Load the field. */
 	UniqueType *ut = loadField( pd, code, lookup.inObject, 
 			lookup.objField, forWriting, false );
-
-	checkContextValue( pd, lookup, ut, inPlace );
 
 	if ( !inPlace && pd->revertOn && heldRef( pd, ut ) )
 		noteGlobalUse( pd, GlobalUse::Take, qual->length() > 0 ? name : String() );
@@ -1484,6 +2148,10 @@ bool LangExpr::canTakeRef( Compiler *pd ) const
 ObjectField *LangVarRef::preEvaluateRef( Compiler *pd, CodeVect &code ) const
 {
 	VarRefLookup lookup = lookupField( pd );
+
+	/* A ref is a use of what it refers to, as a read is. */
+	checkOwnedUse( pd );
+	checkParserTree( pd, lookup );
 
 	verifyRefPossible( pd, lookup );
 
@@ -1557,14 +2225,14 @@ IterImpl *LangVarRef::chooseTriterCall( Compiler *pd,
 	/* Evaluate the triter args and choose the triter call based on it. */
 	if ( args->length() == 1 ) {
 		/* Evaluate the expression. A loop over the values of a list or a map
-		 * that a context object holds reads it in place. */
+		 * that a global holds reads it in place. */
 		CodeVect unused;
 		CallArgVect::Iter pe = *args;
-		pd->ctxValueInPlace = forInPlace( pd, searchUT, args );
+		pd->globalInPlace = forInPlace( pd, searchUT, args );
 		pd->throwaway += 1;
 		UniqueType *exprUT = (*pe)->expr->evaluate( pd, unused );
 		pd->throwaway -= 1;
-		pd->ctxValueInPlace = false;
+		pd->globalInPlace = false;
 
 		if ( exprUT->typeId == TYPE_GENERIC && exprUT->generic->typeId == GEN_LIST )
 			iterImpl = new IterImpl( IterImpl::ListVal );
@@ -1702,6 +2370,55 @@ static void exprWordPop( Compiler::ExprWord *word, CodeVect &code )
 			code.append( IN_CLEAR_ARGS );
 			code.appendHalf( 0 );
 			break;
+		}
+	}
+}
+
+/* The block that notes what a block's code gives its calls: the block being
+ * compiled, on the compile that keeps revert code, or the root block, which
+ * is compiled once. 0 on the other compile of a function. */
+static CodeBlock *noteBlock( Compiler *pd )
+{
+	if ( pd->revertOn && pd->curBlock != 0 )
+		return pd->curBlock;
+	if ( pd->compileContext == Compiler::CompileRoot )
+		return pd->rootCodeBlock;
+	return 0;
+}
+
+/* An argument of a function or an iterator the program defines. A loan on a
+ * context object is noted, and Compiler::checkLoanArgs() refuses it if the
+ * parameter keeps or fills. A parameter of the calling function, given to
+ * the parameter, keeps or fills if that parameter does. */
+static void noteArgLoan( Compiler *pd, const VarRefLookup &lookup, LangExpr *expr,
+		long pos )
+{
+	Function *func = lookup.objMethod->func;
+	if ( func == 0 || func->inHost || pos >= lookup.objMethod->numParams )
+		return;
+
+	ValueLoan loan;
+	if ( !valueLoan( pd, expr, loan ) )
+		return;
+
+	ObjectField *param = paramField( func, pos );
+	CodeBlock *block = noteBlock( pd );
+	for ( int r = 0; r < loan.roots.length(); r++ ) {
+		ObjectField *root = loan.roots[r];
+		if ( contextRoot( root ) ) {
+			if ( block != 0 && pd->throwaway == 0 ) {
+				CodeBlock::LoanArg arg;
+				arg.func = func;
+				arg.param = pos;
+				arg.loc = loan.loc;
+				arg.what = loan.what;
+				arg.root = rootName( root );
+				block->loanArgs.append( arg );
+			}
+		}
+		else if ( paramRoot( pd, root ) ) {
+			pd->refFlow( &root->keeps, &param->keeps );
+			pd->refFlow( &root->fills, &param->fills );
 		}
 	}
 }
@@ -1865,8 +2582,15 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 			pos += 2;
 		}
 		else {
+			/* What a change puts into what it is called on, and what a host
+			 * function is given, is stored: into a context object it is
+			 * checked as it goes in, elsewhere it can't be a loan. */
+			bool ctxStore = pd->ctxStore;
+			bool goIn = pd->argsGoIn;
 			UniqueType *exprUT = evaluateSetupValue( pd, code, expression );
 			(*pe)->exprUT = exprUT;
+			if ( goIn && !ctxStore )
+				storeValue( pd, this, expression, exprUT );
 			// pd->unwindCode.remove( 0, 1 );
 
 			/* A token action pushes onto its own parser's input, through
@@ -1896,6 +2620,10 @@ ObjectField **LangVarRef::evaluateArgs( Compiler *pd, CodeVect &code,
 
 			pos += 1;
 		}
+
+		if ( paramUT->typeId == TYPE_REF && pd->argsGoIn )
+			checkContextValue( pd, expression );
+		noteArgLoan( pd, lookup, expression, pe.pos() );
 
 		/* Advance the parameter list iterator if we have it. */
 		paramList != 0 && p.increment();
@@ -2117,24 +2845,57 @@ static void noteLentCall( Compiler *pd, Function *func, const InputLoc &loc )
 
 /* A function lends a parameter as if nothing else reached its object, so
  * two of the arguments of a context type can't reach one object: C and C,
- * or C and C->Sub. An argument that the running context reaches can't go to
- * a function that names the context, which checkLentCalls() finds. The
- * arguments of a context type that a variable reaches go in ctxArgs, for
- * checkContextArgsKept(). An argument past the parameters is left to
- * evaluateArgs(), which says the count is wrong. */
+ * or C and C->Sub. Nor can one of them and a loan on its object, as C and
+ * C->L. An argument that the running context reaches, or a loan on it,
+ * can't go to a function that names the context, which checkLentCalls()
+ * finds. The arguments of a context type that a variable reaches go in
+ * ctxArgs, for checkContextArgsKept(). An argument past the parameters is
+ * left to evaluateArgs(), which says the count is wrong. */
 static void checkContextArgs( Compiler *pd, Function *func, UniqueType **paramUTs,
 		long numParams, CallArgVect *args, Vector<LangVarRef*> &ctxArgs )
 {
 	if ( func == 0 || args == 0 )
 		return;
 
+	/* The roots the arguments reach: an argument of a context type, and a
+	 * loan, which the function could use while it lends the object its
+	 * other argument gives it. Two loans on one object can't lend it. */
 	Vector<ObjectField*> roots;
+	Vector<bool> rootIsLoan;
 	for ( int a = 0; a < args->length() && a < numParams; a++ ) {
 		UniqueType *paramUT = paramUTs[a];
 		LangExpr *argExpr = args->data[a]->expr;
 		ObjectField *root;
-		if ( paramUT->typeId != TYPE_STRUCT || !paramUT->structEl->structDef->isContext ||
-				argExpr->type != LangExpr::TermType ||
+		if ( paramUT->typeId != TYPE_STRUCT || !paramUT->structEl->structDef->isContext ) {
+			ValueLoan loan;
+			if ( !valueLoan( pd, argExpr, loan ) )
+				continue;
+			for ( int l = 0; l < loan.roots.length(); l++ ) {
+				ObjectField *root = loan.roots[l];
+				if ( !contextRoot( root ) )
+					continue;
+				for ( int r = 0; r < roots.length(); r++ ) {
+					if ( roots[r] == root && !rootIsLoan[r] ) {
+						error(loan.loc) << "cannot give " << func->name <<
+								" two arguments that " << rootName( root ) <<
+								" reaches: it could lend one and use the other" << endp;
+					}
+				}
+				roots.append( root );
+				rootIsLoan.append( true );
+
+				if ( root == 0 && pd->revertOn && pd->curBlock != 0 ) {
+					CodeBlock::ContextArg arg;
+					arg.func = func;
+					arg.loc = loan.loc;
+					arg.arg = loan.what;
+					pd->curBlock->contextArgs.append( arg );
+				}
+			}
+			continue;
+		}
+
+		if ( argExpr->type != LangExpr::TermType ||
 				argExpr->term->type != LangTerm::VarRefType ||
 				!argExpr->term->varRef->ownRoot( pd, root ) )
 			continue;
@@ -2144,12 +2905,12 @@ static void checkContextArgs( Compiler *pd, Function *func, UniqueType **paramUT
 		for ( int r = 0; r < roots.length(); r++ ) {
 			if ( roots[r] == root ) {
 				error(argRef->loc) << "cannot give " << func->name <<
-						" two arguments that " << ( root == 0 ?
-						String( "the context object" ) : root->name ) <<
+						" two arguments that " << rootName( root ) <<
 						" reaches: it could lend one and use the other" << endp;
 			}
 		}
 		roots.append( root );
+		rootIsLoan.append( false );
 
 		if ( root == 0 && pd->revertOn && pd->curBlock != 0 ) {
 			CodeBlock::ContextArg arg;
@@ -2191,6 +2952,10 @@ static void checkContextArgsKept( Compiler *pd, Function *func,
 
 UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect *args ) 
 {
+	/* Whether what the call gives goes nowhere: a statement of its own. */
+	bool dropped = pd->callDropped;
+	pd->callDropped = false;
+
 	/* Evaluate the object. */
 	VarRefLookup lookup = lookupMethod( pd );
 
@@ -2209,6 +2974,7 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	 * says, though callOperation() loads it after them. */
 	if ( qual->length() > 0 )
 		checkOwnedUse( pd );
+	checkParserTree( pd, lookup );
 
 	/* A call that changes what it is called on. A parser's finish parses. */
 	bool change = func == 0 && ( !lookup.objMethod->isConst ||
@@ -2252,6 +3018,24 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 		}
 	}
 
+	/* The tree a finish() gives, of a type defined in a context that can hold
+	 * a reference value, comes only from a parser variable lent its object,
+	 * as a loan on it. One given its object for good could still change what
+	 * the tree's attributes hold, and back up over the change
+	 * (requirement 16). A finish() whose tree goes nowhere gives nothing. */
+	UniqueType *treeUT = lookup.uniqueType;
+	if ( lookup.objMethod->type == ObjectMethod::ParseFinish && !dropped &&
+			qual->length() > 0 && treeUT->langEl != 0 &&
+			treeUT->langEl->contextIn != 0 && sharesRef( pd, treeUT ) &&
+			( parserVar == 0 || !pd->lentToParser( parserVar ) ) )
+	{
+		const String &parser = qual->data[qual->length() - 1].data;
+		error(loc) << "cannot use what " << parser << "->" << name << "() gives: "
+				"the parser has its context object for good, and " <<
+				article( treeUT->langEl->xmlTag ) << " " << treeUT->langEl->xmlTag <<
+				" can hold a list, map, parser, stream or struct" << endp;
+	}
+
 	noteLentCall( pd, func, loc );
 	Vector<LangVarRef*> ctxArgs;
 	checkContextArgs( pd, func, lookup.objMethod->paramUTs,
@@ -2261,7 +3045,10 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	 * puts them into the object. */
 	if ( change )
 		setCtxStore( pd, this, lookup );
+	bool outerGoIn = pd->argsGoIn;
+	pd->argsGoIn = ( func == 0 && change ) || ( func != 0 && func->inHost );
 	ObjectField **paramRefs = evaluateArgs( pd, code, lookup, args );
+	pd->argsGoIn = outerGoIn;
 	pd->ctxStore = false;
 	checkContextArgsKept( pd, func, ctxArgs );
 
@@ -2269,8 +3056,6 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	 * What popRefQuals() pops after it lies under no call. */
 	if ( func == 0 || func->inHost )
 		popExprWords( pd, words );
-
-	checkContextValue( pd, lookup, lookup.uniqueType, false );
 
 	/* A call on what a global holds. A change given a reference value puts
 	 * it in, as push_tail and insert do. */
@@ -2298,10 +3083,7 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	/* A finished parser gives back what it was lent. */
 	if ( parserVar != 0 && lookup.objMethod->type == ObjectMethod::ParseFinish &&
 			pd->lentToParser( parserVar ) && pd->throwaway == 0 )
-	{
-		pd->releaseParser( parserVar );
-		pd->addOwn( parserVar, Compiler::Own::Finished, loc );
-	}
+		pd->finishParser( parserVar, loc );
 
 	popRefQuals( pd, code, lookup, args, true );
 
@@ -2355,6 +3137,21 @@ UniqueType *LangTerm::evaluateMatch( Compiler *pd, CodeVect &code ) const
 			item->varRef->loadObj( pd, code, lookup.lastPtrInQual, false );
 			item->varRef->setField( pd, code, lookup.inObject,
 					lookup.objField, exprType, false );
+		}
+	}
+
+	/* A pattern's variable holds a part of the tree matched, so it is a loan
+	 * on what that tree is. */
+	ValueLoan loan;
+	if ( varRefLoan( pd, varRef, loan ) ) {
+		for ( PatternItemList::Iter item = *pattern->list; item.lte(); item++ ) {
+			if ( item->varRef == 0 )
+				continue;
+			UniqueType *exprType = pd->findUniqueType( TYPE_TREE, item->prodEl->langEl );
+			if ( heldRef( pd, exprType ) ) {
+				pd->addLoan( item->varRef->lookupField( pd ).objField, loan.roots,
+						loan.held, item->varRef->loc );
+			}
 		}
 	}
 
@@ -2538,6 +3335,16 @@ static void moveOut( Compiler *pd, const LangVarRef *varRef, ObjectField *root )
 		error(varRef->loc) << "cannot move " << varRef->name <<
 				": the caller lends it for the call" << endp;
 	}
+}
+
+/* A local variable that can hold a loan: one given a value is its own,
+ * unlike a ref parameter, which writes into its caller's variable, or a tree
+ * loop's variable, which writes into the tree it walks. */
+static bool loanLocal( ObjectField *var )
+{
+	return var != 0 && ( var->type == ObjectField::UserLocalType ||
+			var->type == ObjectField::ParamValType ) &&
+			var->typeRef->uniqueType->typeId != TYPE_ITER;
 }
 
 /* A value of a context type that a local, a parameter, this or a field holds,
@@ -2750,6 +3557,9 @@ UniqueType *LangTerm::evaluateConstruct( Compiler *pd, CodeVect &code ) const
 			FieldInit *fieldInit = *pi;
 			fieldInit->exprUT = fieldInit->expr->evaluate( pd, code );
 
+			/* What goes into the new tree can't be a loan. */
+			checkContextValue( pd, fieldInit->expr );
+
 			/* A value goes into an attribute wrapped, as an assignment
 			 * stores it. */
 			if ( fieldInit->exprUT->ptr() || fieldInit->exprUT->scalar() ) {
@@ -2778,6 +3588,10 @@ UniqueType *LangTerm::evaluateConstruct( Compiler *pd, CodeVect &code ) const
 				error(constructor->loc) << "variables used in "
 						"replacements must be trees" << endp;
 			}
+
+			/* The item goes into the new tree, which shares what its
+			 * attributes hold. */
+			checkContextValue( pd, item->expr );
 
 			if ( !isStr( ut ) ) {
 				if ( item->trim == ConsItem::TrimYes ) 
@@ -3034,8 +3848,11 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 				if ( ut->typeId == TYPE_INT || ut->typeId == TYPE_BOOL )
 					code.append( IN_INT_TO_STR );
 
-				if ( ut == pd->uniqueTypeStream )
+				/* A stream goes into the parser's input as itself. */
+				if ( ut == pd->uniqueTypeStream ) {
 					isStream = true;
+					checkContextValue( pd, item->expr );
+				}
 
 				if ( item->trim == ConsItem::TrimYes )
 					trim = TRIM_YES;
@@ -3090,8 +3907,14 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 	code.appendHalf( 0 );
 	popExprWords( pd, words );
 
-	/* Capture to the local var. */
+	/* Capture to the local var. The tree of a parse lent its context object
+	 * is a loan on it, if the tree's type can hold a reference value. */
 	evaluateCapture( pd, code, targetUT );
+	if ( varRef != 0 && lent && sharesRef( pd, targetUT ) ) {
+		Vector<ObjectField*> roots;
+		roots.append( lentRoot );
+		pd->addLoan( varRef->lookupField( pd ).objField, roots, true, varRef->loc );
+	}
 
 	return targetUT;
 }
@@ -3099,7 +3922,7 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 void LangTerm::evaluateSendStream( Compiler *pd, CodeVect &code ) const
 {
 	/* A send changes the stream. */
-	pd->ctxValueInPlace = true;
+	pd->globalInPlace = true;
 	UniqueType *varUt = varRef->evaluate( pd, code );
 
 	if ( varUt->listOf( pd->uniqueTypeStream ) ) {
@@ -3180,7 +4003,7 @@ bool LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) 
 
 	/* A send changes the parser. Sending to a parser variable isn't a use of
 	 * it as a value. */
-	pd->ctxValueInPlace = true;
+	pd->globalInPlace = true;
 	pd->sendTarget = true;
 	UniqueType *varUt = varRef->evaluate( pd, code );
 
@@ -3251,9 +4074,11 @@ bool LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) 
 							"send its text" );
 				}
 
+				/* A stream goes into the parser's input as itself. */
 				if ( ut == pd->uniqueTypeStream ) {
 					isStream = true;
 					sentStream = true;
+					checkContextValue( pd, item->expr );
 				}
 
 				if ( item->trim == ConsItem::TrimYes )
@@ -3314,10 +4139,8 @@ void LangTerm::sendFinish( Compiler *pd, bool dropped ) const
 		parserValueUse( pd, var, varRef->loc );
 	if ( !eof )
 		return;
-	if ( var != 0 && pd->lentToParser( var ) && pd->throwaway == 0 ) {
-		pd->releaseParser( var );
-		pd->addOwn( var, Compiler::Own::Finished, varRef->loc );
-	}
+	if ( var != 0 && pd->lentToParser( var ) && pd->throwaway == 0 )
+		pd->finishParser( var, varRef->loc );
 }
 
 /* Nothing is sent to a parser after its finish(). */
@@ -3991,6 +4814,10 @@ UniqueType *LangTerm::evaluateMakeToken( Compiler *pd, CodeVect &code ) const
 		if ( pe.pos() == 1 && exprUT != pd->uniqueTypeStr )
 			error(loc) << "second arg, length, must be a string" << endp;
 
+		/* An attribute of the new token can't be given a loan. */
+		if ( pe.pos() >= 2 )
+			checkContextValue( pd, (*pe)->expr );
+
 		/* A struct or a generic put into an attribute is held strongly,
 		 * whatever the attribute's type: checkStrongCycles() counts it. */
 		if ( pe.pos() >= 2 && exprUT->ptr() ) {
@@ -4052,6 +4879,10 @@ UniqueType *LangTerm::evaluateMakeTree( Compiler *pd, CodeVect &code ) const
 		if ( pe.pos() == 0 && exprUT != pd->uniqueTypeInt )
 			error(loc) << "first arg, nonterm id, must be an int" << endp;
 
+		/* A child of the new tree can't be a loan. */
+		if ( pe.pos() >= 1 )
+			checkContextValue( pd, (*pe)->expr );
+
 		pushExprValue( pd, exprUT );
 	}
 
@@ -4088,8 +4919,8 @@ static void compileLoopBody( Compiler *pd, CodeVect &code, StmtList *stmtList,
 	pd->loopDepth -= 1;
 }
 
-void LangStmt::compileForIterBody( Compiler *pd, 
-		CodeVect &code, UniqueType *iterUT, const CodeVect &under ) const
+void LangStmt::compileForIterBody( Compiler *pd, CodeVect &code, UniqueType *iterUT,
+		const CodeVect &under, const Vector<ObjectField*> &loanRoots, bool loanHeld ) const
 {
 	/* Add the cleanup for the current loop: the iterator's unwind, then the
 	 * words under the iterator. */
@@ -4127,8 +4958,12 @@ void LangStmt::compileForIterBody( Compiler *pd,
 	ObjectField *outerLoop = pd->unwindLoop;
 	pd->unwindLoop = objField;
 
-	/* The loop ends at the advance, before the body, or at a break. */
+	/* The loop ends at the advance, before the body, or at a break. The
+	 * loop's variable holds a loan from each advance, which the end of the
+	 * body drops: so it isn't in what the body must leave as it found. */
 	Vector<Compiler::Own> start = pd->owns;
+	if ( loanRoots.length() > 0 )
+		pd->addLoan( objField, loanRoots, loanHeld, loc );
 	compileLoopBody( pd, code, stmtList, scope, start, loc );
 	pd->leaveLoop( start, scope );
 	pd->breakOwns = outerBreakOwns;
@@ -4228,8 +5063,8 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 				" must have a tree type" << endp;
 	}
 
-	/* A loop over the values of a list or a map that a context object holds
-	 * reads it in place. */
+	/* A loop over the values of a list or a map that a global holds reads it
+	 * in place. */
 	bool inPlace = iterImpl->useGenericId &&
 			forInPlace( pd, searchUT, iterCall->langTerm->args );
 
@@ -4246,10 +5081,13 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 		pd->curBlock->calls.append( func );
 
 	/* Evaluate and push the arguments. */
-	pd->ctxValueInPlace = inPlace;
+	pd->globalInPlace = inPlace;
+	bool outerGoIn = pd->argsGoIn;
+	pd->argsGoIn = false;
 	ObjectField **paramRefs = iterCall->langTerm->varRef->evaluateArgs(
 			pd, code, lookup, iterCall->langTerm->args );
-	pd->ctxValueInPlace = false;
+	pd->argsGoIn = outerGoIn;
+	pd->globalInPlace = false;
 	checkContextArgsKept( pd, func, ctxArgs );
 
 	/* A tree iterator walks a tree. Its parameter is a ref<any>, which takes
@@ -4311,12 +5149,12 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 
 		LangVarRef *iterRef = iterCall->langTerm->varRef;
 		CodeVect unused;
-		pd->ctxValueInPlace = inPlace;
+		pd->globalInPlace = inPlace;
 		pd->throwaway += 1;
 		UniqueType *argUT =
 				iterCall->langTerm->args->data[0]->expr->evaluate( pd, unused );
 		pd->throwaway -= 1;
-		pd->ctxValueInPlace = false;
+		pd->globalInPlace = false;
 		if ( argUT->typeId != TYPE_GENERIC ||
 				argUT->generic->typeId != ( overMap ? GEN_MAP : GEN_LIST ) )
 		{
@@ -4383,6 +5221,17 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 		code.setHalf( asLoc, func->paramListSize );
 	}
 
+	/* The loop's variable holds a loan on what the loop goes over: the
+	 * argument of a built-in iterator, or what a user iterator is given. */
+	ValueLoan loopLoan;
+	CallArgVect *iterArgs = iterCall->langTerm->args;
+	if ( heldRef( pd, searchUT ) ) {
+		if ( func != 0 )
+			argsLoan( pd, lookup.objMethod, iterArgs, loopLoan );
+		else if ( iterArgs != 0 && iterArgs->length() > 0 )
+			valueLoan( pd, iterArgs->data[0]->expr, loopLoan );
+	}
+
 	/* A user iterator's context argument is lent to it for the loop, whose
 	 * body runs while the iterator is suspended. */
 	Vector<ObjectField*> lentRoots;
@@ -4404,7 +5253,7 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 		}
 	}
 
-	compileForIterBody( pd, code, iterUT, under );
+	compileForIterBody( pd, code, iterUT, under, loopLoan.roots, loopLoan.held );
 
 	for ( int r = 0; r < lentRoots.length(); r++ )
 		pd->removeOwn( lentRoots[r] );
@@ -4470,8 +5319,11 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			pd->sendDropped = expr->type == LangExpr::TermType &&
 					( expr->term->type == LangTerm::SendType ||
 					expr->term->type == LangTerm::SendTreeType );
+			pd->callDropped = expr->type == LangExpr::TermType &&
+					expr->term->type == LangTerm::MethodCallType;
 			UniqueType *exprUt = expr->evaluate( pd, code );
 			pd->sendDropped = false;
+			pd->callDropped = false;
 			if ( exprUt->treeValue() )
 				code.append( IN_POP_TREE );
 			else
@@ -4523,6 +5375,11 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			}
 			pd->mergeOwns( afterThen );
 
+			/* A variable the test declares, as a pattern's, goes with the
+			 * if: the else branch kept what the test gave it. */
+			if ( scope != 0 )
+				pd->endScopeOwns( scope, false );
+
 			break;
 		}
 		case ElseType: {
@@ -4572,21 +5429,38 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			/* Evaluate the exrepssion. A change through a context reference
 			 * puts it into the object. */
 			setCtxStore( pd, varRef, lookup );
+			bool ctxStore = pd->ctxStore;
 			UniqueType *exprUT = evaluateSetupValue( pd, code, expr );
 			pd->ctxStore = false;
 			pd->newParserVar = 0;
 
 			noteMove( pd, expr );
 
+			/* A local given what a context object holds holds a loan on it.
+			 * Anywhere else but into the object, the value can't be a loan.
+			 * What it is a loan on is found before the assignment ends what
+			 * the variable held. */
+			ValueLoan loan;
+			bool isLoan = valueLoan( pd, expr, loan );
+			bool local = loanLocal( var );
+			if ( !local && !ctxStore )
+				storeValue( pd, varRef, expr, exprUT );
+
 			/* Do the assignment. */
 			varRef->assignValue( pd, code, exprUT );
 
 			/* The variable given another value ends what was recorded of
-			 * the one it had. */
+			 * the one it had. A root given another object ends the loans
+			 * on the one it had. */
 			if ( var != 0 ) {
 				pd->releaseParser( var );
 				pd->removeOwn( var );
+				if ( contextRoot( var ) )
+					pd->endLoans( var, Compiler::EndGiven, loc );
 			}
+
+			if ( local && isLoan )
+				pd->addLoan( var, loan.roots, loan.held, loc );
 
 			if ( newParser && pd->newParserLent ) {
 				pd->addOwn( pd->newParserRoot, Compiler::Own::LentToParser,
@@ -5413,6 +6287,10 @@ void Compiler::compileByteCode()
 
 	/* So is what a function calls. */
 	checkLentCalls();
+
+	/* And what a function keeps of its parameters, and puts into them,
+	 * which checkRefCopies() closed over the calls. */
+	checkLoanArgs();
 }
 
 /* A function names the context, or yields, if it does so itself, or calls a
@@ -5495,6 +6373,48 @@ void Compiler::checkLentCalls()
 				error( arg.loc ) << "cannot give " << arg.arg << " to " << arg.func->name <<
 						": " << arg.func->name << " uses the context's variables, "
 						"which reach the same object" << endp;
+			}
+		}
+	}
+}
+
+/* A loan given to a parameter that its function keeps, anywhere but a local,
+ * or puts into what it reaches anything but what the object holds. Either
+ * could carry the loan, or what it holds, past its end. The flags are closed
+ * over the calls, as refWrite is, by checkRefCopies(). */
+void Compiler::checkLoanArgs()
+{
+	Vector<CodeBlock*> blocks;
+	for ( FunctionList::Iter func = functionList; func.lte(); func++ )
+		blocks.append( func->codeBlock );
+	for ( ProdList::Iter prod = prodList; prod.lte(); prod++ ) {
+		if ( prod->redBlock != 0 )
+			blocks.append( prod->redBlock );
+	}
+	for ( LelList::Iter lel = langEls; lel.lte(); lel++ ) {
+		if ( lel->transBlock != 0 )
+			blocks.append( lel->transBlock );
+	}
+	for ( RegionList::Iter region = regionList; region.lte(); region++ ) {
+		if ( region->preEofBlock != 0 )
+			blocks.append( region->preEofBlock );
+	}
+	blocks.append( rootCodeBlock );
+
+	for ( int b = 0; b < blocks.length(); b++ ) {
+		for ( int a = 0; a < blocks[b]->loanArgs.length(); a++ ) {
+			CodeBlock::LoanArg &arg = blocks[b]->loanArgs[a];
+			ObjectField *param = paramField( arg.func, arg.param );
+			if ( param->keeps ) {
+				error( arg.loc ) << "cannot give " << arg.what << ", a loan on " <<
+						arg.root << ", to " << arg.func->name << ": " << arg.func->name <<
+						" keeps its parameter " << param->name << endp;
+			}
+			if ( param->fills ) {
+				error( arg.loc ) << "cannot give " << arg.what << ", a loan on " <<
+						arg.root << ", to " << arg.func->name << ": " << arg.func->name <<
+						" can put into its parameter " << param->name << " what " <<
+						arg.root << " doesn't hold" << endp;
 			}
 		}
 	}

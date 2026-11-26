@@ -91,12 +91,24 @@ ObjectMethod *NameScope::findMethodHere( const String &name ) const
 	return methodMapEl != 0 ? methodMapEl->value : 0;
 }
 
+/* The tree of a parser of a type defined in a context. */
+static bool contextParserTree( ObjectField *el )
+{
+	if ( el->type != ObjectField::InbuiltOffType ||
+			el->inGetR != IN_GET_PARSER_MEM_R || el->offset != 0 )
+		return false;
+	UniqueType *ut = el->typeRef->uniqueType;
+	return ut != 0 && ut->langEl != 0 && ut->langEl->contextIn != 0;
+}
+
 VarRefLookup LangVarRef::lookupQualification( Compiler *pd, NameScope *rootScope ) const
 {
 	int lastPtrInQual = -1;
 	NameScope *searchScope = rootScope;
 	int firstConstPart = -1;
 	int firstCtxPart = -1, secondCtxPart = -1;
+	int parserTree = -1;
+	UniqueType *parserTreeUT = 0;
 	ObjectField *rootField = 0;
 
 	for ( QualItemVect::Iter qi = *qual; qi.lte(); qi++ ) {
@@ -135,6 +147,11 @@ VarRefLookup LangVarRef::lookupQualification( Compiler *pd, NameScope *rootScope
 		if ( qi.pos() == 0 )
 			rootField = el;
 
+		if ( parserTree < 0 && contextParserTree( el ) ) {
+			parserTree = qi.pos();
+			parserTreeUT = el->typeRef->uniqueType;
+		}
+
 		/* Going through an object of a context, but not this, the parse's
 		 * own context. */
 		if ( qi->form == QualItem::Arrow && qualUT->typeId == TYPE_STRUCT &&
@@ -167,6 +184,8 @@ VarRefLookup LangVarRef::lookupQualification( Compiler *pd, NameScope *rootScope
 	lookup.firstCtxPart = firstCtxPart;
 	lookup.secondCtxPart = secondCtxPart;
 	lookup.rootField = rootField;
+	lookup.parserTree = parserTree;
+	lookup.parserTreeUT = parserTreeUT;
 	return lookup;
 }
 
@@ -343,6 +362,11 @@ VarRefLookup LangVarRef::lookupField( Compiler *pd ) const
 	lookup.uniqueType = field->typeRef->uniqueType;
 	if ( qual->length() == 0 )
 		lookup.rootField = field;
+
+	if ( lookup.parserTree < 0 && contextParserTree( field ) ) {
+		lookup.parserTree = qual->length();
+		lookup.parserTreeUT = field->typeRef->uniqueType;
+	}
 
 	if ( field->typeRef->searchUniqueType != 0 )
 		lookup.iterSearchUT = field->typeRef->searchUniqueType;

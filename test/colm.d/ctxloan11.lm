@@ -1,0 +1,11 @@
+# A loan tree, an item of a cons: the new tree shares what its attribute
+# holds.
+include 'ctxloan.lmi'
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+parse H: ctx::holder( C )[ "h" ]
+W: ctx::wrap = cons ctx::wrap[ "w " H ]
+##### COMP_ERR #####
+9:37: cannot take H out of C, a context object

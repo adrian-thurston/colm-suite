@@ -115,6 +115,35 @@ EXTRA_DIST = \
 	ctxlend1.lm \
 	ctxlend2.lm \
 	ctxlend3.lm \
+	ctxloan1.lm \
+	ctxloan2.lm \
+	ctxloan3.lm \
+	ctxloan4.lm \
+	ctxloan5.lm \
+	ctxloan6.lm \
+	ctxloan7.lm \
+	ctxloan8.lm \
+	ctxloan9.lm \
+	ctxloan10.lm \
+	ctxloan11.lm \
+	ctxloan12.lm \
+	ctxloan13.lm \
+	ctxloan14.lm \
+	ctxloan15.lm \
+	ctxloan16.lm \
+	ctxloan17.lm \
+	ctxloan18.lm \
+	ctxloan19.lm \
+	ctxloan20.lm \
+	ctxloan21.lm \
+	ctxloan22.lm \
+	ctxloan23.lm \
+	ctxloan24.lm \
+	ctxloan25.lm \
+	ctxloan26.lm \
+	ctxloan27.lm \
+	ctxloan28.lm \
+	ctxloan29.lm \
 	ctxown1.lm \
 	ctxown2.lm \
 	ctxown3.lm \
@@ -800,6 +829,7 @@ EXTRA_DIST = \
 	include1a.lmi \
 	ctxrule.lmi \
 	ctxpush.lmi \
+	ctxloan.lmi \
 	redef1.lm \
 	redef2.lm \
 	redef3.lm \

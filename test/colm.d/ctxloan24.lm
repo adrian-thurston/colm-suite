@@ -1,0 +1,14 @@
+# A pattern's variable in a match of a loan tree is a loan too, and can't
+# be stored in a global.
+include 'ctxloan.lmi'
+
+global GH: ctx::holder
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+parse W: ctx::wrap( C )[ "w h" ]
+if ( match W [ctx::`w H: ctx::holder] )
+	GH = H
+##### COMP_ERR #####
+12:7: cannot take H out of C, a context object

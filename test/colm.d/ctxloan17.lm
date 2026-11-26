@@ -1,0 +1,12 @@
+# The tree of a parser lent the object, read before its finish(): the
+# parser's actions could still change what the tree's attributes hold.
+include 'ctxloan.lmi'
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+H: parser<ctx::holder> = new parser<ctx::holder>( C )
+send H "h"
+X: ctx::holder = H->tree
+##### COMP_ERR #####
+10:18: cannot read H->tree: H is lent a context object until H->finish(), and a ctx::holder can hold a list, map, parser, stream or struct

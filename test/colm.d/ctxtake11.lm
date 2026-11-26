@@ -1,7 +1,7 @@
-# A loop over a context's list of trees whose attribute holds a list: each
-# value of the loop is a copy that shares the list.
-# Between the sends, C is lent to P, so the use of C is refused before the
-# take is.
+# A loop over a context's list of trees whose attribute holds a list, between
+# two sends: each value of the loop is a copy that shares the list.
+# Between the sends, C is lent to P, so the use of C is refused, as any use
+# of it is.
 lex
 	literal `h
 end

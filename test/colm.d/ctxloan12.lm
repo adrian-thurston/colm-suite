@@ -1,0 +1,12 @@
+# A loan given to a host function, which could keep it.
+include 'ctxloan.lmi'
+
+int look( H: ctx::holder ) = c_look
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+parse H: ctx::holder( C )[ "h" ]
+look( H )
+##### COMP_ERR #####
+10:7: cannot take H out of C, a context object

@@ -1,0 +1,14 @@
+# A function given the object and a loan on it could lend the one and use
+# the other.
+include 'ctxrule.lmi'
+
+void f( D: ctx, L: list<str> )
+{
+	print( "f\n" )
+}
+
+C: ctx = new ctx()
+C->L = new list<str>()
+f( C, C->L )
+##### COMP_ERR #####
+12:10: cannot give f two arguments that C reaches: it could lend one and use the other

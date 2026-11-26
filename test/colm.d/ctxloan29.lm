@@ -1,0 +1,30 @@
+# A loan given to a function that keeps nothing of it and puts nothing into
+# it, pushed onto, and put back into its own object; and a loan taken on one
+# side of an if, used after it.
+include 'ctxloan.lmi'
+
+int total( L: list<int> )
+{
+	N: int = 0
+	for V: int in L
+		N = N + V
+	return N
+}
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+X: list<int> = C->R->L
+X->push_tail( 3 )
+print( "total ", total( X ), "\n" )
+C->R->L = X
+Y: list<int> = new list<int>()
+if ( C->R->L->length > 0 )
+	Y = C->R->L
+print( "if ", Y->length, "\n" )
+parse S: ctx::start( C )[ "* ;\n" ]
+print( "parsed ", C->R->L->length, "\n" )
+##### EXP #####
+total 3
+if 1
+parsed 1

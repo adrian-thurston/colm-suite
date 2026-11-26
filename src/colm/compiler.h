@@ -974,6 +974,16 @@ struct Compiler
 	 * loop. The words of an expression lie on what its iterator left. */
 	ObjectField *unwindLoop;
 
+	/* A root that a loan is on, and whether the loan on it has ended: its
+	 * root lent, moved, gone with a parser, or given another object. */
+	enum LoanEnd { NotEnded, EndLent, EndMoved, EndWithParser, EndGiven };
+	struct LoanRoot
+	{
+		ObjectField *root;
+		LoanEnd end;
+		InputLoc endLoc;
+	};
+
 	/* What the code being compiled has done to a context object, held by a
 	 * root, and to a parser variable lent one: see
 	 * doc/colm/design/context-ownership-design.md. A root is a local
@@ -994,18 +1004,29 @@ struct Compiler
 			Moved, MovedWithParser,
 
 			/* The parser variable var, finished. */
-			Finished
+			Finished,
+
+			/* The local var, which holds a loan on the roots in loans. */
+			Loan
 		};
 
 		/* The root or the parser variable, and where it was lent, moved or
 		 * finished. LentToParser: the parser variable, and whether what was
-		 * lent is a field of the root. LentToLoop: the iterator. */
+		 * lent is a field of the root. LentToLoop: the iterator. Loan: where
+		 * the loan was made. */
 		ObjectField *var;
 		Kind kind;
 		InputLoc loc;
 		ObjectField *parser;
 		bool field;
 		String iter;
+
+		/* Loan: the roots the variable is a loan on, and whether it is held:
+		 * it holds only what they hold, or new objects, so it can go back
+		 * in. Finished: the root the parser was lent, which its tree is a
+		 * loan on. */
+		Vector<LoanRoot> loans;
+		bool held;
 	};
 	Vector<Own> owns;
 	int loopDepth;
@@ -1031,23 +1052,33 @@ struct Compiler
 
 	/* A send's target is being loaded; the send's value, its parser, goes
 	 * nowhere; the code being compiled is thrown away, so nothing it does is
-	 * recorded; the value is read in place. */
+	 * recorded; a global's value is read in place, which notes no take of
+	 * it; a call's value goes nowhere; the arguments being made go into
+	 * what the call is on, or to a host function. */
 	bool sendTarget;
 	bool sendDropped;
 	int throwaway;
-	bool ctxValueInPlace;
+	bool globalInPlace;
+	bool callDropped;
+	bool argsGoIn;
 
 	Own *findOwn( ObjectField *var );
+	Own *findLoan( ObjectField *var );
 	void removeOwn( ObjectField *var );
 	void addOwn( ObjectField *var, Own::Kind kind, const InputLoc &loc,
 			ObjectField *parser = 0 );
+	void addLoan( ObjectField *var, const Vector<ObjectField*> &roots, bool held,
+			const InputLoc &loc );
+	void endLoans( ObjectField *root, LoanEnd how, const InputLoc &loc );
 	bool lentToParser( ObjectField *parser );
 	void releaseParser( ObjectField *parser );
+	void finishParser( ObjectField *parser, const InputLoc &loc );
 	void mergeOwns( const Vector<Own> &other );
 	void endScopeOwns( NameScope *scope, bool within );
 	void checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc );
 	void leaveLoop( const Vector<Own> &test, NameScope *scope );
 	void checkLentCalls();
+	void checkLoanArgs();
 
 	ObjectField *makeDataEl();
 	ObjectField *makeFileEl();

@@ -1,0 +1,19 @@
+# The tree of a parse given the object carries the object's struct out in
+# an attribute: it is a loan on the object. Between two sends to a parser
+# lent the object, the program pops the list through the tree, and the
+# parser backs up over its push. On main this compiles and crashes.
+include 'ctxloan.lmi'
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+parse H: ctx::holder( C )[ "h" ]
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+print( "length ", H.HR->L->length, "\n" )
+H.HR->L->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+print( "after ", C->R->L->length, "\n" )
+##### COMP_ERR #####
+13:19: cannot use H: it is a loan on C, which was lent at 11:25

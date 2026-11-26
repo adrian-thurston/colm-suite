@@ -1,12 +1,12 @@
-# Printing a context's tree whose attribute holds a list uses the tree as a
-# value, which takes it out, as it does a global's. The program reads its
-# attributes in place.
+# Printing a context's tree whose attribute holds a list, after its parse,
+# reads it in place. The list holds ints: #775's cycle check refuses a tree
+# attribute that holds a list of trees.
 lex
 	literal `h
 end
 
 def holder
-	L: list<str>
+	L: list<int>
 	[`h]
 
 context ctx
@@ -21,7 +21,7 @@ context ctx
 		[`*]
 		{
 			T = cons holder [ "h" ]
-			T.L = new list<str>()
+			T.L = new list<int>()
 		}
 
 	def start
@@ -31,5 +31,5 @@ end
 C: ctx = new ctx()
 parse S: ctx::start( C )[ "*" ]
 print( C->T, "\n" )
-##### COMP_ERR #####
-33:11: cannot take T out of C, a context object
+##### EXP #####
+h

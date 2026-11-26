@@ -1,3 +1,7 @@
+# A tree that holds, in a weak attribute, a struct that holds the tree. The
+# tree is a parse's, given Undo, and its type can hold a struct, so it is a
+# loan on Undo: a store through it is a store into what Undo holds, which
+# takes only a new object, nil or what Undo holds. Held, made before, isn't.
 struct undo
 
 	lex
@@ -29,7 +33,5 @@ Held: undo::foo = new undo::foo()
 Input.Foo = Held
 Input.Foo->Start = Input
 print[ @Input.Foo->Start ]
-###### IN ######
-a b c ( d e ) f;
-###### EXP ######
-a b c ( d e ) f;
+##### COMP_ERR #####
+33:13: only a new object, nil or what Undo holds can go into Undo

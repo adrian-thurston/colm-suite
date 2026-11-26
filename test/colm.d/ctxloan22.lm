@@ -1,0 +1,14 @@
+# A loan from outside a loop, ended in its body: the next pass could use
+# it before the body ends it again.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+C->L = new list<str>()
+X: list<str> = C->L
+I: int = 0
+while ( I < 2 ) {
+	parse S: ctx::start( C )[ "a" ]
+	I = I + 1
+}
+##### COMP_ERR #####
+9:1: X's loan on C ends in the loop's body (10:2), and the next pass could use it

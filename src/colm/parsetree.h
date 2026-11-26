@@ -2482,6 +2482,8 @@ struct ObjectField
 		mapKeyField(0),
 		dirtyTree(false),
 		refWrite(false),
+		keeps(false),
+		fills(false),
 		inGetR( IN_HALT ),
 		inGetWC( IN_HALT ),
 		inGetWV( IN_HALT ),
@@ -2576,6 +2578,13 @@ struct ObjectField
 	 * write inside it, or a ref to it that something writes through. Read
 	 * for ref parameters and loop variables, by checkRefCopies(). */
 	bool refWrite;
+
+	/* A parameter of a function or an iterator: the function keeps it, or
+	 * what it gets from it, anywhere but a local; or puts into what it
+	 * reaches anything but a new object, nil or what it got from it. A
+	 * loan can't be given to it. Read by Compiler::checkLoanArgs(). */
+	bool keeps;
+	bool fills;
 
 	Vector<RhsVal> rhsVal;
 
@@ -2723,7 +2732,9 @@ struct VarRefLookup
 		iterSearchUT(0),
 		firstCtxPart(-1),
 		secondCtxPart(-1),
-		rootField(0)
+		rootField(0),
+		parserTree(-1),
+		parserTreeUT(0)
 	{}
 
 	int lastPtrInQual;
@@ -2741,6 +2752,12 @@ struct VarRefLookup
 	int firstCtxPart;
 	int secondCtxPart;
 	ObjectField *rootField;
+
+	/* The part that reads the tree of a parser of a type defined in a
+	 * context, or -1, and the tree's type. The name is part
+	 * qual->length(). */
+	int parserTree;
+	UniqueType *parserTreeUT;
 };
 
 struct QualItem
@@ -2857,8 +2874,7 @@ struct LangVarRef
 	bool isGlobalRef( Compiler *pd ) const;
 	void noteGlobalUse( Compiler *pd, GlobalUse::Kind kind, const String &what,
 			bool putsRef = false ) const;
-	void checkContextValue( Compiler *pd, const VarRefLookup &lookup,
-			UniqueType *ut, bool inPlace ) const;
+	void checkParserTree( Compiler *pd, const VarRefLookup &lookup ) const;
 
 	InputLoc loc;
 	Namespace *nspace;
@@ -3460,7 +3476,8 @@ struct LangStmt
 	void chooseDefaultIter( Compiler *pd, IterCall *iterCall ) const;
 	void compileWhile( Compiler *pd, CodeVect &code ) const;
 	void compileForIterBody( Compiler *pd, CodeVect &code,
-			UniqueType *iterUT, const CodeVect &under ) const;
+			UniqueType *iterUT, const CodeVect &under,
+			const Vector<ObjectField*> &loanRoots, bool loanHeld ) const;
 	void compileForIter( Compiler *pd, CodeVect &code ) const;
 	void compile( Compiler *pd, CodeVect &code ) const;
 
@@ -3553,6 +3570,20 @@ struct CodeBlock
 		String arg;
 	};
 	Vector<ContextArg> contextArgs;
+
+	/* A loan given to a parameter of a function or an iterator: the
+	 * function, the parameter, where, what is given and the root it is a
+	 * loan on. Compiler::checkLoanArgs() refuses it once all the code is
+	 * compiled if the parameter keeps or fills. */
+	struct LoanArg
+	{
+		Function *func;
+		long param;
+		InputLoc loc;
+		String what;
+		String root;
+	};
+	Vector<LoanArg> loanArgs;
 
 	/* Whether the block names a context variable or this, and whether it
 	 * yields. Once closed over calls, whether a function it calls does. */

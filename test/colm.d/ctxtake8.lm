@@ -1,4 +1,5 @@
-# At setup, what is read out goes to a function.
+# What is read out of the object goes to a function, which keeps nothing
+# of it.
 include 'ctxrule.lmi'
 
 int count( L: list<str> )
@@ -9,5 +10,6 @@ int count( L: list<str> )
 C: ctx = new ctx()
 C->L = new list<str>()
 C->N = count( C->L )
-##### COMP_ERR #####
-11:18: cannot take L out of C, a context object
+print( C->N, "\n" )
+##### EXP #####
+0

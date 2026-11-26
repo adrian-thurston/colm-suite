@@ -1,0 +1,28 @@
+# Loans read after their parse, and changed through: a parse's capture, the
+# tree a finish() gives, and what a function given the object returns. Each
+# change is seen through the object.
+include 'ctxloan.lmi'
+
+rec getR( D: ctx )
+{
+	return D->R
+}
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+parse H: ctx::holder( C )[ "h" ]
+H.HR->L->push_tail( 1 )
+print( "capture ", H.HR->L->length, ", object ", C->R->L->length, "\n" )
+P: parser<ctx::holder> = new parser<ctx::holder>( C )
+send P "h"
+T: ctx::holder = P->finish()
+T.HR->L->push_tail( 2 )
+print( "finish ", T.HR->L->length, ", tree ", P->tree.HR->L->length, "\n" )
+R: rec = getR( C )
+R->L->push_tail( 3 )
+print( "function ", R->L->length, ", object ", C->R->L->length, "\n" )
+##### EXP #####
+capture 1, object 1
+finish 2, tree 2
+function 3, object 3

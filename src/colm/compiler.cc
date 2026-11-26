@@ -330,7 +330,9 @@ Compiler::Compiler( )
 	sendTarget(false),
 	sendDropped(false),
 	throwaway(0),
-	ctxValueInPlace(false),
+	globalInPlace(false),
+	callDropped(false),
+	argsGoIn(false),
 	nextObjectId(1),     /* 0 is  reserved for no object. */
 	nextFrameId(0),
 	nextParserId(0),

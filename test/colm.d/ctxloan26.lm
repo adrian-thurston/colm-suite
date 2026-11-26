@@ -1,0 +1,16 @@
+# A function given the object can't put what it holds into its caller's
+# variable through a ref parameter.
+include 'ctxloan.lmi'
+
+void out( D: ctx, R: ref<ctx::holder> )
+{
+	R = D->T
+}
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+X: ctx::holder
+out( C, X )
+##### COMP_ERR #####
+7:9: cannot take T out of D, a context object

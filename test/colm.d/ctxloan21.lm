@@ -1,0 +1,15 @@
+# A variable from outside a loop given a loan in its body: the next pass
+# would start with it a loan, which the body before the assignment wasn't
+# compiled for.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+C->L = new list<str>()
+X: list<str> = new list<str>()
+I: int = 0
+while ( I < 2 ) {
+	X = C->L
+	I = I + 1
+}
+##### COMP_ERR #####
+10:1: X takes a loan on C in the loop's body (11:2), and still holds it at its end

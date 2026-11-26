@@ -1,8 +1,8 @@
-# A tree loop over a context's tree whose attribute holds a list takes the
-# tree, whatever the loop variable's type. ctxtake10's program, looping over
-# the tree between two sends.
-# Between the sends, C is lent to P, so the use of C is refused before the
-# take is.
+# A tree loop over a context's tree whose attribute holds a list, whatever
+# the loop variable's type. ctxtake10's program, looping over the tree
+# between two sends.
+# Between the sends, C is lent to P, so the use of C is refused, as any use
+# of it is.
 lex
 	literal `h
 end

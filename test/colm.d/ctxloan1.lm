@@ -1,0 +1,12 @@
+# A list read out of the object into a variable is a loan on the object.
+# The parse given the object ends the loan, so the variable can't be used
+# after it.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+C->L = new list<str>()
+X: list<str> = C->L
+parse S: ctx::start( C )[ "a" ]
+X->push_tail( "x" )
+##### COMP_ERR #####
+10:1: cannot use X: it is a loan on C, which was lent at 9:1

@@ -1,0 +1,14 @@
+# A list the object holds, stored in a field of a struct that isn't a
+# context.
+include 'ctxrule.lmi'
+
+struct box
+	L: list<str>
+end
+
+C: ctx = new ctx()
+C->L = new list<str>()
+B: box = new box()
+B->L = C->L
+##### COMP_ERR #####
+12:11: cannot take L out of C, a context object

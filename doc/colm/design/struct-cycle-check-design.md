@@ -40,7 +40,8 @@ Each is a strong reference. A place declared weak gives no edge, and an
 
 - **A field** of a struct or a context (`ObjectField::StructFieldType` in
   its `ObjectDef`), to its type's node: a struct, a generic, or the tree
-  node for any tree type.
+  node for any tree type. A context's field that holds a context is an
+  edge, but no place ([What is rejected](#what-is-rejected)).
 - **An attribute** of a def or a token (`ObjectField::UserFieldType` in a
   `LangEl`'s `objectDef`), from the tree node to its type's node, if a
   struct or a generic.
@@ -101,6 +102,25 @@ written in it, and `_input` only to the tree node, so a cycle passes a
 struct or a context the program declares, or the tree node, and each edge
 out of those is one of these.
 
+A component whose only places inside it would be contexts' fields that
+hold contexts isn't rejected ([#779]): a context with a field of its own
+type, as `Sub: ctx`, or two contexts that hold each other. Such a field is
+an edge, which the components and the paths take, but not a place. A
+context object has one holder (requirements 4 and 5 of the
+[context ownership requirements](context-ownership-requirements.md)), so
+such fields alone make chains of objects, never a cycle:
+
+- nothing moves an object out of a field, a parameter or `this`, and a
+  context object read out of a field is never a loan (requirement 14);
+- an assignment notes the move of its right-hand side (`noteMove()`)
+  before `assignValue()` loads the target's root, so a local put into a
+  place reached through itself is refused at the target: `C->Sub = C`
+  and `C->Sub->Sub = C` give `cannot use C: it was moved at 12:10`.
+
+Only a context's field or a parser's context leads to a context, so any
+other cycle through a context passes a parser, and has a place that
+isn't such a field. It is rejected as before, at the first such place.
+
 ## The error
 
 The places are put in order: the fields of each struct in `structEls`'
@@ -125,6 +145,10 @@ attribute in it weak`. Each step is:
 - `a list's value`, `a map's key` or `a map's value`;
 - `a parser's context`, `a parser's input` or `a parser's trees`;
 - `an input's trees`.
+
+A path can pass a context's field that holds a context, a step `S.F` like
+any field's, as in `b.P, a parser's context, a.B`
+(`test/colm.d/ctxcycle7.lm`).
 
 A step out of the tree node is an attribute or a `make_token` argument of
 any tree type: the tree before it can hold any tree.
@@ -228,6 +252,18 @@ route the graph has no edge for.
   over the types at the same field of any two, which rejects far more
   programs; and leaving a struct read out of a tree under another type
   outside item 14's guarantee.
+- **A cycle of contexts' fields that hold contexts alone isn't
+  rejected** ([#779]): the maintainer's answer. Requirement 4 of the
+  context ownership requirements lets a context's field be of any
+  context, and refuses `weak<T>` of one, so such a cycle had no way to
+  compile. Rejected: allowing `weak<T>` of a context in a context's
+  field, since compile time can't tell which object a weak reference
+  holds, so outside code could reach a lent object through one
+  (requirement 3); a rule that no context can hold a context that can
+  reach it again, which accepts nothing new and rules out chains of
+  contexts, such as one for each nested scope; and leaving such a field
+  out of the graph altogether, which would also accept a cycle that
+  passes a parser, and lean on the ownership check for parsers too.
 
 ## Validation
 
@@ -248,6 +284,12 @@ stops at the read with `fatal:` and exit status 1, where before [#745] it
 built the cycle (`attrtype3` in `test/colm.d`); and [#477]'s cases refuse a
 `make_token` argument that doesn't fit the token's attribute.
 
+For [#779]: `ctxcycle1` and `ctxcycle2` run a context that holds its own
+type and two contexts that hold each other; `ctxcycle3` to `ctxcycle6` are
+refused where a move would make an object hold itself; and `ctxcycle7`, a
+cycle through a context's field and a parser, is refused at the parser's
+field.
+
 [#663]: https://github.com/adrian-thurston/colm-suite/issues/663
 [#667]: https://github.com/adrian-thurston/colm-suite/issues/667
 [#669]: https://github.com/adrian-thurston/colm-suite/issues/669
@@ -259,3 +301,4 @@ built the cycle (`attrtype3` in `test/colm.d`); and [#477]'s cases refuse a
 [#726]: https://github.com/adrian-thurston/colm-suite/issues/726
 [#745]: https://github.com/adrian-thurston/colm-suite/issues/745
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706
+[#779]: https://github.com/adrian-thurston/colm-suite/issues/779

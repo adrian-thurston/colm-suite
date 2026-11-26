@@ -25,9 +25,11 @@ requirement's.
 
 A weak reference is declared `weak<T>`, as a `ref<T>`, a `list<T>` and a
 `parser<T>` are: `weak` is a keyword, and `weak<T>` a `type_ref`. `T` is
-any type a strong reference can have: a struct, a context, a `list`, a
-`map`, a `parser`, an `_input` or a `stream` (9). The maintainer chose this,
-in planning #670, over a prefix, `weak T`.
+any type a strong reference can have: a struct, a `list`, a `map`, a
+`parser`, an `_input` or a `stream` (9). The maintainer chose this, in
+planning #670, over a prefix, `weak T`. A context isn't one: since [#769],
+a context object has one holder (requirement 4 of the
+[context ownership requirements](context-ownership-requirements.md)).
 
 ```colm
 struct node
@@ -312,3 +314,4 @@ refusal above is a `COMP_ERR` case.
 [#710]: https://github.com/adrian-thurston/colm-suite/issues/710
 [#712]: https://github.com/adrian-thurston/colm-suite/issues/712
 [#714]: https://github.com/adrian-thurston/colm-suite/issues/714
+[#769]: https://github.com/adrian-thurston/colm-suite/issues/769

@@ -1,0 +1,18 @@
+# A cycle that passes a parser is refused, though a context's variable is on
+# it: a's B holds a b, whose P holds a parser, which holds an a. The error is
+# at b.P, which can be weak, not at a.B, which can't.
+context a
+	B: b
+
+	def sa
+		[]
+end
+
+context b
+	P: parser<a::sa>
+
+	def sb
+		[]
+end
+##### COMP_ERR #####
+12:2: strong references make a cycle: b.P, a parser's context, a.B; declare a field or attribute in it weak

@@ -73,12 +73,18 @@ checks it.
    and of nothing else: not of a global, declared with `global` or `export`,
    a field of a struct that isn't a context, a list's value, a map's key or
    value, a def's or a token's attribute, or the `T` of a `weak<T>`. A
-   struct is a context when a def or a token is defined in it.
+   struct is a context when a def or a token is defined in it. A context's
+   field can be of its own context, or of a context with a field of its
+   own: one owner makes such objects a chain, never a cycle (5), and the
+   struct cycle check lets such fields be strong ([#779]).
 5. Putting a context object that a local variable holds into another
    variable or into a field of a context object, or returning it, moves it.
    The local can't be used again until it is given another object. Nothing
    moves an object out of a field, a parameter or `this`. A field is given
-   another object in its place.
+   another object in its place. A local put into a field of its own object,
+   or of one its object holds, as `C->Sub = C` or `C->Sub->Sub = C`, moves
+   before the field is reached through it, which then can't use it: no
+   object comes to hold itself.
 6. Lending what an object holds lends the object. Giving a parser `C->Sub`
    lends `C`, which the program can't use until it has `C` back: a context
    object can hold what another of its fields holds, as
@@ -141,6 +147,11 @@ checks it.
       `finish()`, after its `finish()`;
     - a reference value got from a loan: a field or an attribute read from
       it, a `for` loop's value over it, and what a call given it returns.
+
+    A context object is never a loan: reading one out of a field into a
+    local moves it out of the field, which 5 refuses. Put back into its
+    object (15), a loan of one would make an object hold itself, a cycle
+    the struct cycle check doesn't look for ([#779]).
 15. A loan stays in local variables. It can go back into the object it is a
     loan on, and to a function whose parameter keeps it, and what the
     function gets from it, in its own local variables. It ends where its
@@ -201,3 +212,4 @@ checks it.
 [#756]: https://github.com/adrian-thurston/colm-suite/issues/756
 [#757]: https://github.com/adrian-thurston/colm-suite/issues/757
 [#767]: https://github.com/adrian-thurston/colm-suite/issues/767
+[#779]: https://github.com/adrian-thurston/colm-suite/issues/779

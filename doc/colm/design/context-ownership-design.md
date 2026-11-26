@@ -363,7 +363,9 @@ The entry ends wherever something else could reach what the local holds:
 - a use of the local as a value (`LangVarRef::evaluate()`), other than in
   place. A send's target, a `for` loop over values that aren't reference
   values, and a value read through the same root are read in place;
-- a send's value, kept (`LangTerm::sendFinish()`);
+- a send's value, kept, which is what the send went to: the local, or a
+  parser or a stream read out of it (`sendValueKept()`, from
+  `LangTerm::sendFinish()` and `evaluateSend()`);
 - a take: a reference value read out of it other than in place, as
   `X = L->head` and `M->find( K )` read one (`uniqueTake()`, beside each
   `checkContextValue()`), and a `for` loop whose values are reference values

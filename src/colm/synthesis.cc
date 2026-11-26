@@ -3427,17 +3427,26 @@ void LangTerm::checkSendChange( Compiler *pd, UniqueType *varUt, bool putsRef ) 
 	}
 }
 
+/* A send's value is what it was sent to, a parser or a stream. Kept, it is
+ * the local the target starts at, used as a value, or something read out of
+ * it: either way that local isn't unique any more. */
+static void sendValueKept( Compiler *pd, const LangVarRef *varRef, bool dropped )
+{
+	ObjectField *root;
+	if ( !dropped && varRef->ownRoot( pd, root ) && root != 0 )
+		pd->endUnique( root );
+}
+
 /* A send that ends with eos finishes the parser. A send's value is the
  * parser: kept, it is a use of the parser as a value. */
 void LangTerm::sendFinish( Compiler *pd, bool dropped ) const
 {
+	sendValueKept( pd, varRef, dropped );
 	if ( varRef->qual->length() > 0 || !varRef->isLocalRef() )
 		return;
 	ObjectField *var = varRef->scope->findField( varRef->name );
-	if ( var != 0 && !dropped ) {
+	if ( var != 0 && !dropped )
 		parserValueUse( pd, var, varRef->loc );
-		pd->endUnique( var );
-	}
 	if ( !eof )
 		return;
 	if ( var != 0 && pd->lentToParser( var ) && pd->throwaway == 0 ) {
@@ -3467,10 +3476,12 @@ UniqueType *LangTerm::evaluateSend( Compiler *pd, CodeVect &code ) const
 	UniqueType *varUt = varRef->lookup( pd );
 	bool sentStream = false;
 
-	if ( varUt == pd->uniqueTypeStream )
+	if ( varUt == pd->uniqueTypeStream || varUt->listOf( pd->uniqueTypeStream ) ) {
+		bool dropped = pd->sendDropped;
+		pd->sendDropped = false;
 		evaluateSendStream( pd, code );
-	else if ( varUt->listOf( pd->uniqueTypeStream ) )
-		evaluateSendStream( pd, code );
+		sendValueKept( pd, varRef, dropped );
+	}
 	else if ( varUt->parser() ) {
 		bool dropped = pd->sendDropped;
 		pd->sendDropped = false;

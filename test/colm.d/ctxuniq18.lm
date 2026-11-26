@@ -1,0 +1,21 @@
+# A send's value, kept, is the stream local itself: the local isn't unique.
+context ctx
+	I: stream
+
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[w*]
+end
+
+I: stream = new stream()
+X: stream = send I "a"
+C: ctx = new ctx()
+C->I = I
+send X "b"
+print( "compiled\n" )
+##### COMP_ERR #####
+17:8: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

@@ -327,10 +327,11 @@ Compiler::Compiler( )
 	newParserField(false),
 	ctxStore(false),
 	ctxStoreRoot(0),
+	ctxStoreUnique(false),
 	sendTarget(false),
 	sendDropped(false),
 	throwaway(0),
-	globalInPlace(false),
+	valueInPlace(false),
 	callDropped(false),
 	argsGoIn(false),
 	nextObjectId(1),     /* 0 is  reserved for no object. */

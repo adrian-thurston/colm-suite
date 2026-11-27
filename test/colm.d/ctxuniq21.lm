@@ -1,0 +1,26 @@
+# A new that its capture holds too, put into a unique local's field, ends the
+# local's unique state.
+include 'ctxrule.lmi'
+
+struct box
+	L: list<str>
+end
+
+context bctx
+	B: box
+
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[w*]
+end
+
+S: box = new box()
+S->L = new X: list<str>()
+C: bctx = new bctx()
+C->B = S
+##### COMP_ERR #####
+24:8: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

@@ -1,0 +1,46 @@
+# A send's value, kept, is the parser in the local's field: the local isn't
+# unique, and doesn't move into the context object the value reaches.
+context other
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def inner
+		[w*]
+end
+
+struct box
+	P: accum<other::inner>
+end
+
+context ctx
+	B: box
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			send B->P "x "
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+S: box = new box()
+S->P = new accum<other::inner>( new other() )
+Q: accum<other::inner> = send S->P "a "
+C: ctx = new ctx()
+C->B = S
+##### COMP_ERR #####
+44:8: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

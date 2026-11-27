@@ -1,0 +1,13 @@
+# A map declared with new's capture, given new structs, moves into a context
+# object.
+include 'ctxrule.lmi'
+
+new M: map<str, rec>()
+M->insert( "a", new rec() )
+M->insert( "b", new rec() )
+C: ctx = new ctx()
+C->M = M
+parse S: ctx::start( C )[ "x" ]
+print( C->M->length, "\n" )
+##### EXP #####
+2

@@ -1,0 +1,14 @@
+# A local made unique outside a loop doesn't move in the loop's body, which
+# runs again.
+include 'ctxrule.lmi'
+
+L: list<str> = new list<str>()
+I: int = 0
+while ( I < 2 ) {
+	C: ctx = new ctx()
+	C->L = L
+	L = new list<str>()
+	I = I + 1
+}
+##### COMP_ERR #####
+9:9: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

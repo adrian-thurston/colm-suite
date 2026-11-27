@@ -1,0 +1,22 @@
+# Two contexts that hold each other can't be made into a cycle: X->B = Y
+# moves Y, so Y->A = X can't use Y.
+context a
+	B: b
+
+	def sa
+		[]
+end
+
+context b
+	A: a
+
+	def sb
+		[]
+end
+
+X: a = new a()
+Y: b = new b()
+X->B = Y
+Y->A = X
+##### COMP_ERR #####
+20:1: cannot use Y: it was moved at 19:8

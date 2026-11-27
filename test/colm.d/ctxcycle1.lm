@@ -1,0 +1,53 @@
+# A context's variable can hold an object of its own context. Each object
+# has one holder, so the objects make a chain, not a cycle. A parse given
+# C->Sub lends C, and its actions add the next object to the chain. A
+# function walks the chain, and giving C->Sub another object drops the rest.
+context ctx
+	N: int
+	Sub: ctx
+
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def item
+		[w]
+		{
+			N = N + 1
+			if ( !Sub )
+				Sub = new ctx()
+			Sub->N = Sub->N + 10
+		}
+
+	def start
+		[item*]
+end
+
+int depth( P: ctx )
+{
+	if ( !P->Sub )
+		return 1
+	return 1 + depth( P->Sub )
+}
+
+void show( P: ctx )
+{
+	print( P->N, "\n" )
+	if ( P->Sub )
+		show( P->Sub )
+}
+
+C: ctx = new ctx()
+C->Sub = new ctx()
+parse S: ctx::start( C->Sub )[ "a b" ]
+print( "depth ", depth( C ), "\n" )
+show( C )
+C->Sub = new ctx()
+print( "depth ", depth( C ), "\n" )
+##### EXP #####
+depth 3
+0
+2
+20
+depth 2

@@ -1,0 +1,19 @@
+# A loop that breaks where its local was used as a value leaves it not
+# unique, though the body's end leaves it unique.
+include 'ctxrule.lmi'
+
+global GL: list<str>
+L: list<str> = new list<str>()
+I: int = 0
+while ( I < 2 ) {
+	if ( I == 1 ) {
+		GL = L
+		break
+	}
+	L = new list<str>()
+	I = I + 1
+}
+C: ctx = new ctx()
+C->L = L
+##### COMP_ERR #####
+17:8: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

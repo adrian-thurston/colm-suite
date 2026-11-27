@@ -1,0 +1,21 @@
+# X->B->A = X would put X into the b that X holds, a cycle through an a and
+# a b. The assignment moves X, so its target can't use X.
+context a
+	B: b
+
+	def sa
+		[]
+end
+
+context b
+	A: a
+
+	def sb
+		[]
+end
+
+X: a = new a()
+X->B = new b()
+X->B->A = X
+##### COMP_ERR #####
+19:1: cannot use X: it was moved at 19:11

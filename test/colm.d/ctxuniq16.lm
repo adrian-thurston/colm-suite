@@ -1,0 +1,9 @@
+# A send's value, kept, is the parser used as a value: the local isn't unique.
+include 'ctxrule.lmi'
+
+P: accum<ctx::inner> = new accum<ctx::inner>( new ctx() )
+Q: accum<ctx::inner> = send P "a b"
+C: ctx = new ctx()
+C->Inner = P
+##### COMP_ERR #####
+7:12: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

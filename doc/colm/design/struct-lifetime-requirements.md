@@ -91,6 +91,11 @@ says what, and leaves how to them.
     `make_token` argument, can hold. A weak reference on a path breaks it.
     Each cycle of types needs a weak reference in it: one elsewhere among
     the same types isn't enough.
+    A cycle made only of contexts' fields that hold contexts is the
+    exception ([#779]): a context object has one holder (requirements 4 and
+    5 of the [context ownership
+    requirements](context-ownership-requirements.md)), so such fields make
+    chains of objects, never a cycle, and colm accepts them.
 
     This rejects a struct type that holds its own type through a strong
     field, as a singly linked list does, or through a list, as a node with a
@@ -163,3 +168,4 @@ clean:
 [#669]: https://github.com/adrian-thurston/colm-suite/issues/669
 [#670]: https://github.com/adrian-thurston/colm-suite/issues/670
 [#671]: https://github.com/adrian-thurston/colm-suite/issues/671
+[#779]: https://github.com/adrian-thurston/colm-suite/issues/779

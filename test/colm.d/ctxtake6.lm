@@ -1,8 +1,10 @@
-# At setup, a list made before goes in.
+# At setup, a list made before goes in: its variable has been used only
+# through -> since its new, and moves.
 include 'ctxrule.lmi'
 
 L: list<str> = new list<str>()
 C: ctx = new ctx()
 C->L = L
-##### COMP_ERR #####
-6:8: only a new object, nil or what C holds can go into C
+print( C->L->length, "\n" )
+##### EXP #####
+0

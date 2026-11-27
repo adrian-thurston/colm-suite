@@ -1,0 +1,47 @@
+# A send's value, kept, is the parser in the context object: a loan on it,
+# as C->P read into a variable is. The parser lent C backs up over its
+# action's send to P, so the send through Q after the lend is refused.
+context other
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def inner
+		[w*]
+end
+
+context ctx
+	P: accum<other::inner>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			send P "x "
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+C: ctx = new ctx()
+C->P = new accum<other::inner>( new other() )
+Q: accum<other::inner> = send C->P "a "
+R: parser<ctx::start> = new parser<ctx::start>( C )
+send R "* ;"
+send Q "q "
+send R "\n"
+print( R->finish(), "\n" )
+print( Q->finish(), "\n" )
+##### COMP_ERR #####
+42:6: cannot use Q: it is a loan on C, which was lent at 40:25

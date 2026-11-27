@@ -1,0 +1,21 @@
+# A struct built in a local moves two levels down, into a list the context
+# object holds, at the top level and in a function given the object.
+include 'ctxrule.lmi'
+
+void addRec( C: ctx, N: int )
+{
+	R: rec = new rec()
+	R->N = N
+	C->Recs->push_tail( R )
+}
+
+C: ctx = new ctx()
+C->Recs = new list<rec>()
+R: rec = new rec()
+R->N = 3
+C->Recs->push_tail( R )
+addRec( C, 4 )
+parse S: ctx::start( C )[ "x" ]
+print( C->Recs->length, " ", C->Recs->head->N, " ", C->Recs->tail->N, "\n" )
+##### EXP #####
+2 3 4

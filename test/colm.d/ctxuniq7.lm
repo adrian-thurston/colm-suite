@@ -1,0 +1,28 @@
+# A tree local is never unique, though its attribute holds only a new list: a
+# cons or a parse can put into a tree what is held elsewhere.
+lex
+	literal `h
+end
+
+def holder
+	L: list<str>
+	[`h]
+
+context ctx
+	T: holder
+
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[w*]
+end
+
+H: holder = cons holder [ "h" ]
+H.L = new list<str>()
+C: ctx = new ctx()
+C->T = H
+##### COMP_ERR #####
+26:8: only nil or what C holds can go into C: a holder can hold a list, map, parser, stream or struct

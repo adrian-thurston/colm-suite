@@ -92,6 +92,13 @@ EXTRA_DIST = \
 	ctxchg11.lm \
 	ctxchg12.lm \
 	ctxchg14.lm \
+	ctxcycle1.lm \
+	ctxcycle2.lm \
+	ctxcycle3.lm \
+	ctxcycle4.lm \
+	ctxcycle5.lm \
+	ctxcycle6.lm \
+	ctxcycle7.lm \
 	ctxgram1.lm \
 	ctxgram2.lm \
 	ctxgram3.lm \
@@ -158,6 +165,9 @@ EXTRA_DIST = \
 	ctxloan41.lm \
 	ctxloan42.lm \
 	ctxloan43.lm \
+	ctxloan44.lm \
+	ctxloan45.lm \
+	ctxloan46.lm \
 	ctxown1.lm \
 	ctxown2.lm \
 	ctxown3.lm \
@@ -210,6 +220,10 @@ EXTRA_DIST = \
 	ctxplace8.lm \
 	ctxplace9.lm \
 	ctxplace10.lm \
+	ctxsend1.lm \
+	ctxsend2.lm \
+	ctxsend3.lm \
+	ctxsend4.lm \
 	ctxset1.lm \
 	ctxset2.lm \
 	ctxtake1.lm \
@@ -244,6 +258,27 @@ EXTRA_DIST = \
 	ctxtype4.lm \
 	ctxtype5.lm \
 	ctxtype6.lm \
+	ctxuniq1.lm \
+	ctxuniq2.lm \
+	ctxuniq3.lm \
+	ctxuniq4.lm \
+	ctxuniq5.lm \
+	ctxuniq6.lm \
+	ctxuniq7.lm \
+	ctxuniq8.lm \
+	ctxuniq9.lm \
+	ctxuniq10.lm \
+	ctxuniq11.lm \
+	ctxuniq12.lm \
+	ctxuniq13.lm \
+	ctxuniq14.lm \
+	ctxuniq15.lm \
+	ctxuniq16.lm \
+	ctxuniq17.lm \
+	ctxuniq18.lm \
+	ctxuniq19.lm \
+	ctxuniq20.lm \
+	ctxuniq21.lm \
 	ctxvar1.lm \
 	ctxvarmsg1.lm \
 	cycle1.lm \

@@ -50,7 +50,8 @@ program, as xref:8_04_error_handling.adoc#run-time-errors[the error handling
 chapter] says. Assigning `nil` to a struct, list or map variable makes it nil
 again. A field can't hold a struct of its own type, but it can refer to one
 weakly, as xref:2_02_list_map_struct_alias.adoc#weak[weak references]
-explain.
+explain. A context's variable is the exception: it can hold an object of
+its own context.
 
 Structs are shared, as xref:2_00_types.adoc#sharing[the types chapter] says,
 so a function can change a struct passed to it.
@@ -261,9 +262,22 @@ one, and names the places that lead back to it. The route above, with
 `Next: stop`, gives
 `strong references make a cycle: stop.Next; declare a field or attribute in it weak`.
 
+A cycle made only of contexts' variables that hold context objects isn't
+refused: a context can have a variable of its own context, as in
+`Sub: ctx`, and two contexts can each have a variable of the other. A
+context object has one holder, as xref:3_04_undo.adoc#context[the context
+chapter] says, so such objects make a chain, never a cycle. Putting an
+object into a variable of itself, or of an object it holds, as
+`+C->Sub = C+` and `+C->Sub->Sub = C+` would, moves `C` before the target
+reaches through it, and colm refuses the target with
+`cannot use C: it was moved at`, then the place of the move. A cycle that
+passes anything else as well, such as a parser, is refused as any other,
+and its error is never at such a variable, which can't be weak.
+
 A place declared `weak<T>` refers to a value of type `T`, and doesn't count
-toward a cycle. `T` is a struct, list, map, parser, `_input` or `stream` type.
-Each cycle needs a weak place of its own: one elsewhere among the same types
+toward a cycle. `T` is a struct that isn't a context, or a list, map,
+parser, `_input` or `stream` type: a context object has one holder. Each
+cycle needs a weak place of its own: one elsewhere among the same types
 isn't enough.
 
 * It can be a struct's or a context's field, a variable, a parameter, a

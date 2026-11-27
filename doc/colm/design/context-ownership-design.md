@@ -20,11 +20,11 @@ stays as dead code, or as a second check beside the new one.
   keeps only [what goes in](#what-goes-in-12). `endReachableSetups()` keeps
   only its count of `otherCodeRuns`, which `restartTypes` needs, under a
   name that says so (`countOtherCode()`). `ctxValueInPlace` lost its
-  context use with [#773]: `evaluateSetupValue()` set it for a value read
-  through the root it goes into, which no read refusal is left to need. Its
-  other uses, a send's target and a `for` loop's value (`forInPlace()`),
-  are [#714]'s, for a take out of a global, so it is
-  `Compiler::globalInPlace` now.
+  context use with [#773]: no read refusal is left to need it. Its other
+  uses are [#714]'s, a send's target and a `for` loop's value
+  (`forInPlace()`), for a take out of a global, and [#772]'s, a value read
+  through the root a store goes into, which leaves a unique local unique.
+  So it is `Compiler::valueInPlace` now.
 - **The parts of [#720]'s rule that loans replace** (PR #749), gone with
   [#773]: `checkContextValue()`'s refusal of any use as a value of a
   reference value read through a context object, a tree that can hold one
@@ -164,6 +164,15 @@ variable named alone or a field read through `->` can't move:
     cannot move this: the parse lends it for the action
     cannot move Sub out of C: give the field another object in its place
     cannot move Sub out of the context object: give the field another object in its place
+
+The move is noted (`noteMove()`, in `LangStmt::compile()`'s `AssignType`
+case) before `assignValue()` loads the target's root. So a local put into
+a place reached through itself is refused at the target, and no object
+comes to hold itself: `C->Sub = C` gives
+`cannot use C: it was moved at 12:10`, and `C->Sub->Sub = C` gives
+`cannot use C: it was moved at 12:15` (`ctxcycle3`, `ctxcycle4`).
+`checkStrongCycles()` counts on this: it accepts a cycle made only of
+contexts' fields that hold contexts ([#779]).
 
 Giving a variable or a field another object ends what was recorded of the
 old one: its entry goes, and loans on it end.
@@ -359,12 +368,46 @@ through the same root, or a unique local, which then moves:
     only a new object, nil, what C holds or a variable used only through ->
     since its new can go into C
 
-The unique state is the setup window as it was, for a local of any reference
-type: the assignment of a `new` term opens it, and it ends at any use of the
-local as a value other than its move into an object, or a store into it of
-anything that couldn't go into an object. A tree that can hold a reference
-value is never unique: what `cons` and `parse` make can hold what is held
-elsewhere ([#720]).
+The unique state is an entry in `Compiler::owns`, `Own::Unique`, for a local
+of a type that `ctxHeldRef()` counts: a list, a map, a struct that isn't a
+context, a parser, or a weak one of these. A context object moves already
+([Moves](#moves-5)). The entry opens where the local is given a `new` term
+with no capture, by an assignment, or by the statement `new L: T()`, whose
+capture is all that holds the object. Anywhere else, a `new` with a capture
+isn't new, since the capture holds the object too: into a context object, as
+`C->L = new X: list<str>()`, it is refused at the `new`.
+
+    cannot put the new object into C: X holds it too
+
+The entry ends wherever something else could reach what the local holds:
+
+- a use of the local as a value (`LangVarRef::evaluate()`), other than in
+  place. A send's target, a `for` loop over values that aren't reference
+  values, and a value read through the same root are read in place;
+- a send's value, kept, which is what the send went to: the local, or a
+  parser or a stream read out of it (`sendValueKept()`, from
+  `LangTerm::sendFinish()` and `evaluateSend()`);
+- a take: a reference value read out of it other than in place, as
+  `X = L->head` and `M->find( K )` read one (`uniqueTake()`, where a read
+  out of a context object makes a loan), and a `for` loop whose values are
+  reference values
+  (`compileForIter()`), which walks the list through a ref, not as a value;
+- a store into it (`setCtxStore()`, then `evaluateSetupValue()`) of a
+  reference value that isn't new, `nil` or read through it. Another local
+  counts: nothing moves into a local, which only stops being unique. A loan
+  ([Loans](#loans)) can't go into it at all, any more than into any struct
+  (`checkContextValue()`), since a loan is kept only in a local;
+- a capture that puts an object into it (`LangTerm::evaluateCapture()`);
+- another value given to it.
+
+The entry keeps the loop depth it was made at. A local made unique outside a
+loop doesn't move in the loop's body, which runs again (`uniqueHere()`).
+After an `if`, a local is unique only if both sides left it so
+(`mergeOwns()`), and after a loop only if the body's end and each `break`
+did (`leaveLoop()`). The loop check doesn't count a unique local: one unique
+before the loop doesn't move in it. A tree that can hold a reference value is
+never unique: what `cons` and `parse` make can hold what is held elsewhere
+([#720]).
 
 The parse's own code, through the context's names and `this`, isn't checked
 here. What it puts in comes from new objects, the object itself, its locals
@@ -386,11 +429,13 @@ and the store rule above keeps what goes into a loan the object's.
 Only a held loan on one root surely reaches what that object holds. A loan
 on two objects, as after `X = C->R` on one side of an `if` and `X = D->R` on
 the other, or one that isn't held, as what a function given `C` returns,
-may reach another object's, or a global's. Through it only a new object or
-`nil` goes in (`Compiler::ctxStoreLoan` names the local), so nothing read
-out of an object can go into another:
+may reach another object's, or a global's. Through it only a new object,
+`nil` or a unique local goes in (`Compiler::ctxStoreLoan` names the local),
+so nothing read out of an object can go into another. A unique local moves
+through it, as into the object: nothing else holds its object.
 
-    only a new object or nil can go through X, which may hold what isn't C's
+    only a new object, nil or a variable used only through -> since its new
+    can go through X, which may hold what isn't C's
     only nil can go through X, which may hold what isn't C's: a T can hold a
     list, map, parser, stream or struct
 
@@ -453,16 +498,23 @@ ownership state, after the expression is evaluated, and evaluate nothing
   `DD->lookupObj = lookupNs->tail` does: not by `checkContextValue()`,
   `loanArgs`, `checkContextArgs()`, `setCtxStore()` or a loop's take;
 - the tree of a finished parser variable `P`, read as `P->tree`, and what
-  its `finish()` or `eof()` gives: the root `P` was lent, which `P`'s
-  `Finished` entry keeps (`Compiler::finishParser()`);
+  its `finish()` or `eof()` gives: each root `P` was lent, which `P`'s
+  `Finished` entry keeps (`Compiler::finishParser()`), one from each side of
+  an `if` that lent `P` another object on each (`parserLoanRoots()`);
 - a built-in call on any of these: what it is called on;
 - a call of a function or an iterator: each argument's loan, and the root of
-  each argument of a context type, not held;
+  each argument of a context type, not held. The running context given as
+  an argument, as `this`, makes an own loan, as a read of it by name does;
 - a parse given an object a root reaches, of a type `sharesRef()` counts:
   that root;
 - a cast, a `match`, a search, a send's value and the `^` and `@` of a loan:
   its loan. The checks go by type, so a cast to a type that can't hold a
   reference value hides one ([#755]).
+
+A loan is never of a context type. `X = C->Sub`, with `Sub` of a context,
+moves `Sub` out of `C`, which (5) refuses, and stays refused: a loan of a
+context object, back in its object as `C->Sub->Sub = X`, would make a
+cycle that `checkStrongCycles()` doesn't look for ([#779]).
 
 ### Where loans are made, and end
 
@@ -528,9 +580,12 @@ it is new, `nil` or held and got from that parameter alone, marks it as
 filled (`ObjectField::fills`). A store into what a parameter reaches is one
 whose target is qualified and starts at the parameter, or at a local whose
 loan is on parameters and no context object. An assignment to a `ref`
-parameter writes into its caller's variable, and one to a tree loop's
-variable into the tree it walks, so each is a store into what the parameter
-or the loop's loan reaches too. A `return` and a `yield` mark nothing: the
+parameter writes into its caller's variable, so it is a store into what the
+parameter reaches too. So is one to a tree loop's variable, which writes into
+the tree it walks, but only into a parameter that is a `ref` parameter, or
+reaches the tree through a reference, as `R->T` of a struct parameter `R`
+does: a loop straight over a value parameter's tree changes the function's
+copy. A `return` and a `yield` mark nothing: the
 caller's result is a loan on what the arguments were.
 
 A loan on a context object given to a function or an iterator the program
@@ -552,8 +607,10 @@ keeps or fills:
 `VarRefLookup::parserTree` is the part of a reference that reads the tree of
 a parser of a type defined in a context. Where `checkOwnedUse()` is called,
 `checkParserTree()` lets a tree of a type `sharesRef()` counts be read only
-through a local parser variable `P` that is finished, and whose root hasn't
-been lent, moved or given another object since:
+through a local parser variable `P` that is finished, on every path, and
+none of whose roots has been lent, moved or given another object since. An
+`if` that finishes `P` on one side only leaves it lent on the other
+(`lentToParser()`), so its tree isn't read after the `if`:
 
     cannot read P->tree: P is lent a context object until P->finish(), and a
     T can hold a list, map, parser, stream or struct
@@ -635,6 +692,18 @@ a call such as `push_tail` given one, or a stream sent to a parser it holds.
   maintainer's answer. They add code that the new check makes unneeded.
 - Lending part of an object lends all of it: an object can hold, in one
   field, what another holds, as `C->Other = C->Sub->L` puts it there.
+- What goes into a unique local and keeps it unique is new, `nil` or what it
+  holds, and another local doesn't move there: the maintainer's answer
+  ([#772]). A move there refused programs that use no context, which push a
+  struct or a list into a new list and use it again (`elstruct1`,
+  `forvar16`, `loopvar13` and `weak1`). A struct built in a local still goes
+  in two levels deep, by moving into what the object holds, as
+  `C->Recs->push_tail( R )` does. Not taken: the inner local moving when the
+  outer one moves, which needs a list of what went into each local, and a
+  change wherever the state ends.
+- A `new` with a capture isn't new where it goes: the maintainer's answer
+  ([#772]). The capture could change what the object holds while a parser
+  lent the object could back up.
 - Kept simple at a small cost:
   - `return`, `break` and `exit` don't end a path.
   - A parse's first item can't use the object, though nothing has been sent
@@ -666,6 +735,12 @@ a call such as `push_tail` given one, or a stream sent to a parser it holds.
   a new object or `nil`, and a loop's body can't give up a held loan of a
   variable from outside it: review items 1 and 3 on #784. Each could put
   what isn't the object's into it.
+- With [#772]'s unique locals, merged into #784: a unique local moves into
+  what any loan reaches, a loop's body can give a held loan's variable a new
+  object, and a loan can't go into a unique local's struct, since a loan is
+  kept only in a local. A kept send's value read out of a context object is
+  a loan, not refused as a take, so `ctxsend1` is refused at its use after
+  the lend, and `ctxsend2` runs.
 - What goes into a loan inside a function has its own summary,
   `ObjectField::fills`, beside `keeps`: the maintainer's answer. Requirement
   12 lets outside code put into what the object holds only new objects,
@@ -733,7 +808,12 @@ In `test/colm.d`.
   give a call more arguments than it has parameters, which the argument
   check leaves for `evaluateArgs()` to report.
   `ctxhold5`'s runs became `ctxhold5`, `ctxhold10` and `ctxhold11` (refused),
-  `ctxhold12` and `ctxhold13`.
+  `ctxhold12` and `ctxhold13`. [#772] added `ctxuniq1`–`ctxuniq21`: the run
+  cases `ctxuniq1`–`ctxuniq3`, a list, a map and a struct moved in, and a
+  refusal each in the rest, `ctxuniq14` the `new` with a capture. It added
+  `ctxsend1` and `ctxsend2` too, a kept send's value taken out of a context
+  object, and `ctxsend3` and `ctxsend4`, one taken out of a global in a parse
+  given a context. `ctxtake6`, a list made before setup, now runs.
 - **Loans.** [#773] added `ctxloan1`–`ctxloan27`, one refusal each:
   - a loan used after its root is lent to a parse (1), to a parser (2), with
     a parse's capture (3) and `finish()`'s tree (4) as the loan, and after
@@ -758,15 +838,35 @@ In `test/colm.d`.
   nothing, put back into its object, and taken on one side of an `if`. They
   share `ctxloan.lmi`.
 
-  #784's review added `ctxloan30`–`ctxloan36`: a loan given a global's list
-  on one side of an `if` (30) and in a loop's body (31); a function that
-  gives its `ref` parameter a global's tree (32); a tree loop's variable
-  over a loan given one (33); a store through a loan on two objects (34)
-  and through what a function returned (35); and a token action that reads
-  its context's list into a local and lends `this` (36). `ctxloan37` runs:
-  a loan held on both sides of an `if`, and a store through a held loan on
-  one object, still compile. `ctxtake1`–`ctxtake5`, `ctxtake8` and `ctxtake15` run
-  now, and `pointer1` is refused at its store through a parse's tree.
+  #784's first review added `ctxloan30`–`ctxloan36`: a loan given a global's
+  list on one side of an `if` (30) and in a loop's body (31); a function
+  that gives its `ref` parameter a global's tree (32); a tree loop's
+  variable over a loan given one (33); a store through a loan on two objects
+  (34) and through what a function returned (35); and a token action that
+  reads its context's list into a local and lends `this` (36). `ctxloan37`
+  runs: a loan held on both sides of an `if`, and a store through a held
+  loan on one object, still compile.
+
+  Its second review added `ctxloan38`–`ctxloan46`:
+  - a tree stored through a tree loop's variable over a loan on two
+    objects (38);
+  - a parser lent another object on each side of an `if`, finished on both
+    (39) or after the `if` (40), whose tree is a loan on both;
+  - `P->tree` after an `if` that finishes `P` on one side only (41);
+  - with [#772]'s unique locals, a loan stored into a unique local's field
+    (44), and a local unique on one side of an `if` and a loan on the other
+    (45).
+
+  `ctxloan42`, `ctxloan43` and `ctxloan46` run: a token action stores what a
+  function given `this` returns (42); a function changes its own copy of a
+  tree parameter in a tree loop, and can be given a loan (43); a unique
+  local moves into what a held loan on its object reaches (46).
+
+  `ctxtake1`–`ctxtake5`, `ctxtake8` and `ctxtake15` run now. Under loans,
+  `ctxsend1`'s kept send's value is a loan, refused at its use after the
+  lend, and `ctxsend2`'s, which nothing lends again, runs. `pointer1` was
+  refused at its store through a parse's tree until [#772]: its `Held` is a
+  unique local, which moves in, so it runs again, as on main.
 
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439
 [#706]: https://github.com/adrian-thurston/colm-suite/issues/706
@@ -778,4 +878,6 @@ In `test/colm.d`.
 [#756]: https://github.com/adrian-thurston/colm-suite/issues/756
 [#757]: https://github.com/adrian-thurston/colm-suite/issues/757
 [#771]: https://github.com/adrian-thurston/colm-suite/issues/771
+[#772]: https://github.com/adrian-thurston/colm-suite/issues/772
 [#773]: https://github.com/adrian-thurston/colm-suite/issues/773
+[#779]: https://github.com/adrian-thurston/colm-suite/issues/779

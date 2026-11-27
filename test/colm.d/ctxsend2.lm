@@ -1,0 +1,21 @@
+# A send's value, kept, is the stream in the context object: a loan on it,
+# as C->I read into a variable is, which nothing lends again.
+context ctx
+	I: stream
+
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[w*]
+end
+
+C: ctx = new ctx()
+C->I = new stream()
+X: stream = send C->I "a"
+send X "b"
+print( "compiled\n" )
+##### EXP #####
+compiled

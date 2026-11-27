@@ -21,4 +21,4 @@ GR->L->pop_tail()
 send P "\n"
 print( P->finish(), "\n" )
 ##### COMP_ERR #####
-16:14: only a new object or nil can go through X, which may hold what isn't C's
+16:14: only a new object, nil or a variable used only through -> since its new can go through X, which may hold what isn't C's

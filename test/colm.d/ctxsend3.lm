@@ -1,0 +1,54 @@
+# In a parse given a context, a send's value, kept, is the parser a global
+# holds: it can't be taken out, as GP can't. The parser lent C backs up over
+# its action's send to P, which on main takes out the program's send to GP.
+context other
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def inner
+		[w*]
+end
+
+global GP: accum<other::inner> = new accum<other::inner>( new other() )
+
+context ctx
+	P: accum<other::inner>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `; `!
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			send P "x "
+		}
+
+	def setup
+		[`!]
+		{
+			P = send GP "a "
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+end
+
+C: ctx = new ctx()
+parse G: ctx::setup( C )[ "!" ]
+R: parser<ctx::start> = new parser<ctx::start>( C )
+send R "* ;"
+send GP "q "
+send R "\n"
+print( R->finish(), "\n" )
+print( GP->finish(), "\n" )
+##### COMP_ERR #####
+37:13: cannot take GP, a global, out in an action of a parse given a context: keep the data in a context

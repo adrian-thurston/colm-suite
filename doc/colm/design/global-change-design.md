@@ -26,12 +26,14 @@ runtime changes.
     global holds that changes it (its `change`, which counts a parser's
     `finish`); and in `LangTerm::checkSendChange()`, for a send to a
     parser, not to a stream;
-  - a take: in `LangVarRef::evaluate()`, of a value that `heldRef()`
-    counts, unless it is read in place (`globalInPlace`), and in
-    `evaluateCall()`, of such a value that a call on what a global holds
-    gives. `heldRef()` counts a reference value, as a loan on a context
-    object is one: what `ctxHeldRef()` does, a list, map, parser, stream or
-    struct other than a context, and a tree type that
+  - a take: in `LangVarRef::evaluate()`, of a value that `heldRef()` counts,
+    unless it is read in place (`valueInPlace`), and in `evaluateCall()`,
+    of such a value that a call on what a global holds gives, and in
+    `sendValueKept()`, of a send's target, a parser or a stream, when the
+    send's value is kept: the target is read in place, but the value is what
+    was sent to. `heldRef()` counts a reference value, as a loan on a
+    context object is one: what `ctxHeldRef()` does, a list, map, parser,
+    stream or struct other than a context, and a tree type that
     `Compiler::treeHoldsRef()` finds (`sharesRef()`): one with an
     attribute, or a tree below it with one, that can hold a list, map,
     parser, stream or struct. It finds them once, adding each def or token
@@ -188,6 +190,8 @@ calls, `globctx4` pushes the object's struct onto a global's list,
 takes in the action of a def outside the context that its grammar uses.
 `globread3` runs what stays there: a global int changed, a str pushed onto a
 global's list, and the list read in place, undone when the parse backs up.
+`ctxsend3` and `ctxsend4` ([#772]) keep the value of a send to a global's
+parser and stream there, which is a take.
 `nilset2` and `undomap10` became parses that aren't restartable, and
 `sendown1`–`sendown4` kept their parsers in a context, until [#718]'s hold,
 which [#771] replaced, made a parser hold its context object. Then each
@@ -202,3 +206,4 @@ removed: no program that compiles reaches the stops they tested.
 [#720]: https://github.com/adrian-thurston/colm-suite/issues/720
 [#770]: https://github.com/adrian-thurston/colm-suite/issues/770
 [#771]: https://github.com/adrian-thurston/colm-suite/issues/771
+[#772]: https://github.com/adrian-thurston/colm-suite/issues/772

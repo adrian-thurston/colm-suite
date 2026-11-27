@@ -611,6 +611,7 @@ void Compiler::addOwn( ObjectField *var, Own::Kind kind, const InputLoc &loc,
 	own.loc = loc;
 	own.parser = parser;
 	own.field = false;
+	own.depth = loopDepth;
 	own.held = false;
 	owns.append( own );
 
@@ -674,6 +675,25 @@ void Compiler::endLoans( ObjectField *root, LoanEnd how, const InputLoc &loc )
 			}
 		}
 	}
+}
+
+/* The local is unique here, so it moves into a context object. One made
+ * unique outside the loop being compiled isn't, in the loop's body, which
+ * runs again. */
+bool Compiler::uniqueHere( ObjectField *var )
+{
+	Own *own = findOwn( var );
+	return own != 0 && own->kind == Own::Unique && own->depth == loopDepth;
+}
+
+/* What the local holds can be reached some other way now: it was used as a
+ * value, something was taken out of it, or something held elsewhere went
+ * into it. */
+void Compiler::endUnique( ObjectField *var )
+{
+	Own *own = findOwn( var );
+	if ( own != 0 && own->kind == Own::Unique && throwaway == 0 )
+		removeOwn( var );
 }
 
 /* A root is lent to the parser variable. */
@@ -764,13 +784,30 @@ static void mergeLoans( Compiler::Own &own, const Compiler::Own &other )
 
 /* After an if, what either side did holds: a root lent or moved on either
  * side is lent or moved, and a parser finished on either can't be sent to,
- * and gives back only what both sides gave back. A variable that holds a
- * loan on either side holds one after, on the roots of both sides, and a
- * loan ended on either side has ended. What it holds is held only if it is
- * on both sides: the side with no loan gave it something else, such as a
- * global's list, which can't go into the object. */
+ * and gives back only what both sides gave back. A local is unique only if
+ * it is on both sides. A variable that holds a loan on either side holds
+ * one after, on the roots of both sides, and a loan ended on either side
+ * has ended. What it holds is held only if it is on both sides: the side
+ * with no loan gave it something else, such as a global's list, which
+ * can't go into the object. */
 void Compiler::mergeOwns( const Vector<Own> &other )
 {
+	for ( int i = owns.length() - 1; i >= 0; i-- ) {
+		if ( owns[i].kind != Own::Unique )
+			continue;
+
+		bool both = false;
+		for ( int j = 0; j < other.length(); j++ ) {
+			if ( other[j].var == owns[i].var && other[j].kind == Own::Unique ) {
+				both = true;
+				if ( other[j].depth < owns[i].depth )
+					owns[i].depth = other[j].depth;
+			}
+		}
+		if ( !both )
+			owns.remove( i );
+	}
+
 	for ( int i = 0; i < owns.length(); i++ ) {
 		if ( owns[i].kind != Own::Loan )
 			continue;
@@ -784,6 +821,9 @@ void Compiler::mergeOwns( const Vector<Own> &other )
 	}
 
 	for ( int i = 0; i < other.length(); i++ ) {
+		if ( other[i].kind == Own::Unique )
+			continue;
+
 		if ( other[i].kind == Own::Loan ) {
 			Own *loan = findLoan( other[i].var );
 			if ( loan == 0 ) {
@@ -950,18 +990,26 @@ static void checkLoopLoans( const Compiler::Own &own, const Vector<Compiler::Own
 
 /* A loop's body runs again after its end: what it lends, moves or finishes
  * of what is outside it can't be as the next pass expects, nor the loans it
- * makes or ends. */
+ * makes or ends. A local unique at the end is no hazard: one unique before
+ * the loop doesn't move in it. */
 void Compiler::checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc )
 {
 	/* A held loan of a variable from outside the body, which the body gave
-	 * something that isn't a loan. */
+	 * something that isn't a loan. A new object, which a unique local holds,
+	 * can go where the loan could. */
 	for ( int j = 0; j < start.length(); j++ ) {
-		if ( start[j].kind == Own::Loan && findLoan( start[j].var ) == 0 )
+		if ( start[j].kind != Own::Loan || findLoan( start[j].var ) != 0 )
+			continue;
+		Own *end = findOwn( start[j].var );
+		if ( end == 0 || end->kind != Own::Unique )
 			loopGivesUpHeld( start[j], loopLoc );
 	}
 
 	for ( int i = 0; i < owns.length(); i++ ) {
 		const Own &own = owns[i];
+		if ( own.kind == Own::Unique )
+			continue;
+
 		bool same = false;
 		for ( int j = 0; j < start.length(); j++ ) {
 			if ( sameOwn( own, start[j] ) )
@@ -1001,6 +1049,7 @@ void Compiler::checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc 
 				ownPlace( out, own.loc );
 				out << "), and the next pass can't send to it" << endp;
 				break;
+			case Own::Unique:
 			case Own::Loan:
 				break;
 		}
@@ -1010,8 +1059,10 @@ void Compiler::checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc 
 /* A loop ends when its test fails, which can be before the body runs, or at a
  * break. So what follows it starts from the state the test left, merged with
  * the state at each break, less what the loop's own variables held. What the
- * end of the body left adds nothing: checkLoopOwns() refused that. */
-void Compiler::leaveLoop( const Vector<Own> &test, NameScope *scope )
+ * end of the body left adds nothing: checkLoopOwns() refused that. But a
+ * local is unique after the loop only if the body, at its end, left it so. */
+void Compiler::leaveLoop( const Vector<Own> &test, const Vector<Own> &end,
+		NameScope *scope )
 {
 	Vector< Vector<Own> > breaks = breakOwns;
 	owns = test;
@@ -1025,6 +1076,19 @@ void Compiler::leaveLoop( const Vector<Own> &test, NameScope *scope )
 		Vector<Own> atBreak = owns;
 		owns = after;
 		mergeOwns( atBreak );
+	}
+
+	for ( int i = owns.length() - 1; i >= 0; i-- ) {
+		if ( owns[i].kind != Own::Unique )
+			continue;
+
+		bool kept = false;
+		for ( int j = 0; j < end.length(); j++ ) {
+			if ( end[j].var == owns[i].var && end[j].kind == Own::Unique )
+				kept = true;
+		}
+		if ( !kept )
+			owns.remove( i );
 	}
 }
 
@@ -1217,7 +1281,8 @@ bool LangVarRef::ownRoot( Compiler *pd, ObjectField *&root ) const
 }
 
 /* A use of a root that is lent or moved: see the ownership state in
- * doc/colm/design/context-ownership-design.md. */
+ * doc/colm/design/context-ownership-design.md. A unique local is the code's
+ * to use. */
 void LangVarRef::checkOwnedUse( Compiler *pd ) const
 {
 	ObjectField *root;
@@ -1241,7 +1306,8 @@ void LangVarRef::checkOwnedUse( Compiler *pd ) const
 	}
 
 	Compiler::Own *own = pd->findOwn( root );
-	if ( own == 0 || own->kind == Compiler::Own::Finished )
+	if ( own == 0 || own->kind == Compiler::Own::Finished ||
+			own->kind == Compiler::Own::Unique )
 		return;
 
 	std::ostream &out = error(useLoc) << "cannot use " << use << ": ";
@@ -1273,6 +1339,7 @@ void LangVarRef::checkOwnedUse( Compiler *pd ) const
 			out << endp;
 			break;
 		case Compiler::Own::Finished:
+		case Compiler::Own::Unique:
 		case Compiler::Own::Loan:
 			break;
 	}
@@ -1778,13 +1845,18 @@ void LangVarRef::noteGlobalUse( Compiler *pd, GlobalUse::Kind kind,
 }
 
 /* What goes into a context object through a context reference, or through a
- * loan on it: a new object, nil, or something read out of the same root,
- * which a loan on it alone that is held is. Anything else could be held
+ * loan on it: a new object, nil, something read out of the same root, which
+ * a held loan on it alone is, or a unique local, which moves. A new object
+ * that the new's capture holds too isn't new. Anything else could be held
  * elsewhere too, and changed from there while a parser the object is lent to
  * can back up. What a function gives isn't surely what the object holds. A
  * tree that shares such a value is never new: a cons, or a parse given
  * another object, can put into it what is held elsewhere. So the object gets
- * one from a parse given it. */
+ * one from a parse given it. Through a loan that may not be on the object
+ * alone, nothing read out of an object goes in. What goes into a unique local
+ * is checked the same way, but only ends it: nothing moves into a local, nor
+ * is refused. A loan can't go there, though, as it can't go into any
+ * struct. */
 static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *expr )
 {
 	if ( !pd->ctxStore )
@@ -1792,23 +1864,55 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 
 	ObjectField *root = pd->ctxStoreRoot;
 	String name = pd->ctxStoreName;
+	bool intoUnique = pd->ctxStoreUnique;
 	String loanVar = pd->ctxStoreLoan;
 	pd->ctxStore = false;
+	pd->ctxStoreUnique = false;
 
 	LangTerm *term = expr->type == LangExpr::TermType ? expr->term : 0;
-	bool fresh = term != 0 && ( term->type == LangTerm::NewType ||
-			term->type == LangTerm::NilType );
+	bool fresh = term != 0 && ( ( term->type == LangTerm::NewType &&
+			term->varRef == 0 ) || term->type == LangTerm::NilType );
 
+	/* A value read through the same root is read in place, so a unique
+	 * local it comes out of stays unique. */
+	bool sameRoot = false;
+	ObjectField *valueRoot;
+	ObjectField *moving = 0;
+	if ( term != 0 && term->type == LangTerm::VarRefType &&
+			term->varRef->ownRoot( pd, valueRoot ) )
+	{
+		sameRoot = valueRoot == root;
+
+		/* Found before the evaluate, which ends it as a use as a value. */
+		if ( !intoUnique && term->varRef->qual->length() == 0 && valueRoot != 0 &&
+				pd->uniqueHere( valueRoot ) )
+			moving = valueRoot;
+	}
+
+	pd->valueInPlace = sameRoot;
 	UniqueType *ut = expr->evaluate( pd, code );
+	pd->valueInPlace = false;
 
-	/* Through a loan that may not reach what the object holds, nothing
-	 * read out of an object goes in. */
-	ValueLoan loan;
+	/* Into a context object, what a held loan on it alone reads is what it
+	 * holds. Through a loan that may not reach what the object holds,
+	 * nothing read out of an object goes in. */
 	bool unsure = loanVar.length() > 0;
-	bool through = !unsure && valueLoan( pd, expr, loan ) && loan.held &&
-			loan.roots.length() == 1 && loan.roots[0] == root;
+	bool through = sameRoot;
+	if ( !intoUnique ) {
+		ValueLoan loan;
+		through = !unsure && valueLoan( pd, expr, loan ) && loan.held &&
+				loan.roots.length() == 1 && loan.roots[0] == root;
+	}
 
-	if ( sharesRef( pd, ut ) && !fresh && !through ) {
+	if ( moving != 0 && pd->throwaway == 0 )
+		pd->addOwn( moving, Compiler::Own::Moved, term->varRef->loc );
+
+	if ( intoUnique ) {
+		checkContextValue( pd, expr );
+		if ( heldRef( pd, ut ) && !fresh && !through )
+			pd->endUnique( root );
+	}
+	else if ( sharesRef( pd, ut ) && !fresh && !through ) {
 		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
 		std::ostream &out = error(loc);
 		if ( unsure ) {
@@ -1823,37 +1927,48 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 				" can hold a list, map, parser, stream or struct" << endp;
 	}
 
-	if ( ctxHeldRef( ut ) && !fresh && !through ) {
+	if ( !intoUnique && ctxHeldRef( ut ) && !fresh && !through && moving == 0 ) {
 		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
-		if ( unsure ) {
-			error(loc) << "only a new object or nil can go through " << loanVar <<
-					", which may hold what isn't " << name << "'s" << endp;
+		if ( term != 0 && term->type == LangTerm::NewType ) {
+			error(loc) << "cannot put the new object into " << name << ": " <<
+					term->varRef->name << " holds it too" << endp;
 		}
-		error(loc) << "only a new object, nil or what " << name <<
-				" holds can go into " << name << endp;
+		if ( unsure ) {
+			error(loc) << "only a new object, nil or a variable used only through "
+					"-> since its new can go through " << loanVar << ", which may "
+					"hold what isn't " << name << "'s" << endp;
+		}
+		error(loc) << "only a new object, nil, what " << name <<
+				" holds or a variable used only through -> since its new "
+				"can go into " << name << endp;
 	}
 
 	pd->ctxStore = true;
 	pd->ctxStoreRoot = root;
 	pd->ctxStoreName = name;
+	pd->ctxStoreUnique = intoUnique;
 	pd->ctxStoreLoan = loanVar;
 	return ut;
 }
 
-/* A store through lookup goes into a context object: through a context
- * reference, or through a local that holds a loan on one, which reaches
- * what the object holds. A tree loop's variable over a loan is in the tree
- * the loan holds, so a store into it goes there too. Note it for
- * evaluateSetupValue(). Only a loan that is held, and on that object alone,
- * surely reaches what the object holds: through any other, only a new object
- * or nil goes in. The parse's own code isn't checked here, so a loan it made
- * on its own object alone is no store into one. */
+/* A store through lookup goes into a context object, or into a unique local:
+ * note it for evaluateSetupValue(). Into a context object, it goes through a
+ * context reference, or through a local that holds a loan on one, which
+ * reaches what the object holds. A tree loop's variable over a loan is in the
+ * tree the loan holds, so a store into it goes there too. Only a loan that is
+ * held, and on that object alone, surely reaches what the object holds:
+ * through any other, only a new object, nil or a unique local goes in. The
+ * parse's own code isn't checked here, so a loan it made on its own object
+ * alone is no store into one. A context type is a field only of a context,
+ * so a store through a local that is neither a loan nor a context never
+ * reaches one. */
 static void setCtxStore( Compiler *pd, const LangVarRef *varRef,
 		const VarRefLookup &lookup )
 {
 	pd->ctxStore = false;
+	pd->ctxStoreUnique = false;
 	pd->ctxStoreLoan = String();
-	ObjectField *root;
+	ObjectField *root = 0;
 	if ( lookup.firstCtxPart >= 0 && varRef->ownRoot( pd, pd->ctxStoreRoot ) ) {
 		pd->ctxStore = true;
 		pd->ctxStoreName = varRef->qual->data[lookup.firstCtxPart].data;
@@ -1865,6 +1980,15 @@ static void setCtxStore( Compiler *pd, const LangVarRef *varRef,
 	if ( ( varRef->qual->length() == 0 && !loopVar ) ||
 			!varRef->ownRoot( pd, root ) || root == 0 )
 		return;
+
+	/* Through a unique local. */
+	Compiler::Own *own = pd->findOwn( root );
+	if ( !loopVar && own != 0 && own->kind == Compiler::Own::Unique ) {
+		pd->ctxStore = true;
+		pd->ctxStoreUnique = true;
+		pd->ctxStoreRoot = root;
+		return;
+	}
 
 	Compiler::Own *loan = pd->findLoan( root );
 	if ( loan == 0 )
@@ -2194,11 +2318,23 @@ static void parserValueUse( Compiler *pd, ObjectField *var, const InputLoc &loc 
 	}
 }
 
+/* A value that code holding it could change, read out of a unique local
+ * other than in place, is held in two places: the local isn't unique any
+ * more. These are the reads that make a loan out of a context object. */
+static void uniqueTake( Compiler *pd, const LangVarRef *varRef, UniqueType *ut,
+		bool inPlace )
+{
+	ObjectField *root;
+	if ( varRef->qual->length() > 0 && !inPlace && heldRef( pd, ut ) &&
+			varRef->ownRoot( pd, root ) && root != 0 )
+		pd->endUnique( root );
+}
+
 UniqueType *LangVarRef::evaluate( Compiler *pd, CodeVect &code, bool forWriting ) const
 {
-	bool inPlace = pd->globalInPlace;
+	bool inPlace = pd->valueInPlace;
 	bool sendTarget = pd->sendTarget;
-	pd->globalInPlace = false;
+	pd->valueInPlace = false;
 	pd->sendTarget = false;
 
 	/* Lookup the loadObj. */
@@ -2216,11 +2352,17 @@ UniqueType *LangVarRef::evaluate( Compiler *pd, CodeVect &code, bool forWriting 
 	UniqueType *ut = loadField( pd, code, lookup.inObject, 
 			lookup.objField, forWriting, false );
 
+	uniqueTake( pd, this, ut, inPlace );
+
 	if ( !inPlace && pd->revertOn && heldRef( pd, ut ) )
 		noteGlobalUse( pd, GlobalUse::Take, qual->length() > 0 ? name : String() );
 
 	if ( qual->length() == 0 && !sendTarget && isLocalRef() )
 		parserValueUse( pd, lookup.objField, loc );
+
+	/* A local used as a value can go anywhere: it isn't unique any more. */
+	if ( qual->length() == 0 && !inPlace && isLocalRef() )
+		pd->endUnique( lookup.objField );
 
 	return ut;
 }
@@ -2357,11 +2499,11 @@ IterImpl *LangVarRef::chooseTriterCall( Compiler *pd,
 		 * that a global holds reads it in place. */
 		CodeVect unused;
 		CallArgVect::Iter pe = *args;
-		pd->globalInPlace = forInPlace( pd, searchUT, args );
+		pd->valueInPlace = forInPlace( pd, searchUT, args );
 		pd->throwaway += 1;
 		UniqueType *exprUT = (*pe)->expr->evaluate( pd, unused );
 		pd->throwaway -= 1;
-		pd->globalInPlace = false;
+		pd->valueInPlace = false;
 
 		if ( exprUT->typeId == TYPE_GENERIC && exprUT->generic->typeId == GEN_LIST )
 			iterImpl = new IterImpl( IterImpl::ListVal );
@@ -3188,6 +3330,8 @@ UniqueType *LangVarRef::evaluateCall( Compiler *pd, CodeVect &code, CallArgVect 
 	if ( func == 0 || func->inHost )
 		popExprWords( pd, words );
 
+	uniqueTake( pd, this, lookup.uniqueType, false );
+
 	/* A call on what a global holds. A change given a reference value puts
 	 * it in, as push_tail and insert do. */
 	if ( qual->length() > 0 ) {
@@ -3343,6 +3487,10 @@ void LangTerm::evaluateCapture( Compiler *pd, CodeVect &code, UniqueType *valUt 
 	if ( varRef != 0 ) {
 		/* Get the type of the variable being assigned to. */
 		VarRefLookup lookup = varRef->lookupField( pd );
+
+		/* What the capture holds goes where the term goes too. */
+		if ( varRef->qual->length() == 0 && varRef->isLocalRef() )
+			pd->endUnique( lookup.objField );
 
 		/* Need a copy of the tree. */
 		code.append( lookup.uniqueType->tree() ? IN_DUP_TREE : IN_DUP_VAL );
@@ -4055,7 +4203,7 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 void LangTerm::evaluateSendStream( Compiler *pd, CodeVect &code ) const
 {
 	/* A send changes the stream. */
-	pd->globalInPlace = true;
+	pd->valueInPlace = true;
 	UniqueType *varUt = varRef->evaluate( pd, code );
 
 	if ( varUt->listOf( pd->uniqueTypeStream ) ) {
@@ -4136,7 +4284,7 @@ bool LangTerm::evaluateSendParser( Compiler *pd, CodeVect &code, bool strings ) 
 
 	/* A send changes the parser. Sending to a parser variable isn't a use of
 	 * it as a value. */
-	pd->globalInPlace = true;
+	pd->valueInPlace = true;
 	pd->sendTarget = true;
 	UniqueType *varUt = varRef->evaluate( pd, code );
 
@@ -4261,10 +4409,31 @@ void LangTerm::checkSendChange( Compiler *pd, UniqueType *varUt, bool putsRef ) 
 	}
 }
 
+/* A send's value is what it was sent to, a parser or a stream. Kept, it is
+ * the local the target starts at, used as a value, or something read out of
+ * it: either way that local isn't unique any more. Read out of a context
+ * object, it is a loan on it (valueLoan()), which a store refuses and a local
+ * holds, and read out of a global, it is a take, as evaluate() notes one. */
+static void sendValueKept( Compiler *pd, const LangVarRef *varRef, bool dropped )
+{
+	if ( dropped )
+		return;
+
+	UniqueType *ut = varRef->lookup( pd );
+	if ( pd->revertOn && heldRef( pd, ut ) )
+		varRef->noteGlobalUse( pd, GlobalUse::Take,
+				varRef->qual->length() > 0 ? varRef->name : String() );
+
+	ObjectField *root;
+	if ( varRef->ownRoot( pd, root ) && root != 0 )
+		pd->endUnique( root );
+}
+
 /* A send that ends with eos finishes the parser. A send's value is the
  * parser: kept, it is a use of the parser as a value. */
 void LangTerm::sendFinish( Compiler *pd, bool dropped ) const
 {
+	sendValueKept( pd, varRef, dropped );
 	if ( varRef->qual->length() > 0 || !varRef->isLocalRef() )
 		return;
 	ObjectField *var = varRef->scope->findField( varRef->name );
@@ -4297,10 +4466,12 @@ UniqueType *LangTerm::evaluateSend( Compiler *pd, CodeVect &code ) const
 	UniqueType *varUt = varRef->lookup( pd );
 	bool sentStream = false;
 
-	if ( varUt == pd->uniqueTypeStream )
+	if ( varUt == pd->uniqueTypeStream || varUt->listOf( pd->uniqueTypeStream ) ) {
+		bool dropped = pd->sendDropped;
+		pd->sendDropped = false;
 		evaluateSendStream( pd, code );
-	else if ( varUt->listOf( pd->uniqueTypeStream ) )
-		evaluateSendStream( pd, code );
+		sendValueKept( pd, varRef, dropped );
+	}
 	else if ( varUt->parser() ) {
 		bool dropped = pd->sendDropped;
 		pd->sendDropped = false;
@@ -5099,7 +5270,8 @@ void LangStmt::compileForIterBody( Compiler *pd, CodeVect &code, UniqueType *ite
 	if ( loanRoots.length() > 0 )
 		pd->addLoan( objField, loanRoots, loanOwn, loanHeld, loc );
 	compileLoopBody( pd, code, stmtList, scope, start, loc );
-	pd->leaveLoop( start, scope );
+	Vector<Compiler::Own> end = pd->owns;
+	pd->leaveLoop( start, end, scope );
 	pd->breakOwns = outerBreakOwns;
 
 	pd->unwindLoop = outerLoop;
@@ -5215,14 +5387,26 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 		pd->curBlock->calls.append( func );
 
 	/* Evaluate and push the arguments. */
-	pd->globalInPlace = inPlace;
+	pd->valueInPlace = inPlace;
 	bool outerGoIn = pd->argsGoIn;
 	pd->argsGoIn = false;
 	ObjectField **paramRefs = iterCall->langTerm->varRef->evaluateArgs(
 			pd, code, lookup, iterCall->langTerm->args );
 	pd->argsGoIn = outerGoIn;
-	pd->globalInPlace = false;
+	pd->valueInPlace = false;
 	checkContextArgsKept( pd, func, ctxArgs );
+
+	/* A loop over a list or a map whose values code holding them could
+	 * change takes each one out of it. The iterator walks it through a ref,
+	 * not as a value, so the local it starts at isn't unique any more. */
+	if ( iterImpl->useGenericId && !inPlace ) {
+		LangExpr *argExpr = iterCall->langTerm->args->data[0]->expr;
+		ObjectField *root;
+		if ( argExpr->type == LangExpr::TermType &&
+				argExpr->term->type == LangTerm::VarRefType &&
+				argExpr->term->varRef->ownRoot( pd, root ) && root != 0 )
+			pd->endUnique( root );
+	}
 
 	/* A tree iterator walks a tree. Its parameter is a ref<any>, which takes
 	 * any argument, so the argument is checked here. A loop that names no
@@ -5283,12 +5467,12 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 
 		LangVarRef *iterRef = iterCall->langTerm->varRef;
 		CodeVect unused;
-		pd->globalInPlace = inPlace;
+		pd->valueInPlace = inPlace;
 		pd->throwaway += 1;
 		UniqueType *argUT =
 				iterCall->langTerm->args->data[0]->expr->evaluate( pd, unused );
 		pd->throwaway -= 1;
-		pd->globalInPlace = false;
+		pd->valueInPlace = false;
 		if ( argUT->typeId != TYPE_GENERIC ||
 				argUT->generic->typeId != ( overMap ? GEN_MAP : GEN_LIST ) )
 		{
@@ -5422,7 +5606,8 @@ void LangStmt::compileWhile( Compiler *pd, CodeVect &code ) const
 	pd->breakOwns.empty();
 
 	compileLoopBody( pd, code, stmtList, scope, start, loc );
-	pd->leaveLoop( test, scope );
+	Vector<Compiler::Own> end = pd->owns;
+	pd->leaveLoop( test, end, scope );
 	pd->breakOwns = outerBreakOwns;
 
 	/* Jump back to the top to retest. */
@@ -5459,6 +5644,19 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			UniqueType *exprUt = expr->evaluate( pd, code );
 			pd->sendDropped = false;
 			pd->callDropped = false;
+
+			/* A new that is the whole statement goes only into its
+			 * capture, a local that is unique. */
+			if ( expr->type == LangExpr::TermType &&
+					expr->term->type == LangTerm::NewType && expr->term->varRef != 0 &&
+					expr->term->varRef->qual->length() == 0 &&
+					expr->term->varRef->isLocalRef() && pd->throwaway == 0 )
+			{
+				ObjectField *var = expr->term->varRef->lookupField( pd ).objField;
+				if ( ctxHeldRef( var->typeRef->uniqueType ) )
+					pd->addOwn( var, Compiler::Own::Unique, expr->term->loc );
+			}
+
 			if ( exprUt->treeValue() )
 				code.append( IN_POP_TREE );
 			else
@@ -5596,6 +5794,13 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 
 			if ( local && isLoan )
 				pd->addLoan( var, loan.roots, loan.own, loan.held, loc );
+
+			/* A local given a new object, which nothing else holds, is
+			 * unique. */
+			if ( var != 0 && expr->type == LangExpr::TermType &&
+					expr->term->type == LangTerm::NewType && expr->term->varRef == 0 &&
+					ctxHeldRef( var->typeRef->uniqueType ) )
+				pd->addOwn( var, Compiler::Own::Unique, expr->term->loc );
 
 			if ( newParser && pd->newParserLent ) {
 				pd->addOwn( pd->newParserRoot, Compiler::Own::LentToParser,
@@ -7006,8 +7211,9 @@ static String cycleStep( CycleEdge *edge )
  * node is a type that can hold a struct, and an edge says a thing of one
  * type can hold one of another strongly. A component of the graph with a
  * field, an attribute or a make_token argument inside it is a cycle, given
- * one error at the first such place. See
- * doc/colm/design/struct-cycle-check-design.md. */
+ * one error at the first such place. A context's field that holds a context
+ * is an edge but no place, so contexts that hold contexts alone make none.
+ * See doc/colm/design/struct-cycle-check-design.md. */
 void Compiler::checkStrongCycles()
 {
 	CycleGraph graph;
@@ -7024,8 +7230,19 @@ void Compiler::checkStrongCycles()
 			if ( field->type != ObjectField::StructFieldType )
 				continue;
 
-			CycleNode *to = graph.typeNode( field->typeRef->resolveType( this ) );
-			CycleEdge *edge = graph.addPlace( CycleEdge::Field, from, to, field->loc );
+			UniqueType *ut = field->typeRef->resolveType( this );
+			CycleNode *to = graph.typeNode( ut );
+
+			/* A field that holds a context object, which only a context's
+			 * can, is no place, though a path can pass it. Nothing moves an
+			 * object out of a field, and a local put into a place reached
+			 * through it is refused, since noteMove() comes before the
+			 * target is used. So such fields alone make chains of objects. */
+			bool context = ut->typeId == TYPE_STRUCT &&
+					ut->structEl->structDef->isContext;
+			CycleEdge *edge = context ?
+					graph.addEdge( CycleEdge::Field, from, to ) :
+					graph.addPlace( CycleEdge::Field, from, to, field->loc );
 			if ( edge != 0 ) {
 				edge->structEl = sel;
 				edge->field = field;

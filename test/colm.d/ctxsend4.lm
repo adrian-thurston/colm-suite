@@ -1,0 +1,25 @@
+# In a parse given a context, a send's value, kept, is the stream a global
+# holds: it can't be taken out, as GS can't.
+global GS: stream = new stream()
+
+context ctx
+	S: stream
+
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def start
+		[w*]
+		{
+			X: stream = send GS "a"
+			S = X
+		}
+end
+
+C: ctx = new ctx()
+parse T: ctx::start( C )[ "b" ]
+print( "compiled\n" )
+##### COMP_ERR #####
+16:21: cannot take GS, a global, out in an action of a parse given a context: keep the data in a context

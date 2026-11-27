@@ -1,0 +1,14 @@
+# A new object that new's capture holds too isn't new where it goes. On main,
+# the pop through X between the sends empties the list, and backing up over
+# the action's push segfaults.
+include 'ctxpush.lmi'
+
+C: ctx = new ctx()
+C->L = new X: list<str>()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+X->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+7:8: cannot put the new object into C: X holds it too

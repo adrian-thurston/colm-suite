@@ -1,0 +1,12 @@
+# A loop over a local's structs takes each one out: the local isn't unique.
+include 'ctxrule.lmi'
+
+global GR: rec
+L: list<rec> = new list<rec>()
+L->push_tail( new rec() )
+for R: rec in L
+	GR = R
+C: ctx = new ctx()
+C->Recs = L
+##### COMP_ERR #####
+10:11: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

@@ -20,4 +20,4 @@ send P "\n"
 print( P->finish(), "\n" )
 print( "after ", C->R->L->length, "\n" )
 ##### COMP_ERR #####
-14:11: only a new object, nil or what C holds can go into C
+14:11: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

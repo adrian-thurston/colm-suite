@@ -1,0 +1,34 @@
+# What a function given this returns is the parse's own, as what a token
+# action reads by a context variable's name is: it can go into the object.
+struct rec
+	N: int
+end
+
+context ctx
+	S: rec
+
+	lex
+		ignore /[ \t]+/
+		token go /'go'/
+		{
+			S = make( this )
+			input->push( make_token( typeid<go>, input->pull( match_length ) ) )
+		}
+	end
+
+	def drive
+		[go]
+end
+
+rec make( D: ctx )
+{
+	R: rec = new rec()
+	R->N = 7
+	return R
+}
+
+C: ctx = new ctx()
+parse T: ctx::drive( C )[ "go" ]
+print( T, " ", C->S->N, "\n" )
+##### EXP #####
+go 7

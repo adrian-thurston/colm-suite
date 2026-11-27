@@ -698,23 +698,27 @@ void Compiler::releaseParser( ObjectField *parser )
 }
 
 /* The parser variable is finished: what it was lent is the code's again, and
- * the tree it gives is a loan on that root. */
+ * the tree it gives is a loan on it. Each side of an if can have lent it
+ * another object, so the loan is on each. */
 void Compiler::finishParser( ObjectField *parser, const InputLoc &loc )
 {
-	ObjectField *root = 0;
+	Vector<ObjectField*> roots;
 	for ( int i = 0; i < owns.length(); i++ ) {
 		if ( owns[i].kind == Own::LentToParser && owns[i].parser == parser )
-			root = owns[i].var;
+			roots.append( owns[i].var );
 	}
 
 	releaseParser( parser );
 	addOwn( parser, Own::Finished, loc );
 
-	LoanRoot loan;
-	loan.root = root;
-	loan.end = NotEnded;
-	loan.own = false;
-	findOwn( parser )->loans.append( loan );
+	Own *fin = findOwn( parser );
+	for ( int r = 0; r < roots.length(); r++ ) {
+		LoanRoot loan;
+		loan.root = roots[r];
+		loan.end = NotEnded;
+		loan.own = false;
+		fin->loans.append( loan );
+	}
 }
 
 static bool sameLoans( const Compiler::Own &a, const Compiler::Own &b )
@@ -1337,6 +1341,27 @@ static void addOwnLoans( ValueLoan &loan, const Compiler::Own &entry )
 
 static bool valueLoan( Compiler *pd, LangExpr *expr, ValueLoan &loan );
 
+/* The roots the parser variable is lent, and those it was lent before its
+ * finish(), which its tree is a loan on: after an if, one from each side. */
+static bool parserLoanRoots( Compiler *pd, ObjectField *parser, ValueLoan &loan )
+{
+	bool found = false;
+	for ( int i = 0; i < pd->owns.length(); i++ ) {
+		Compiler::Own &own = pd->owns[i];
+		if ( own.kind == Compiler::Own::LentToParser && own.parser == parser ) {
+			addLoanRoot( loan, own.var );
+			found = true;
+		}
+		if ( own.kind == Compiler::Own::Finished && own.var == parser ) {
+			for ( int r = 0; r < own.loans.length(); r++ ) {
+				addLoanRoot( loan, own.loans[r].root );
+				found = true;
+			}
+		}
+	}
+	return found;
+}
+
 /* The parser variable P a read of P->tree, or a call of P->finish(), goes
  * through, or 0: a local named on its own before the part. */
 static ObjectField *parserVarBefore( const LangVarRef *varRef, int part )
@@ -1389,33 +1414,12 @@ static bool varRefLoan( Compiler *pd, const LangVarRef *varRef, ValueLoan &loan 
 	}
 
 	ObjectField *parser = parserVarBefore( varRef, lookup.parserTree );
-	Compiler::Own *fin = parser != 0 ? pd->findOwn( parser ) : 0;
-	if ( fin != 0 && fin->kind == Compiler::Own::Finished && fin->loans.length() > 0 ) {
-		addLoanRoot( loan, fin->loans[0].root );
+	if ( parser != 0 && parserLoanRoots( pd, parser, loan ) )
 		return true;
-	}
 
 	return false;
 }
 
-/* The root the parser variable is lent, or was lent before its finish(). */
-static bool parserLoanRoot( Compiler *pd, ObjectField *parser, ObjectField *&root )
-{
-	for ( int i = 0; i < pd->owns.length(); i++ ) {
-		Compiler::Own &own = pd->owns[i];
-		if ( own.kind == Compiler::Own::LentToParser && own.parser == parser ) {
-			root = own.var;
-			return true;
-		}
-		if ( own.kind == Compiler::Own::Finished && own.var == parser &&
-				own.loans.length() > 0 )
-		{
-			root = own.loans[0].root;
-			return true;
-		}
-	}
-	return false;
-}
 
 /* What a function or an iterator gives is a loan on what its arguments are,
  * and on the context objects it is given: what it gives can be any of what
@@ -1432,7 +1436,7 @@ static bool argsLoan( Compiler *pd, ObjectMethod *method, CallArgVect *args,
 			if ( argExpr->type == LangExpr::TermType &&
 					argExpr->term->type == LangTerm::VarRefType &&
 					argExpr->term->varRef->ownRoot( pd, root ) )
-				addLoanRoot( loan, root );
+				addLoanRoot( loan, root, root == 0 );
 		}
 		else {
 			ValueLoan argLoan;
@@ -1472,12 +1476,7 @@ static bool callLoan( Compiler *pd, LangTerm *term, ValueLoan &loan )
 
 	if ( method->type == ObjectMethod::ParseFinish ) {
 		ObjectField *parser = parserVarBefore( varRef, varRef->qual->length() );
-		ObjectField *root;
-		if ( parser != 0 && parserLoanRoot( pd, parser, root ) ) {
-			addLoanRoot( loan, root );
-			return true;
-		}
-		return false;
+		return parser != 0 && parserLoanRoots( pd, parser, loan );
 	}
 
 	/* A built-in gives what it is called on, or what that holds. */
@@ -1511,11 +1510,8 @@ static bool callLoan( Compiler *pd, LangTerm *term, ValueLoan &loan )
 	}
 
 	ObjectField *parser = parserVarBefore( varRef, lookup.parserTree );
-	Compiler::Own *fin = parser != 0 ? pd->findOwn( parser ) : 0;
-	if ( fin != 0 && fin->kind == Compiler::Own::Finished && fin->loans.length() > 0 ) {
-		addLoanRoot( loan, fin->loans[0].root );
+	if ( parser != 0 && parserLoanRoots( pd, parser, loan ) )
 		return true;
-	}
 
 	return false;
 }
@@ -1622,17 +1618,21 @@ static void checkContextValue( Compiler *pd, LangExpr *expr )
 /* The parameters of a function a store's target reaches: if it is
  * qualified and starts at one, or at a local that holds a loan on parameters
  * and on no context object. A ref parameter given a value writes into its
- * caller's variable, and a tree loop's variable into the tree it walks, so
- * a store into one is a store into what it holds. */
+ * caller's variable, so a store into one is a store into what it holds. So is
+ * a store into a tree loop's variable, which writes into the tree the loop
+ * walks, but only into the caller's tree if the loop walks a ref parameter,
+ * or a tree reached through a reference, as R->T of a struct parameter R. A
+ * value parameter's own tree is the function's copy. */
 static void storeParams( Compiler *pd, const LangVarRef *target, Vector<ObjectField*> &params )
 {
 	ObjectField *root;
 	if ( !target->ownRoot( pd, root ) || root == 0 )
 		return;
 
+	bool loopVar = false;
 	if ( target->qual->length() == 0 ) {
 		bool refParam = root->type == ObjectField::ParamRefType;
-		bool loopVar = root->typeRef->uniqueType->typeId == TYPE_ITER;
+		loopVar = root->typeRef->uniqueType->typeId == TYPE_ITER;
 		if ( !refParam && !loopVar )
 			return;
 	}
@@ -1644,12 +1644,17 @@ static void storeParams( Compiler *pd, const LangVarRef *target, Vector<ObjectFi
 
 	Compiler::Own *own = pd->findLoan( root );
 	for ( int r = 0; own != 0 && r < own->loans.length(); r++ ) {
-		if ( contextRoot( own->loans[r].root ) ) {
+		ObjectField *param = own->loans[r].root;
+		if ( contextRoot( param ) ) {
 			params.empty();
 			return;
 		}
-		if ( paramRoot( pd, own->loans[r].root ) )
-			params.append( own->loans[r].root );
+		if ( !paramRoot( pd, param ) )
+			continue;
+		if ( loopVar && param->type != ObjectField::ParamRefType &&
+				param->typeRef->uniqueType->typeId == TYPE_TREE )
+			continue;
+		params.append( param );
 	}
 }
 
@@ -1703,8 +1708,10 @@ void LangVarRef::checkParserTree( Compiler *pd, const VarRefLookup &lookup ) con
 	LangEl *langEl = lookup.parserTreeUT->langEl;
 	ObjectField *parser = parserVarBefore( this, lookup.parserTree );
 
+	/* Lent on some path, as after an if that finishes it on one side only,
+	 * the parser can't give its tree yet. */
 	Compiler::Own *fin = parser != 0 ? pd->findOwn( parser ) : 0;
-	if ( fin != 0 && fin->kind == Compiler::Own::Finished ) {
+	if ( fin != 0 && fin->kind == Compiler::Own::Finished && !pd->lentToParser( parser ) ) {
 		for ( int r = 0; r < fin->loans.length(); r++ ) {
 			if ( fin->loans[r].end != Compiler::NotEnded ) {
 				std::ostream &out = error(before.loc) << "cannot read " <<

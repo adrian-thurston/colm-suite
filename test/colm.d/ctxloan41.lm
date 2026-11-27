@@ -1,0 +1,17 @@
+# A parser finished on one side of an if only is still lent its object on
+# the other, so its tree can't be read after the if.
+include 'ctxloan.lmi'
+
+global N: int = 0
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+P: parser<ctx::holder> = new parser<ctx::holder>( C )
+send P "h"
+if ( N == 1 )
+	P->finish()
+X: ctx::holder = P->tree
+print( "tree ", X, "\n" )
+##### COMP_ERR #####
+14:18: cannot read P->tree: P is lent a context object until P->finish(), and a ctx::holder can hold a list, map, parser, stream or struct

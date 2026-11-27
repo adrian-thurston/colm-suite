@@ -1,0 +1,22 @@
+# A tree loop's variable over a loan on two objects: a store into it could
+# put one object's struct into the other's tree, so only nil goes in.
+include 'ctxloan.lmi'
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+D: ctx = new ctx()
+D->R = new rec()
+D->R->L = new list<int>()
+parse B: ctx::wrap( D )[ "w h" ]
+parse A: ctx::wrap( C )[ "w h" ]
+X: ctx::wrap = A
+if ( C->R->L->length == 0 )
+	X = B
+if ( match A [ctx::`w H: ctx::holder] ) {
+	for T: ctx::holder in X
+		T = H
+}
+print( X, "\n" )
+##### COMP_ERR #####
+18:7: only nil can go through T, which may hold what isn't C's: a ctx::holder can hold a list, map, parser, stream or struct

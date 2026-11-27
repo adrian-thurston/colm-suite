@@ -1,0 +1,22 @@
+# What the loan rules still let through: a loan held on both sides of an
+# if goes back into its object, and a store through a held loan on one
+# object takes a held loan on that object.
+include 'ctxloan.lmi'
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+X: list<int> = C->R->L
+if ( C->R->L->length == 0 )
+	X = C->R->L
+C->R->L = X
+R: rec = C->R
+Y: list<int> = C->R->L
+R->L = Y
+R->L->push_tail( 4 )
+print( "length ", C->R->L->length, "\n" )
+parse S: ctx::start( C )[ "* ;\n" ]
+print( "parsed ", C->R->L->length, "\n" )
+##### EXP #####
+length 1
+parsed 1

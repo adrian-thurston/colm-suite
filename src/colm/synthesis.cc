@@ -630,8 +630,8 @@ void Compiler::addOwn( ObjectField *var, Own::Kind kind, const InputLoc &loc,
 }
 
 /* The local holds a loan on roots, in place of the one it held. */
-void Compiler::addLoan( ObjectField *var, const Vector<ObjectField*> &roots, bool held,
-		const InputLoc &loc )
+void Compiler::addLoan( ObjectField *var, const Vector<ObjectField*> &roots,
+		const Vector<bool> &own, bool held, const InputLoc &loc )
 {
 	if ( throwaway > 0 )
 		return;
@@ -641,20 +641,21 @@ void Compiler::addLoan( ObjectField *var, const Vector<ObjectField*> &roots, boo
 			owns.remove( i );
 	}
 
-	Own own;
-	own.var = var;
-	own.kind = Own::Loan;
-	own.loc = loc;
-	own.parser = 0;
-	own.field = false;
-	own.held = held;
+	Own entry;
+	entry.var = var;
+	entry.kind = Own::Loan;
+	entry.loc = loc;
+	entry.parser = 0;
+	entry.field = false;
+	entry.held = held;
 	for ( int r = 0; r < roots.length(); r++ ) {
 		LoanRoot loan;
 		loan.root = roots[r];
 		loan.end = NotEnded;
-		own.loans.append( loan );
+		loan.own = own[r];
+		entry.loans.append( loan );
 	}
-	owns.append( own );
+	owns.append( entry );
 }
 
 /* The root is lent, moved, or given another object: each loan on it, and
@@ -712,6 +713,7 @@ void Compiler::finishParser( ObjectField *parser, const InputLoc &loc )
 	LoanRoot loan;
 	loan.root = root;
 	loan.end = NotEnded;
+	loan.own = false;
 	findOwn( parser )->loans.append( loan );
 }
 
@@ -720,7 +722,8 @@ static bool sameLoans( const Compiler::Own &a, const Compiler::Own &b )
 	if ( a.loans.length() != b.loans.length() )
 		return false;
 	for ( int r = 0; r < a.loans.length(); r++ ) {
-		if ( a.loans[r].root != b.loans[r].root || a.loans[r].end != b.loans[r].end )
+		if ( a.loans[r].root != b.loans[r].root || a.loans[r].end != b.loans[r].end ||
+				a.loans[r].own != b.loans[r].own )
 			return false;
 	}
 	return true;
@@ -733,8 +736,8 @@ static bool sameOwn( const Compiler::Own &a, const Compiler::Own &b )
 }
 
 /* The loans of other go into own's: each root either has, ended if it
- * ended on either side, with own's end first. It is held only if both
- * are. */
+ * ended on either side, with own's end first, and checked if it is checked
+ * on either side. It is held only if both are. */
 static void mergeLoans( Compiler::Own &own, const Compiler::Own &other )
 {
 	own.held = own.held && other.held;
@@ -744,8 +747,10 @@ static void mergeLoans( Compiler::Own &own, const Compiler::Own &other )
 		for ( int r = 0; r < own.loans.length(); r++ ) {
 			if ( own.loans[r].root == other.loans[o].root ) {
 				found = true;
+				bool isOwn = own.loans[r].own && other.loans[o].own;
 				if ( own.loans[r].end == Compiler::NotEnded )
 					own.loans[r] = other.loans[o];
+				own.loans[r].own = isOwn;
 			}
 		}
 		if ( !found )
@@ -755,16 +760,32 @@ static void mergeLoans( Compiler::Own &own, const Compiler::Own &other )
 
 /* After an if, what either side did holds: a root lent or moved on either
  * side is lent or moved, and a parser finished on either can't be sent to,
- * and gives back only what both sides gave back. A loan held on either side
- * is held after, on the roots of both sides, and a loan ended on either side
- * has ended. */
+ * and gives back only what both sides gave back. A variable that holds a
+ * loan on either side holds one after, on the roots of both sides, and a
+ * loan ended on either side has ended. What it holds is held only if it is
+ * on both sides: the side with no loan gave it something else, such as a
+ * global's list, which can't go into the object. */
 void Compiler::mergeOwns( const Vector<Own> &other )
 {
+	for ( int i = 0; i < owns.length(); i++ ) {
+		if ( owns[i].kind != Own::Loan )
+			continue;
+		bool both = false;
+		for ( int j = 0; j < other.length(); j++ ) {
+			if ( other[j].kind == Own::Loan && other[j].var == owns[i].var )
+				both = true;
+		}
+		if ( !both )
+			owns[i].held = false;
+	}
+
 	for ( int i = 0; i < other.length(); i++ ) {
 		if ( other[i].kind == Own::Loan ) {
 			Own *loan = findLoan( other[i].var );
-			if ( loan == 0 )
+			if ( loan == 0 ) {
 				owns.append( other[i] );
+				owns[owns.length() - 1].held = false;
+			}
 			else
 				mergeLoans( *loan, other[i] );
 			continue;
@@ -853,9 +874,36 @@ static void loanEnded( std::ostream &out, const Compiler::LoanRoot &loan )
 	ownPlace( out, loan.endLoc );
 }
 
+/* The first root of a loan that is checked where it goes, and hasn't ended,
+ * or 0. */
+static const Compiler::LoanRoot *liveCheckedRoot( const Compiler::Own &own )
+{
+	for ( int r = 0; r < own.loans.length(); r++ ) {
+		if ( !own.loans[r].own && own.loans[r].end == Compiler::NotEnded )
+			return &own.loans[r];
+	}
+	return 0;
+}
+
+/* A held loan at the start of a loop's body that the body gives up, or
+ * leaves not held: the next pass would take what the variable holds then,
+ * such as a global's list, for what the object holds. */
+static void loopGivesUpHeld( const Compiler::Own &before, const InputLoc &loopLoc )
+{
+	const Compiler::LoanRoot *loan = liveCheckedRoot( before );
+	if ( before.kind != Compiler::Own::Loan || !before.held || loan == 0 )
+		return;
+
+	error( loopLoc ) << before.var->name << " holds what " << rootName( loan->root ) <<
+			" holds at the start of the loop's body, but not surely at its end, and "
+			"the next pass could put what " << before.var->name << " holds into " <<
+			rootName( loan->root ) << endp;
+}
+
 /* A loan, or a finished parser's tree, that a loop's body made or ended. A
  * loan the body made the next pass would start with, though the body's
- * statements before it were compiled without it. One it ended the next pass
+ * statements before it were compiled without it: where an own loan goes
+ * isn't checked, so that doesn't matter for one. One it ended the next pass
  * would use before the body ends it. */
 static void checkLoopLoans( const Compiler::Own &own, const Vector<Compiler::Own> &start,
 		const InputLoc &loopLoc )
@@ -875,13 +923,15 @@ static void checkLoopLoans( const Compiler::Own &own, const Vector<Compiler::Own
 				was = &before->loans[b];
 		}
 
-		if ( was == 0 ) {
+		if ( was == 0 && !loan.own ) {
 			std::ostream &out = error( loopLoc ) << own.var->name << " takes a loan on " <<
 					rootName( loan.root ) << " in the loop's body (";
 			ownPlace( out, own.loc );
 			out << "), and still holds it at its end" << endp;
 		}
-		else if ( was->end == Compiler::NotEnded && loan.end != Compiler::NotEnded ) {
+		else if ( ( was == 0 || was->end == Compiler::NotEnded ) &&
+				loan.end != Compiler::NotEnded )
+		{
 			std::ostream &out = error( loopLoc ) << own.var->name << "'s loan on " <<
 					rootName( loan.root ) << " ends in the loop's body (";
 			ownPlace( out, loan.endLoc );
@@ -889,14 +939,9 @@ static void checkLoopLoans( const Compiler::Own &own, const Vector<Compiler::Own
 		}
 	}
 
-	/* What it holds was read out of its roots at the start, and needn't be
-	 * at the end. */
-	if ( before != 0 && before->held && !own.held && own.loans.length() > 0 ) {
-		std::ostream &out = error( loopLoc ) << own.var->name << " takes a loan on " <<
-				rootName( own.loans[0].root ) << " in the loop's body (";
-		ownPlace( out, own.loc );
-		out << "), and still holds it at its end" << endp;
-	}
+	/* Held at the start, and not at the end. */
+	if ( before != 0 && !own.held )
+		loopGivesUpHeld( *before, loopLoc );
 }
 
 /* A loop's body runs again after its end: what it lends, moves or finishes
@@ -904,6 +949,13 @@ static void checkLoopLoans( const Compiler::Own &own, const Vector<Compiler::Own
  * makes or ends. */
 void Compiler::checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc )
 {
+	/* A held loan of a variable from outside the body, which the body gave
+	 * something that isn't a loan. */
+	for ( int j = 0; j < start.length(); j++ ) {
+		if ( start[j].kind == Own::Loan && findLoan( start[j].var ) == 0 )
+			loopGivesUpHeld( start[j], loopLoc );
+	}
+
 	for ( int i = 0; i < owns.length(); i++ ) {
 		const Own &own = owns[i];
 		bool same = false;
@@ -1252,19 +1304,35 @@ struct ValueLoan
 	ValueLoan() : held(true) {}
 
 	Vector<ObjectField*> roots;
+	Vector<bool> own;
 	String what;
 	String from;
 	InputLoc loc;
 	bool held;
 };
 
-static void addLoanRoot( ValueLoan &loan, ObjectField *root )
+/* A root the value is a loan on. An own loan, which the parse's own code
+ * reads out of its object by a context variable's name or through this, is
+ * checked where it goes only if the value is a checked loan on that root
+ * too. */
+static void addLoanRoot( ValueLoan &loan, ObjectField *root, bool own = false )
 {
 	for ( int r = 0; r < loan.roots.length(); r++ ) {
-		if ( loan.roots[r] == root )
+		if ( loan.roots[r] == root ) {
+			loan.own[r] = loan.own[r] && own;
 			return;
+		}
 	}
 	loan.roots.append( root );
+	loan.own.append( own );
+}
+
+/* The roots of a local's loan go into the value's. */
+static void addOwnLoans( ValueLoan &loan, const Compiler::Own &entry )
+{
+	for ( int r = 0; r < entry.loans.length(); r++ )
+		addLoanRoot( loan, entry.loans[r].root, entry.loans[r].own );
+	loan.held = loan.held && entry.held;
 }
 
 static bool valueLoan( Compiler *pd, LangExpr *expr, ValueLoan &loan );
@@ -1302,11 +1370,16 @@ static bool varRefLoan( Compiler *pd, const LangVarRef *varRef, ValueLoan &loan 
 		return true;
 	}
 
-	Compiler::Own *own = root != 0 ? pd->findLoan( root ) : 0;
+	/* The parse's own code reads its object by a context variable's name, or
+	 * through this. */
+	if ( root == 0 ) {
+		addLoanRoot( loan, 0, true );
+		return true;
+	}
+
+	Compiler::Own *own = pd->findLoan( root );
 	if ( own != 0 ) {
-		for ( int r = 0; r < own->loans.length(); r++ )
-			addLoanRoot( loan, own->loans[r].root );
-		loan.held = loan.held && own->held;
+		addOwnLoans( loan, *own );
 		return true;
 	}
 
@@ -1365,7 +1438,7 @@ static bool argsLoan( Compiler *pd, ObjectMethod *method, CallArgVect *args,
 			ValueLoan argLoan;
 			if ( valueLoan( pd, argExpr, argLoan ) ) {
 				for ( int r = 0; r < argLoan.roots.length(); r++ )
-					addLoanRoot( loan, argLoan.roots[r] );
+					addLoanRoot( loan, argLoan.roots[r], argLoan.own[r] );
 			}
 		}
 	}
@@ -1421,11 +1494,14 @@ static bool callLoan( Compiler *pd, LangTerm *term, ValueLoan &loan )
 		return true;
 	}
 
-	Compiler::Own *own = root != 0 ? pd->findLoan( root ) : 0;
+	if ( root == 0 ) {
+		addLoanRoot( loan, 0, true );
+		return true;
+	}
+
+	Compiler::Own *own = pd->findLoan( root );
 	if ( own != 0 ) {
-		for ( int r = 0; r < own->loans.length(); r++ )
-			addLoanRoot( loan, own->loans[r].root );
-		loan.held = own->held;
+		addOwnLoans( loan, *own );
 		return true;
 	}
 
@@ -1530,7 +1606,7 @@ static void checkContextValue( Compiler *pd, LangExpr *expr )
 
 	for ( int r = 0; r < loan.roots.length(); r++ ) {
 		ObjectField *root = loan.roots[r];
-		if ( !contextRoot( root ) )
+		if ( !contextRoot( root ) || loan.own[r] )
 			continue;
 
 		std::ostream &out = error(loan.loc) << "cannot take " << loan.what << " out of ";
@@ -1543,14 +1619,23 @@ static void checkContextValue( Compiler *pd, LangExpr *expr )
 	}
 }
 
-/* The parameters of a function a store's target reaches, if it is
+/* The parameters of a function a store's target reaches: if it is
  * qualified and starts at one, or at a local that holds a loan on parameters
- * and on no context object. */
+ * and on no context object. A ref parameter given a value writes into its
+ * caller's variable, and a tree loop's variable into the tree it walks, so
+ * a store into one is a store into what it holds. */
 static void storeParams( Compiler *pd, const LangVarRef *target, Vector<ObjectField*> &params )
 {
 	ObjectField *root;
-	if ( target->qual->length() == 0 || !target->ownRoot( pd, root ) || root == 0 )
+	if ( !target->ownRoot( pd, root ) || root == 0 )
 		return;
+
+	if ( target->qual->length() == 0 ) {
+		bool refParam = root->type == ObjectField::ParamRefType;
+		bool loopVar = root->typeRef->uniqueType->typeId == TYPE_ITER;
+		if ( !refParam && !loopVar )
+			return;
+	}
 
 	if ( paramRoot( pd, root ) ) {
 		params.append( root );
@@ -1700,6 +1785,7 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 
 	ObjectField *root = pd->ctxStoreRoot;
 	String name = pd->ctxStoreName;
+	String loanVar = pd->ctxStoreLoan;
 	pd->ctxStore = false;
 
 	LangTerm *term = expr->type == LangExpr::TermType ? expr->term : 0;
@@ -1708,20 +1794,34 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 
 	UniqueType *ut = expr->evaluate( pd, code );
 
+	/* Through a loan that may not reach what the object holds, nothing
+	 * read out of an object goes in. */
 	ValueLoan loan;
-	bool through = valueLoan( pd, expr, loan ) && loan.held &&
+	bool unsure = loanVar.length() > 0;
+	bool through = !unsure && valueLoan( pd, expr, loan ) && loan.held &&
 			loan.roots.length() == 1 && loan.roots[0] == root;
 
 	if ( sharesRef( pd, ut ) && !fresh && !through ) {
 		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
-		error(loc) << "only nil or what " << name << " holds can go into " <<
-				name << ": " << article( ut->langEl->xmlTag ) <<
-				" " << ut->langEl->xmlTag << " can hold a list, map, parser, "
-				"stream or struct" << endp;
+		std::ostream &out = error(loc);
+		if ( unsure ) {
+			out << "only nil can go through " << loanVar << ", which may hold "
+					"what isn't " << name << "'s: ";
+		}
+		else {
+			out << "only nil or what " << name << " holds can go into " <<
+					name << ": ";
+		}
+		out << article( ut->langEl->xmlTag ) << " " << ut->langEl->xmlTag <<
+				" can hold a list, map, parser, stream or struct" << endp;
 	}
 
 	if ( ctxHeldRef( ut ) && !fresh && !through ) {
 		const InputLoc &loc = term != 0 ? term->loc : expr->loc;
+		if ( unsure ) {
+			error(loc) << "only a new object or nil can go through " << loanVar <<
+					", which may hold what isn't " << name << "'s" << endp;
+		}
 		error(loc) << "only a new object, nil or what " << name <<
 				" holds can go into " << name << endp;
 	}
@@ -1729,32 +1829,54 @@ static UniqueType *evaluateSetupValue( Compiler *pd, CodeVect &code, LangExpr *e
 	pd->ctxStore = true;
 	pd->ctxStoreRoot = root;
 	pd->ctxStoreName = name;
+	pd->ctxStoreLoan = loanVar;
 	return ut;
 }
 
 /* A store through lookup goes into a context object: through a context
  * reference, or through a local that holds a loan on one, which reaches
- * what the object holds. Note it for evaluateSetupValue(). */
+ * what the object holds. A tree loop's variable over a loan is in the tree
+ * the loan holds, so a store into it goes there too. Note it for
+ * evaluateSetupValue(). Only a loan that is held, and on that object alone,
+ * surely reaches what the object holds: through any other, only a new object
+ * or nil goes in. The parse's own code isn't checked here, so a loan it made
+ * on its own object alone is no store into one. */
 static void setCtxStore( Compiler *pd, const LangVarRef *varRef,
 		const VarRefLookup &lookup )
 {
 	pd->ctxStore = false;
+	pd->ctxStoreLoan = String();
 	ObjectField *root;
 	if ( lookup.firstCtxPart >= 0 && varRef->ownRoot( pd, pd->ctxStoreRoot ) ) {
 		pd->ctxStore = true;
 		pd->ctxStoreName = varRef->qual->data[lookup.firstCtxPart].data;
+		return;
 	}
-	else if ( varRef->qual->length() > 0 && varRef->ownRoot( pd, root ) && root != 0 ) {
-		Compiler::Own *loan = pd->findLoan( root );
-		for ( int r = 0; loan != 0 && r < loan->loans.length(); r++ ) {
-			if ( contextRoot( loan->loans[r].root ) ) {
-				pd->ctxStore = true;
-				pd->ctxStoreRoot = loan->loans[r].root;
-				pd->ctxStoreName = rootName( loan->loans[r].root );
-				break;
-			}
-		}
+
+	bool loopVar = varRef->qual->length() == 0 && lookup.objField != 0 &&
+			lookup.objField->typeRef->uniqueType->typeId == TYPE_ITER;
+	if ( ( varRef->qual->length() == 0 && !loopVar ) ||
+			!varRef->ownRoot( pd, root ) || root == 0 )
+		return;
+
+	Compiler::Own *loan = pd->findLoan( root );
+	if ( loan == 0 )
+		return;
+
+	/* The first context object the loan is on, and is checked for. */
+	const Compiler::LoanRoot *first = 0;
+	for ( int r = 0; r < loan->loans.length(); r++ ) {
+		if ( contextRoot( loan->loans[r].root ) && !loan->loans[r].own && first == 0 )
+			first = &loan->loans[r];
 	}
+	if ( first == 0 )
+		return;
+
+	pd->ctxStore = true;
+	pd->ctxStoreRoot = first->root;
+	pd->ctxStoreName = rootName( first->root );
+	if ( !loan->held || loan->loans.length() != 1 )
+		pd->ctxStoreLoan = root->name;
 }
 
 void LangVarRef::loadQualification( Compiler *pd, CodeVect &code, 
@@ -2405,6 +2527,8 @@ static void noteArgLoan( Compiler *pd, const VarRefLookup &lookup, LangExpr *exp
 	CodeBlock *block = noteBlock( pd );
 	for ( int r = 0; r < loan.roots.length(); r++ ) {
 		ObjectField *root = loan.roots[r];
+		if ( loan.own[r] )
+			continue;
 		if ( contextRoot( root ) ) {
 			if ( block != 0 && pd->throwaway == 0 ) {
 				CodeBlock::LoanArg arg;
@@ -2872,7 +2996,7 @@ static void checkContextArgs( Compiler *pd, Function *func, UniqueType **paramUT
 				continue;
 			for ( int l = 0; l < loan.roots.length(); l++ ) {
 				ObjectField *root = loan.roots[l];
-				if ( !contextRoot( root ) )
+				if ( !contextRoot( root ) || loan.own[l] )
 					continue;
 				for ( int r = 0; r < roots.length(); r++ ) {
 					if ( roots[r] == root && !rootIsLoan[r] ) {
@@ -3150,7 +3274,7 @@ UniqueType *LangTerm::evaluateMatch( Compiler *pd, CodeVect &code ) const
 			UniqueType *exprType = pd->findUniqueType( TYPE_TREE, item->prodEl->langEl );
 			if ( heldRef( pd, exprType ) ) {
 				pd->addLoan( item->varRef->lookupField( pd ).objField, loan.roots,
-						loan.held, item->varRef->loc );
+						loan.own, loan.held, item->varRef->loc );
 			}
 		}
 	}
@@ -3912,8 +4036,10 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 	evaluateCapture( pd, code, targetUT );
 	if ( varRef != 0 && lent && sharesRef( pd, targetUT ) ) {
 		Vector<ObjectField*> roots;
+		Vector<bool> own;
 		roots.append( lentRoot );
-		pd->addLoan( varRef->lookupField( pd ).objField, roots, true, varRef->loc );
+		own.append( false );
+		pd->addLoan( varRef->lookupField( pd ).objField, roots, own, true, varRef->loc );
 	}
 
 	return targetUT;
@@ -4920,7 +5046,8 @@ static void compileLoopBody( Compiler *pd, CodeVect &code, StmtList *stmtList,
 }
 
 void LangStmt::compileForIterBody( Compiler *pd, CodeVect &code, UniqueType *iterUT,
-		const CodeVect &under, const Vector<ObjectField*> &loanRoots, bool loanHeld ) const
+		const CodeVect &under, const Vector<ObjectField*> &loanRoots,
+		const Vector<bool> &loanOwn, bool loanHeld ) const
 {
 	/* Add the cleanup for the current loop: the iterator's unwind, then the
 	 * words under the iterator. */
@@ -4963,7 +5090,7 @@ void LangStmt::compileForIterBody( Compiler *pd, CodeVect &code, UniqueType *ite
 	 * body drops: so it isn't in what the body must leave as it found. */
 	Vector<Compiler::Own> start = pd->owns;
 	if ( loanRoots.length() > 0 )
-		pd->addLoan( objField, loanRoots, loanHeld, loc );
+		pd->addLoan( objField, loanRoots, loanOwn, loanHeld, loc );
 	compileLoopBody( pd, code, stmtList, scope, start, loc );
 	pd->leaveLoop( start, scope );
 	pd->breakOwns = outerBreakOwns;
@@ -5253,7 +5380,8 @@ void LangStmt::compileForIter( Compiler *pd, CodeVect &code ) const
 		}
 	}
 
-	compileForIterBody( pd, code, iterUT, under, loopLoan.roots, loopLoan.held );
+	compileForIterBody( pd, code, iterUT, under, loopLoan.roots, loopLoan.own,
+			loopLoan.held );
 
 	for ( int r = 0; r < lentRoots.length(); r++ )
 		pd->removeOwn( lentRoots[r] );
@@ -5460,7 +5588,7 @@ void LangStmt::compile( Compiler *pd, CodeVect &code ) const
 			}
 
 			if ( local && isLoan )
-				pd->addLoan( var, loan.roots, loan.held, loc );
+				pd->addLoan( var, loan.roots, loan.own, loan.held, loc );
 
 			if ( newParser && pd->newParserLent ) {
 				pd->addOwn( pd->newParserRoot, Compiler::Own::LentToParser,

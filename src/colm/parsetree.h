@@ -3477,7 +3477,8 @@ struct LangStmt
 	void compileWhile( Compiler *pd, CodeVect &code ) const;
 	void compileForIterBody( Compiler *pd, CodeVect &code,
 			UniqueType *iterUT, const CodeVect &under,
-			const Vector<ObjectField*> &loanRoots, bool loanHeld ) const;
+			const Vector<ObjectField*> &loanRoots, const Vector<bool> &loanOwn,
+			bool loanHeld ) const;
 	void compileForIter( Compiler *pd, CodeVect &code ) const;
 	void compile( Compiler *pd, CodeVect &code ) const;
 

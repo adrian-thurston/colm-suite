@@ -975,13 +975,17 @@ struct Compiler
 	ObjectField *unwindLoop;
 
 	/* A root that a loan is on, and whether the loan on it has ended: its
-	 * root lent, moved, gone with a parser, or given another object. */
+	 * root lent, moved, gone with a parser, or given another object. An own
+	 * loan is on the running context, read by the parse's own code through
+	 * a context variable's name or this: it ends as any loan does, but
+	 * where the parse's own code puts it isn't checked. */
 	enum LoanEnd { NotEnded, EndLent, EndMoved, EndWithParser, EndGiven };
 	struct LoanRoot
 	{
 		ObjectField *root;
 		LoanEnd end;
 		InputLoc endLoc;
+		bool own;
 	};
 
 	/* What the code being compiled has done to a context object, held by a
@@ -1045,10 +1049,12 @@ struct Compiler
 	bool newParserField;
 
 	/* A store through a context reference is being compiled: the root of
-	 * the reference, and the context object it goes into. */
+	 * the reference, and the context object it goes into. Or a store through
+	 * a loan that may not be on that root alone, through the local named. */
 	bool ctxStore;
 	ObjectField *ctxStoreRoot;
 	String ctxStoreName;
+	String ctxStoreLoan;
 
 	/* A send's target is being loaded; the send's value, its parser, goes
 	 * nowhere; the code being compiled is thrown away, so nothing it does is
@@ -1067,8 +1073,8 @@ struct Compiler
 	void removeOwn( ObjectField *var );
 	void addOwn( ObjectField *var, Own::Kind kind, const InputLoc &loc,
 			ObjectField *parser = 0 );
-	void addLoan( ObjectField *var, const Vector<ObjectField*> &roots, bool held,
-			const InputLoc &loc );
+	void addLoan( ObjectField *var, const Vector<ObjectField*> &roots,
+			const Vector<bool> &own, bool held, const InputLoc &loc );
 	void endLoans( ObjectField *root, LoanEnd how, const InputLoc &loc );
 	bool lentToParser( ObjectField *parser );
 	void releaseParser( ObjectField *parser );

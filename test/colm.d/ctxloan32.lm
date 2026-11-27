@@ -1,0 +1,31 @@
+# A function that gives its ref parameter a global's tree puts into it what
+# the object doesn't hold, so a loan can't be given to it.
+include 'ctxloan.lmi'
+
+global GH: ctx::holder
+
+void swap( H: ref<ctx::holder> )
+{
+	H = GH
+}
+
+parse G: ctx::holder( new ctx() )[ "h" ]
+GH = G
+GH.HR = new rec()
+GH.HR->L = new list<int>()
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+parse X: ctx::holder( C )[ "h" ]
+swap( X )
+C->R = X.HR
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+print( "global ", GH.HR->L->length, "\n" )
+GH.HR->L->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+print( "after ", C->R->L->length, "\n" )
+##### COMP_ERR #####
+21:7: cannot give X, a loan on C, to swap: swap can put into its parameter H what C doesn't hold

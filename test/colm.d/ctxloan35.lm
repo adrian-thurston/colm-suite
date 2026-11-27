@@ -1,0 +1,24 @@
+# What a function given the object returns is a loan on it, but could be a
+# global's struct: only a new object or nil goes through it.
+include 'ctxloan.lmi'
+
+global GR: rec = new rec()
+
+rec pick( D: ctx )
+{
+	return GR
+}
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+X: rec = pick( C )
+X->L = C->R->L
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+print( "global's ", GR->L->length, "\n" )
+GR->L->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+16:14: only a new object or nil can go through X, which may hold what isn't C's

@@ -144,6 +144,14 @@ EXTRA_DIST = \
 	ctxloan27.lm \
 	ctxloan28.lm \
 	ctxloan29.lm \
+	ctxloan30.lm \
+	ctxloan31.lm \
+	ctxloan32.lm \
+	ctxloan33.lm \
+	ctxloan34.lm \
+	ctxloan35.lm \
+	ctxloan36.lm \
+	ctxloan37.lm \
 	ctxown1.lm \
 	ctxown2.lm \
 	ctxown3.lm \

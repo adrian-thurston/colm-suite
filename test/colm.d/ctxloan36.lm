@@ -1,0 +1,50 @@
+# A token action reads the running context's list by name into a local,
+# which is a loan on the context object: lending this to a new parser ends
+# it, so the local can't be used between the sends.
+context ctx
+	L: list<int>
+
+	lex
+		ignore /[ \t]+/
+		literal `* `^ `;
+		token NL /'\n'/
+	end
+
+	def A1 []
+	def A2 []
+
+	def item
+		[`*]
+		{
+			L->push_tail( 1 )
+		}
+
+	def start
+		[A1 item* `; `^ NL]
+	|	[A2 `* `; NL]
+
+	lex
+		token go /'go'/
+		{
+			X: list<int> = L
+			P: parser<ctx::start> = new parser<ctx::start>( this )
+			send P "* ;"
+			print( "length ", X->length, "\n" )
+			X->pop_tail()
+			send P "\n"
+			print( P->finish(), "\n" )
+			print( "after ", L->length, "\n" )
+			input->push( make_token( typeid<go>, input->pull( match_length ) ) )
+		}
+	end
+
+	def drive
+		[go]
+end
+
+C: ctx = new ctx()
+C->L = new list<int>()
+parse T: ctx::drive( C )[ "go" ]
+print( T, "\n" )
+##### COMP_ERR #####
+32:22: cannot use X: it is a loan on the context object, which was lent at 30:28

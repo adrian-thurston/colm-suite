@@ -1,0 +1,14 @@
+# C->Sub = C would put a context object into a variable of its own, a cycle.
+# The assignment moves C, so its target, which reaches the field through C,
+# can't use C.
+context ctx
+	Sub: ctx
+
+	def start
+		[]
+end
+
+C: ctx = new ctx()
+C->Sub = C
+##### COMP_ERR #####
+12:1: cannot use C: it was moved at 12:10

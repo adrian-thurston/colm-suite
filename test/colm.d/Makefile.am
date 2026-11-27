@@ -92,6 +92,13 @@ EXTRA_DIST = \
 	ctxchg11.lm \
 	ctxchg12.lm \
 	ctxchg14.lm \
+	ctxcycle1.lm \
+	ctxcycle2.lm \
+	ctxcycle3.lm \
+	ctxcycle4.lm \
+	ctxcycle5.lm \
+	ctxcycle6.lm \
+	ctxcycle7.lm \
 	ctxgram1.lm \
 	ctxgram2.lm \
 	ctxgram3.lm \

@@ -158,6 +158,15 @@ variable named alone or a field read through `->` can't move:
     cannot move Sub out of C: give the field another object in its place
     cannot move Sub out of the context object: give the field another object in its place
 
+The move is noted (`noteMove()`, in `LangStmt::compile()`'s `AssignType`
+case) before `assignValue()` loads the target's root. So a local put into
+a place reached through itself is refused at the target, and no object
+comes to hold itself: `C->Sub = C` gives
+`cannot use C: it was moved at 12:10`, and `C->Sub->Sub = C` gives
+`cannot use C: it was moved at 12:15` (`ctxcycle3`, `ctxcycle4`).
+`checkStrongCycles()` counts on this: it accepts a cycle made only of
+contexts' fields that hold contexts ([#779]).
+
 Giving a variable or a field another object ends what was recorded of the
 old one: its entry goes, and loans on it end.
 
@@ -409,6 +418,11 @@ A loan entry, on a local, names the roots it is a loan on (14):
   function or iterator is noted (`CodeBlock::loanArgs`: the function, the
   parameter, where).
 
+A loan is never of a context type. `X = C->Sub`, with `Sub` of a context,
+moves `Sub` out of `C`, which (5) refuses, and stays refused: a loan of a
+context object, back in its object as `C->Sub->Sub = X`, would make a
+cycle that `checkStrongCycles()` doesn't look for ([#779]).
+
 Inside any function, each parameter of a reference type is a root of the
 same kind. Storing it, or a value got from it, anywhere but a local marks
 the parameter as kept (`ObjectField::keeps`), as does giving it to a
@@ -547,3 +561,4 @@ In `test/colm.d`.
 [#771]: https://github.com/adrian-thurston/colm-suite/issues/771
 [#772]: https://github.com/adrian-thurston/colm-suite/issues/772
 [#773]: https://github.com/adrian-thurston/colm-suite/issues/773
+[#779]: https://github.com/adrian-thurston/colm-suite/issues/779

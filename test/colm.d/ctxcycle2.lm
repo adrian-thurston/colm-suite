@@ -1,0 +1,39 @@
+# Two contexts can hold each other: a's variable B holds a b, and b's
+# variable A holds an a. The objects make a chain, a, b, a, not a cycle. A
+# parse given X->B lends X, and its actions give X->B an a of its own.
+context a
+	N: int
+	B: b
+
+	def sa
+		[]
+end
+
+context b
+	N: int
+	A: a
+
+	lex
+		token w /[a-z]+/
+		ignore /[ \n]+/
+	end
+
+	def item
+		[w]
+		{
+			N = N + 1
+			if ( !A )
+				A = new a()
+			A->N = A->N + 10
+		}
+
+	def sb
+		[item*]
+end
+
+X: a = new a()
+X->B = new b()
+parse S: b::sb( X->B )[ "p q r" ]
+print( X->N, " ", X->B->N, " ", X->B->A->N, "\n" )
+##### EXP #####
+0 3 30

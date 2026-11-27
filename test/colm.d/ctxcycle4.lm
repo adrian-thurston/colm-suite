@@ -1,0 +1,14 @@
+# C->Sub->Sub = C would put C into the object that its variable holds, a
+# cycle through two objects. As in ctxcycle3, the move of C comes first.
+context ctx
+	Sub: ctx
+
+	def start
+		[]
+end
+
+C: ctx = new ctx()
+C->Sub = new ctx()
+C->Sub->Sub = C
+##### COMP_ERR #####
+12:1: cannot use C: it was moved at 12:15

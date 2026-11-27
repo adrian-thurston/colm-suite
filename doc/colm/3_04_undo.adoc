@@ -31,10 +31,11 @@ and the program reaches its variables through the object, as in
 `+Decls->Types+`.
 
 A context object has one holder. A context can be the type of a local
-variable, a parameter, a function's return and a variable of another
-context, and of nothing else: not of a global, declared with `global` or
-`export`, a field of a struct that isn't a context, a list's value, a map's
-key or value, an attribute of a def or a token, or the `T` of a `weak<T>`.
+variable, a parameter, a function's return and a variable of a context,
+its own included, and of nothing else: not of a global, declared with
+`global` or `export`, a field of a struct that isn't a context, a list's
+value, a map's key or value, an attribute of a def or a token, or the `T`
+of a `weak<T>`.
 Code that reached the object through one of these, as a function reaches a
 global, could use it while a parser it was given can back up. Colm stops at
 such a type with an error such as

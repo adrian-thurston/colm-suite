@@ -6132,8 +6132,9 @@ static String cycleStep( CycleEdge *edge )
  * node is a type that can hold a struct, and an edge says a thing of one
  * type can hold one of another strongly. A component of the graph with a
  * field, an attribute or a make_token argument inside it is a cycle, given
- * one error at the first such place. See
- * doc/colm/design/struct-cycle-check-design.md. */
+ * one error at the first such place. A context's field that holds a context
+ * is an edge but no place, so contexts that hold contexts alone make none.
+ * See doc/colm/design/struct-cycle-check-design.md. */
 void Compiler::checkStrongCycles()
 {
 	CycleGraph graph;
@@ -6150,8 +6151,19 @@ void Compiler::checkStrongCycles()
 			if ( field->type != ObjectField::StructFieldType )
 				continue;
 
-			CycleNode *to = graph.typeNode( field->typeRef->resolveType( this ) );
-			CycleEdge *edge = graph.addPlace( CycleEdge::Field, from, to, field->loc );
+			UniqueType *ut = field->typeRef->resolveType( this );
+			CycleNode *to = graph.typeNode( ut );
+
+			/* A field that holds a context object, which only a context's
+			 * can, is no place, though a path can pass it. Nothing moves an
+			 * object out of a field, and a local put into a place reached
+			 * through it is refused, since noteMove() comes before the
+			 * target is used. So such fields alone make chains of objects. */
+			bool context = ut->typeId == TYPE_STRUCT &&
+					ut->structEl->structDef->isContext;
+			CycleEdge *edge = context ?
+					graph.addEdge( CycleEdge::Field, from, to ) :
+					graph.addPlace( CycleEdge::Field, from, to, field->loc );
 			if ( edge != 0 ) {
 				edge->structEl = sel;
 				edge->field = field;

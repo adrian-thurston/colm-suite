@@ -500,13 +500,16 @@ ownership state, after the expression is evaluated, and evaluate nothing
 - the tree of a finished parser variable `P`, read as `P->tree`, and what
   its `finish()` or `eof()` gives: each root `P` was lent, which `P`'s
   `Finished` entry keeps (`Compiler::finishParser()`), one from each side of
-  an `if` that lent `P` another object on each (`parserLoanRoots()`);
+  an `if` that lent `P` another object on each (`parserLoanRoots()`). A
+  parser lent the running context, as `this`, makes an own loan on it;
 - a built-in call on any of these: what it is called on;
 - a call of a function or an iterator: each argument's loan, and the root of
   each argument of a context type, not held. The running context given as
   an argument, as `this`, makes an own loan, as a read of it by name does;
 - a parse given an object a root reaches, of a type `sharesRef()` counts:
-  that root;
+  that root, an own loan for the running context, as `this`, which the
+  parse's own code gives it (`parseLoan()`, and a parse's capture in
+  `evaluateParse()`);
 - a cast, a `match`, a search, a send's value and the `^` and `@` of a loan:
   its loan. The checks go by type, so a cast to a type that can't hold a
   reference value hides one ([#755]).
@@ -610,7 +613,12 @@ a parser of a type defined in a context. Where `checkOwnedUse()` is called,
 through a local parser variable `P` that is finished, on every path, and
 none of whose roots has been lent, moved or given another object since. An
 `if` that finishes `P` on one side only leaves it lent on the other
-(`lentToParser()`), so its tree isn't read after the `if`:
+(`lentToParser()`), so its tree isn't read after the `if`. An `if` whose
+other side gives `P` a parser it lends nothing, as one made with
+`new parser<T>( new ctx() )`, leaves no entry for it there, so the merge
+keeps the `Finished` entry, which still refuses sends and a second
+`finish()`, but marks it `Own::partial`, and its tree is refused as a
+for-good parser's is:
 
     cannot read P->tree: P is lent a context object until P->finish(), and a
     T can hold a list, map, parser, stream or struct
@@ -861,6 +869,13 @@ In `test/colm.d`.
   function given `this` returns (42); a function changes its own copy of a
   tree parameter in a tree loop, and can be given a loan (43); a unique
   local moves into what a held loan on its object reaches (46).
+
+  Its third review added `ctxloan47`–`ctxloan51`. `ctxloan47`–`ctxloan49`
+  run: a token action stores the tree of a parse given `this` (47), and of
+  a parser lent `this` (48), into a context variable, and puts the first
+  into a new struct (49). `ctxloan50` and `ctxloan51` refuse `P->tree`
+  after an `if` whose other side gives `P` a parser with its object for
+  good, unfinished (50) or finished (51).
 
   `ctxtake1`–`ctxtake5`, `ctxtake8` and `ctxtake15` run now. Under loans,
   `ctxsend1`'s kept send's value is a loan, refused at its use after the

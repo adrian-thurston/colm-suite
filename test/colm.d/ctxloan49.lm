@@ -1,0 +1,46 @@
+# The parse's own code puts the tree of a parse given this into a new
+# struct, which goes into the object.
+struct rec
+	N: int
+end
+
+struct box
+	H: ctx::holder
+end
+
+context ctx
+	S: rec
+	T: holder
+	B: box
+
+	lex
+		ignore /[ \t]+/
+		literal `h
+		token go /'go'/
+		{
+			parse H: ctx::holder( this )[ "h" ]
+			Bx: box = new box()
+			Bx->H = H
+			B = Bx
+			input->push( make_token( typeid<go>, input->pull( match_length ) ) )
+		}
+	end
+
+	def holder
+		HR: rec
+		[`h]
+		{
+			lhs.HR = S
+		}
+
+	def drive
+		[go]
+end
+
+C: ctx = new ctx()
+C->S = new rec()
+C->S->N = 7
+parse D: ctx::drive( C )[ "go" ]
+print( D, " ", C->B->H.HR->N, "\n" )
+##### EXP #####
+go 7

@@ -977,8 +977,9 @@ struct Compiler
 	/* A root that a loan is on, and whether the loan on it has ended: its
 	 * root lent, moved, gone with a parser, or given another object. An own
 	 * loan is on the running context, read by the parse's own code through
-	 * a context variable's name or this: it ends as any loan does, but
-	 * where the parse's own code puts it isn't checked. */
+	 * a context variable's name or this, or got from a call, a parse or a
+	 * parser it gives this: it ends as any loan does, but where the parse's
+	 * own code puts it isn't checked. */
 	enum LoanEnd { NotEnded, EndLent, EndMoved, EndWithParser, EndGiven };
 	struct LoanRoot
 	{
@@ -1038,6 +1039,10 @@ struct Compiler
 		 * loan on. */
 		Vector<LoanRoot> loans;
 		bool held;
+
+		/* Finished: on some path only, an if's other side having left the
+		 * variable a parser it wasn't lent anything for. */
+		bool partial;
 	};
 	Vector<Own> owns;
 	int loopDepth;

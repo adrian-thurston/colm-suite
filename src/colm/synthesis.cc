@@ -613,6 +613,7 @@ void Compiler::addOwn( ObjectField *var, Own::Kind kind, const InputLoc &loc,
 	own.field = false;
 	own.depth = loopDepth;
 	own.held = false;
+	own.partial = false;
 	owns.append( own );
 
 	switch ( kind ) {
@@ -625,7 +626,7 @@ void Compiler::addOwn( ObjectField *var, Own::Kind kind, const InputLoc &loc,
 		case Own::MovedWithParser:
 			endLoans( var, EndWithParser, loc );
 			break;
-		case Own::Finished: case Own::Loan:
+		case Own::Finished: case Own::Loan: case Own::Unique:
 			break;
 	}
 }
@@ -648,7 +649,9 @@ void Compiler::addLoan( ObjectField *var, const Vector<ObjectField*> &roots,
 	entry.loc = loc;
 	entry.parser = 0;
 	entry.field = false;
+	entry.depth = loopDepth;
 	entry.held = held;
+	entry.partial = false;
 	for ( int r = 0; r < roots.length(); r++ ) {
 		LoanRoot loan;
 		loan.root = roots[r];
@@ -736,7 +739,7 @@ void Compiler::finishParser( ObjectField *parser, const InputLoc &loc )
 		LoanRoot loan;
 		loan.root = roots[r];
 		loan.end = NotEnded;
-		loan.own = false;
+		loan.own = roots[r] == 0;
 		fin->loans.append( loan );
 	}
 }
@@ -756,7 +759,7 @@ static bool sameLoans( const Compiler::Own &a, const Compiler::Own &b )
 static bool sameOwn( const Compiler::Own &a, const Compiler::Own &b )
 {
 	return a.var == b.var && a.kind == b.kind && a.parser == b.parser &&
-			sameLoans( a, b ) && a.held == b.held;
+			sameLoans( a, b ) && a.held == b.held && a.partial == b.partial;
 }
 
 /* The loans of other go into own's: each root either has, ended if it
@@ -782,6 +785,18 @@ static void mergeLoans( Compiler::Own &own, const Compiler::Own &other )
 	}
 }
 
+/* The state has the parser variable finished, or lent an object. */
+static bool parserEntry( const Vector<Compiler::Own> &state, ObjectField *parser )
+{
+	for ( int i = 0; i < state.length(); i++ ) {
+		if ( state[i].kind == Compiler::Own::Finished && state[i].var == parser )
+			return true;
+		if ( state[i].kind == Compiler::Own::LentToParser && state[i].parser == parser )
+			return true;
+	}
+	return false;
+}
+
 /* After an if, what either side did holds: a root lent or moved on either
  * side is lent or moved, and a parser finished on either can't be sent to,
  * and gives back only what both sides gave back. A local is unique only if
@@ -792,6 +807,20 @@ static void mergeLoans( Compiler::Own &own, const Compiler::Own &other )
  * can't go into the object. */
 void Compiler::mergeOwns( const Vector<Own> &other )
 {
+	/* A parser variable finished on one side only, where the other side
+	 * left it nothing it was lent: it is finished, so nothing is sent to it,
+	 * but on that side it can hold a parser that has its object for good,
+	 * so it gives no tree. */
+	for ( int i = 0; i < owns.length(); i++ ) {
+		if ( owns[i].kind == Own::Finished && !parserEntry( other, owns[i].var ) )
+			owns[i].partial = true;
+	}
+	Vector<ObjectField*> otherPartial;
+	for ( int j = 0; j < other.length(); j++ ) {
+		if ( other[j].kind == Own::Finished && !parserEntry( owns, other[j].var ) )
+			otherPartial.append( other[j].var );
+	}
+
 	for ( int i = owns.length() - 1; i >= 0; i-- ) {
 		if ( owns[i].kind != Own::Unique )
 			continue;
@@ -836,10 +865,17 @@ void Compiler::mergeOwns( const Vector<Own> &other )
 		}
 
 		Own *own = findOwn( other[i].var );
-		if ( own == 0 )
+		if ( own == 0 ) {
 			owns.append( other[i] );
-		else if ( own->kind == Own::Finished && other[i].kind == Own::Finished )
+			for ( int p = 0; p < otherPartial.length(); p++ ) {
+				if ( other[i].kind == Own::Finished && otherPartial[p] == other[i].var )
+					owns[owns.length() - 1].partial = true;
+			}
+		}
+		else if ( own->kind == Own::Finished && other[i].kind == Own::Finished ) {
 			mergeLoans( *own, other[i] );
+			own->partial = own->partial || other[i].partial;
+		}
 		else if ( !sameOwn( *own, other[i] ) ) {
 			bool otherMoved = other[i].kind == Own::Moved ||
 					other[i].kind == Own::MovedWithParser;
@@ -1416,12 +1452,12 @@ static bool parserLoanRoots( Compiler *pd, ObjectField *parser, ValueLoan &loan 
 	for ( int i = 0; i < pd->owns.length(); i++ ) {
 		Compiler::Own &own = pd->owns[i];
 		if ( own.kind == Compiler::Own::LentToParser && own.parser == parser ) {
-			addLoanRoot( loan, own.var );
+			addLoanRoot( loan, own.var, own.var == 0 );
 			found = true;
 		}
 		if ( own.kind == Compiler::Own::Finished && own.var == parser ) {
 			for ( int r = 0; r < own.loans.length(); r++ ) {
-				addLoanRoot( loan, own.loans[r].root );
+				addLoanRoot( loan, own.loans[r].root, own.loans[r].own );
 				found = true;
 			}
 		}
@@ -1601,7 +1637,7 @@ static bool parseLoan( Compiler *pd, LangTerm *term, ValueLoan &loan )
 		{
 			loan.what = "what the parse gives";
 			loan.loc = term->loc;
-			addLoanRoot( loan, root );
+			addLoanRoot( loan, root, root == 0 );
 			return true;
 		}
 	}
@@ -1776,9 +1812,12 @@ void LangVarRef::checkParserTree( Compiler *pd, const VarRefLookup &lookup ) con
 	ObjectField *parser = parserVarBefore( this, lookup.parserTree );
 
 	/* Lent on some path, as after an if that finishes it on one side only,
-	 * the parser can't give its tree yet. */
+	 * the parser can't give its tree yet. Finished on some path only, with
+	 * a parser it wasn't lent anything for on another, it gives none. */
 	Compiler::Own *fin = parser != 0 ? pd->findOwn( parser ) : 0;
-	if ( fin != 0 && fin->kind == Compiler::Own::Finished && !pd->lentToParser( parser ) ) {
+	if ( fin != 0 && fin->kind == Compiler::Own::Finished && !fin->partial &&
+			!pd->lentToParser( parser ) )
+	{
 		for ( int r = 0; r < fin->loans.length(); r++ ) {
 			if ( fin->loans[r].end != Compiler::NotEnded ) {
 				std::ostream &out = error(before.loc) << "cannot read " <<
@@ -4193,7 +4232,7 @@ UniqueType *LangTerm::evaluateParse( Compiler *pd, CodeVect &code,
 		Vector<ObjectField*> roots;
 		Vector<bool> own;
 		roots.append( lentRoot );
-		own.append( false );
+		own.append( lentRoot == 0 );
 		pd->addLoan( varRef->lookupField( pd ).objField, roots, own, true, varRef->loc );
 	}
 

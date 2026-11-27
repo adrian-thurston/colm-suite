@@ -168,6 +168,11 @@ EXTRA_DIST = \
 	ctxloan44.lm \
 	ctxloan45.lm \
 	ctxloan46.lm \
+	ctxloan47.lm \
+	ctxloan48.lm \
+	ctxloan49.lm \
+	ctxloan50.lm \
+	ctxloan51.lm \
 	ctxown1.lm \
 	ctxown2.lm \
 	ctxown3.lm \

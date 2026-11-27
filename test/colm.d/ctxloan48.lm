@@ -1,0 +1,41 @@
+# The same with a parser lent this: what its finish() gives is the parse's
+# own, and goes into a context variable.
+struct rec
+	N: int
+end
+
+context ctx
+	S: rec
+	T: holder
+
+	lex
+		ignore /[ \t]+/
+		literal `h
+		token go /'go'/
+		{
+			P: parser<ctx::holder> = new parser<ctx::holder>( this )
+			send P "h"
+			H: ctx::holder = P->finish()
+			T = H
+			input->push( make_token( typeid<go>, input->pull( match_length ) ) )
+		}
+	end
+
+	def holder
+		HR: rec
+		[`h]
+		{
+			lhs.HR = S
+		}
+
+	def drive
+		[go]
+end
+
+C: ctx = new ctx()
+C->S = new rec()
+C->S->N = 7
+parse D: ctx::drive( C )[ "go" ]
+print( D, " ", C->T.HR->N, "\n" )
+##### EXP #####
+go 7

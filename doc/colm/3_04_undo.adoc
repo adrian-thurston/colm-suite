@@ -305,8 +305,8 @@ parser in `P` until `+P->finish()+`, `+P->eof()+`, or a send to `P` that ends
 with `eos`. Until then the program can't use `C`. After it, the program has
 `C` back, and sends nothing more to `P`, nor finishes it again. `+P->tree+`
 and `+P->error+` are read through `P` as before, but a tree of a type that can
-hold a list, map, parser, stream or struct comes only from a `P` finished on
-every path.
+hold a list, map, parser, stream or struct comes only from a `P` lent its
+object and finished, on every path.
 Until then the parser's actions could change what the tree's attributes hold,
 and back up over the change. So `+P->tree+` before `+P->finish()+` is a
 compile error:
@@ -425,7 +425,8 @@ function given it returns.
 
 The parse's own actions use their object through the context's variables
 and `this`. A local that an action gives what one of them holds, as
-`+X: list<int> = L+` does, is a loan on the object too, and ends where the
+`+X: list<int> = L+` does, is a loan on the object too, and so is the tree of
+a parse, or of a parser, that the action gives `this`. It ends where the
 action lends the object, to a parse or a `new parser`. Where the action puts
 it isn't followed: its trees and the structs it makes hold what the object
 holds as it builds them.

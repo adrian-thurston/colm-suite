@@ -1,0 +1,22 @@
+# A loan given to a function that gives its parameter to one that keeps
+# it.
+include 'ctxrule.lmi'
+
+global G: list<str> = new list<str>()
+
+void inner( L: list<str> )
+{
+	G = L
+}
+
+void outer( M: list<str> )
+{
+	inner( M )
+}
+
+C: ctx = new ctx()
+C->L = new list<str>()
+X: list<str> = C->L
+outer( X )
+##### COMP_ERR #####
+20:8: cannot give X, a loan on C, to outer: outer keeps its parameter M

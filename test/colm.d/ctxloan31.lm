@@ -1,0 +1,26 @@
+# The same in a loop's body: the loan from before the loop is held at the
+# body's start, and the next pass, or what follows the loop, could put the
+# global's list into the object.
+include 'ctxloan.lmi'
+
+global GL: list<int> = new list<int>()
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+X: list<int> = C->R->L
+I: int = 0
+while ( I < 1 ) {
+	X = GL
+	I = I + 1
+}
+C->R->L = X
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+print( "global ", GL->length, "\n" )
+GL->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+print( "after ", C->R->L->length, "\n" )
+##### COMP_ERR #####
+13:1: X holds what C holds at the start of the loop's body, but not surely at its end, and the next pass could put what X holds into C

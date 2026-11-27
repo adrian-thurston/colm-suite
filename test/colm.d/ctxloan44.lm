@@ -1,0 +1,15 @@
+# A loan stored into a field of a unique local: a loan is kept only in a
+# local, not in a struct a local holds, or D's list could go into C with
+# the unique local.
+include 'ctxloan.lmi'
+
+C: ctx = new ctx()
+C->R = new rec()
+D: ctx = new ctx()
+D->R = new rec()
+D->R->L = new list<int>()
+U: rec = new rec()
+U->L = D->R->L
+C->R = U
+##### COMP_ERR #####
+12:14: cannot take L out of D, a context object

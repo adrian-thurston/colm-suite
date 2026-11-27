@@ -1,0 +1,14 @@
+# A unique local moves into what a held loan on C reaches, as it moves
+# into C itself: nothing else holds its new object.
+include 'ctxloan.lmi'
+
+C: ctx = new ctx()
+C->R = new rec()
+X: rec = C->R
+U: list<int> = new list<int>()
+U->push_tail( 5 )
+X->L = U
+X->L->push_tail( 6 )
+print( "C's list ", C->R->L->length, "\n" )
+##### EXP #####
+C's list 2

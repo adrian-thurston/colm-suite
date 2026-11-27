@@ -1,5 +1,5 @@
-# A send's value, kept, is the stream in the context object: it can't be
-# taken out, as C->I can't.
+# A send's value, kept, is the stream in the context object: a loan on it,
+# as C->I read into a variable is, which nothing lends again.
 context ctx
 	I: stream
 
@@ -17,5 +17,5 @@ C->I = new stream()
 X: stream = send C->I "a"
 send X "b"
 print( "compiled\n" )
-##### COMP_ERR #####
-17:21: cannot take I out of C, a context object
+##### EXP #####
+compiled

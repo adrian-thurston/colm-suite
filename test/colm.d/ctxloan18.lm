@@ -1,0 +1,9 @@
+# The tree a parser given its object for good gives with finish(): it can
+# take input after its end, and change what the tree's attributes hold.
+include 'ctxloan.lmi'
+
+P: parser<ctx::holder> = new parser<ctx::holder>( new ctx() )
+send P "h"
+X: ctx::holder = P->finish()
+##### COMP_ERR #####
+7:21: cannot use what P->finish() gives: the parser has its context object for good, and a ctx::holder can hold a list, map, parser, stream or struct

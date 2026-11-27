@@ -1,0 +1,14 @@
+# The tree of a finished parser, read once the object it was lent is lent
+# again.
+include 'ctxloan.lmi'
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+H: parser<ctx::holder> = new parser<ctx::holder>( C )
+send H "h"
+H->finish()
+parse S: ctx::start( C )[ "* ;\n" ]
+X: ctx::holder = H->tree
+##### COMP_ERR #####
+12:18: cannot read H->tree: it is a loan on C, which was lent at 11:1

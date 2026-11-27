@@ -974,6 +974,21 @@ struct Compiler
 	 * loop. The words of an expression lie on what its iterator left. */
 	ObjectField *unwindLoop;
 
+	/* A root that a loan is on, and whether the loan on it has ended: its
+	 * root lent, moved, gone with a parser, or given another object. An own
+	 * loan is on the running context, read by the parse's own code through
+	 * a context variable's name or this, or got from a call, a parse or a
+	 * parser it gives this: it ends as any loan does, but where the parse's
+	 * own code puts it isn't checked. */
+	enum LoanEnd { NotEnded, EndLent, EndMoved, EndWithParser, EndGiven };
+	struct LoanRoot
+	{
+		ObjectField *root;
+		LoanEnd end;
+		InputLoc endLoc;
+		bool own;
+	};
+
 	/* What the code being compiled has done to a context object, held by a
 	 * root, and to a parser variable lent one, and which locals are unique,
 	 * free to move into a context object (requirement 12): see
@@ -999,14 +1014,17 @@ struct Compiler
 
 			/* The local var has held only a new object since it was given
 			 * one, used only through ->. */
-			Unique
+			Unique,
+
+			/* The local var, which holds a loan on the roots in loans. */
+			Loan
 		};
 
 		/* The root or the parser variable, and where it was lent, moved,
 		 * finished or given its new object. LentToParser: the parser
 		 * variable, and whether what was lent is a field of the root.
-		 * LentToLoop: the iterator. The loop depth the entry was made at,
-		 * which only Unique reads. */
+		 * LentToLoop: the iterator. Loan: where the loan was made. The loop
+		 * depth the entry was made at, which only Unique reads. */
 		ObjectField *var;
 		Kind kind;
 		InputLoc loc;
@@ -1014,6 +1032,17 @@ struct Compiler
 		bool field;
 		String iter;
 		int depth;
+
+		/* Loan: the roots the variable is a loan on, and whether it is held:
+		 * it holds only what they hold, or new objects, so it can go back
+		 * in. Finished: the roots the parser was lent, which its tree is a
+		 * loan on. */
+		Vector<LoanRoot> loans;
+		bool held;
+
+		/* Finished: on some path only, an if's other side having left the
+		 * variable a parser it wasn't lent anything for. */
+		bool partial;
 	};
 	Vector<Own> owns;
 	int loopDepth;
@@ -1033,26 +1062,39 @@ struct Compiler
 
 	/* A store through a context reference is being compiled: the root of
 	 * the reference, and the context object it goes into. Or, with
-	 * ctxStoreUnique, a store through a unique local, the root. */
+	 * ctxStoreUnique, a store through a unique local, the root. Or a store
+	 * through a loan that may not be on that root alone, through the local
+	 * ctxStoreLoan names. */
 	bool ctxStore;
 	ObjectField *ctxStoreRoot;
 	String ctxStoreName;
 	bool ctxStoreUnique;
+	String ctxStoreLoan;
 
 	/* A send's target is being loaded; the send's value, its parser, goes
 	 * nowhere; the code being compiled is thrown away, so nothing it does is
-	 * recorded; the value is read in place. */
+	 * recorded; a value is read in place, which notes no take of a global
+	 * and leaves a unique local it comes out of unique; a call's value goes
+	 * nowhere; the arguments being made go into what the call is on, or to a
+	 * host function. */
 	bool sendTarget;
 	bool sendDropped;
 	int throwaway;
-	bool ctxValueInPlace;
+	bool valueInPlace;
+	bool callDropped;
+	bool argsGoIn;
 
 	Own *findOwn( ObjectField *var );
+	Own *findLoan( ObjectField *var );
 	void removeOwn( ObjectField *var );
 	void addOwn( ObjectField *var, Own::Kind kind, const InputLoc &loc,
 			ObjectField *parser = 0 );
+	void addLoan( ObjectField *var, const Vector<ObjectField*> &roots,
+			const Vector<bool> &own, bool held, const InputLoc &loc );
+	void endLoans( ObjectField *root, LoanEnd how, const InputLoc &loc );
 	bool lentToParser( ObjectField *parser );
 	void releaseParser( ObjectField *parser );
+	void finishParser( ObjectField *parser, const InputLoc &loc );
 	void mergeOwns( const Vector<Own> &other );
 	void endScopeOwns( NameScope *scope, bool within );
 	void checkLoopOwns( const Vector<Own> &start, const InputLoc &loopLoc );
@@ -1060,6 +1102,7 @@ struct Compiler
 	bool uniqueHere( ObjectField *var );
 	void endUnique( ObjectField *var );
 	void checkLentCalls();
+	void checkLoanArgs();
 
 	ObjectField *makeDataEl();
 	ObjectField *makeFileEl();

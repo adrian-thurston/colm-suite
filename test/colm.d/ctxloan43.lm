@@ -1,0 +1,26 @@
+# A function that changes its own copy of a tree parameter in a tree loop
+# puts nothing into what its caller gave it, so it can be given a loan.
+include 'ctxloan.lmi'
+
+global GH: ctx::holder
+
+int count( W: ctx::wrap )
+{
+	for T: ctx::holder in W
+		T = GH
+	print( "in count ", W, "\n" )
+	return 1
+}
+
+parse G: ctx::holder( new ctx() )[ "h" ]
+GH = G
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+parse X: ctx::wrap( C )[ "w h" ]
+N: int = count( X )
+print( X, "\n" )
+##### EXP #####
+in count w h
+w h

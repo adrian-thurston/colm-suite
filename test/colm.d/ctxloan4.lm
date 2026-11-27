@@ -1,0 +1,17 @@
+# The tree that a parser's finish() gives, used after the object is lent
+# again. On main this compiles and crashes.
+include 'ctxloan.lmi'
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+Q: parser<ctx::holder> = new parser<ctx::holder>( C )
+send Q "h"
+X: ctx::holder = Q->finish()
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+X.HR->L->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+13:1: cannot use X: it is a loan on C, which was lent at 11:25

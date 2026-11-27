@@ -1,0 +1,9 @@
+# A struct the object holds, pushed onto a list a local holds.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+C->R = new rec()
+Recs: list<rec> = new list<rec>()
+Recs->push_tail( C->R )
+##### COMP_ERR #####
+7:21: cannot take R out of C, a context object

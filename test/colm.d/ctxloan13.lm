@@ -1,0 +1,15 @@
+# A loan given to a function that keeps its parameter in a global.
+include 'ctxrule.lmi'
+
+global G: list<str> = new list<str>()
+
+void keep( L: list<str> )
+{
+	G = L
+}
+
+C: ctx = new ctx()
+C->L = new list<str>()
+keep( C->L )
+##### COMP_ERR #####
+13:10: cannot give L, a loan on C, to keep: keep keeps its parameter L

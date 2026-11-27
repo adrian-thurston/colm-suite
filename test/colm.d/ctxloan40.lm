@@ -1,0 +1,26 @@
+# A parser variable lent another object on each side of an if, and
+# finished after it: what finish() gives is a loan on both objects.
+include 'ctxloan.lmi'
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+D: ctx = new ctx()
+D->R = new rec()
+D->R->L = new list<int>()
+P: parser<ctx::holder>
+if ( C->R->L->length == 1 )
+	P = new parser<ctx::holder>( D )
+else
+	P = new parser<ctx::holder>( C )
+send P "h"
+X: ctx::holder = P->finish()
+Q: parser<ctx::start> = new parser<ctx::start>( C )
+send Q "* ;"
+print( "C's list ", X.HR->L->length, "\n" )
+X.HR->L->pop_tail()
+send Q "\n"
+print( Q->finish(), "\n" )
+print( "after ", C->R->L->length, "\n" )
+##### COMP_ERR #####
+20:21: cannot use X: it is a loan on C, which was lent at 18:25

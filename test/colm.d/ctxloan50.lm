@@ -1,0 +1,23 @@
+# A parser variable finished on one side of an if, given a parser with its
+# object for good on the other: its tree is refused after the if, as the
+# for-good parser's is.
+include 'ctxloan.lmi'
+
+global N: int = 1
+
+C: ctx = new ctx()
+C->R = new rec()
+P: parser<ctx::holder>
+if ( N == 0 ) {
+	P = new parser<ctx::holder>( C )
+	send P "h"
+	P->finish()
+}
+else {
+	P = new parser<ctx::holder>( new ctx() )
+	send P "h"
+}
+X: ctx::holder = P->tree
+print( X, "\n" )
+##### COMP_ERR #####
+20:18: cannot read P->tree: the parser has its context object for good, and a ctx::holder can hold a list, map, parser, stream or struct

@@ -1,0 +1,15 @@
+# A loan, used after the object it is on went with a parser.
+include 'ctxrule.lmi'
+
+void feed( P: parser<ctx::start> )
+{
+	send P "a"
+}
+
+C: ctx = new ctx()
+C->L = new list<str>()
+X: list<str> = C->L
+feed( new parser<ctx::start>( C ) )
+X->push_tail( "x" )
+##### COMP_ERR #####
+13:1: cannot use X: it is a loan on C, which went with the parser made at 12:7

@@ -1,4 +1,4 @@
-# A struct the object holds, passed to a function.
+# A struct the object holds, given to a function that keeps nothing of it.
 include 'ctxrule.lmi'
 
 int show( R: rec )
@@ -10,5 +10,5 @@ C: ctx = new ctx()
 C->R = new rec()
 parse S: ctx::start( C )[ "a" ]
 print( show( C->R ), "\n" )
-##### COMP_ERR #####
-12:17: cannot take R out of C, a context object
+##### EXP #####
+0

@@ -1,0 +1,14 @@
+# A loan used between two sends to a parser lent the object. The parser
+# backs up over the push that the loan's pop would take off.
+include 'ctxpush.lmi'
+
+C: ctx = new ctx()
+C->L = new list<str>()
+X: list<str> = C->L
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+X->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+10:1: cannot use X: it is a loan on C, which was lent at 8:25

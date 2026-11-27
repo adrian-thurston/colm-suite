@@ -1,8 +1,8 @@
-# Matching a context's tree whose attribute holds a list uses the tree as a
-# value, which takes it out. ctxtake10's program, matching the tree between
-# two sends.
-# Between the sends, C is lent to P, so the use of C is refused before the
-# take is.
+# Matching a context's tree whose attribute holds a list, between two sends
+# to a parser lent the context object. ctxtake10's program, matching the
+# tree between the sends.
+# Between the sends, C is lent to P, so the use of C is refused, as any use
+# of it is.
 lex
 	literal `h
 end

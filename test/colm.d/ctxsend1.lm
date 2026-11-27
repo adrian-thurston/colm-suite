@@ -1,6 +1,6 @@
-# A send's value, kept, is the parser in the context object: it can't be
-# taken out, as C->P can't. The parser lent C backs up over its action's
-# send to P, which on main takes out the program's send through Q.
+# A send's value, kept, is the parser in the context object: a loan on it,
+# as C->P read into a variable is. The parser lent C backs up over its
+# action's send to P, so the send through Q after the lend is refused.
 context other
 	lex
 		token w /[a-z]+/
@@ -44,4 +44,4 @@ send R "\n"
 print( R->finish(), "\n" )
 print( Q->finish(), "\n" )
 ##### COMP_ERR #####
-39:34: cannot take P out of C, a context object
+42:6: cannot use Q: it is a loan on C, which was lent at 40:25

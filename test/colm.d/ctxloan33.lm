@@ -1,0 +1,33 @@
+# A tree loop's variable over a loan is in the loan's tree: giving it a
+# global's tree is a store into what the object holds.
+include 'ctxloan.lmi'
+
+global GH: ctx::holder
+
+void swap( H: ref<ctx::holder> )
+{
+	H = GH
+}
+
+parse G: ctx::holder( new ctx() )[ "h" ]
+GH = G
+GH.HR = new rec()
+GH.HR->L = new list<int>()
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+parse X: ctx::wrap( C )[ "w h" ]
+for T: ctx::holder in X
+	T = GH
+if ( match X [ctx::`w H: ctx::holder] )
+	C->R = H.HR
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+print( "global ", GH.HR->L->length, "\n" )
+GH.HR->L->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+print( "after ", C->R->L->length, "\n" )
+##### COMP_ERR #####
+22:6: only nil or what C holds can go into C: a ctx::holder can hold a list, map, parser, stream or struct

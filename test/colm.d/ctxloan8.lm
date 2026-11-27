@@ -1,0 +1,11 @@
+# A loan stored in a global.
+include 'ctxrule.lmi'
+
+global G: list<str> = new list<str>()
+
+C: ctx = new ctx()
+C->L = new list<str>()
+X: list<str> = C->L
+G = X
+##### COMP_ERR #####
+9:5: cannot take X out of C, a context object

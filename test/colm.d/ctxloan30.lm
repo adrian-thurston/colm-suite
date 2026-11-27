@@ -1,0 +1,23 @@
+# A loan given a global's list on one side of an if isn't held after it,
+# so it can't go back into the object: the parser lent the object would
+# push onto the global's list.
+include 'ctxloan.lmi'
+
+global GL: list<int> = new list<int>()
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+X: list<int> = C->R->L
+if ( GL->length == 0 )
+	X = GL
+C->R->L = X
+P: parser<ctx::start> = new parser<ctx::start>( C )
+send P "* ;"
+print( "global ", GL->length, "\n" )
+GL->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+print( "after ", C->R->L->length, "\n" )
+##### COMP_ERR #####
+14:11: only a new object, nil, what C holds or a variable used only through -> since its new can go into C

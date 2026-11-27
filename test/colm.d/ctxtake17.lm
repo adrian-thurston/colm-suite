@@ -1,8 +1,8 @@
-# Taking the text of a context's tree whose attribute holds a list, with $,
-# uses the tree as a value, which takes it out. ctxtake10's program, printing
-# the text between two sends.
-# Between the sends, C is lent to P, so the use of C is refused before the
-# take is.
+# Taking the text, with $, of a context's tree whose attribute holds a list,
+# between two sends to a parser lent the context object. ctxtake10's
+# program, printing the text between the sends.
+# Between the sends, C is lent to P, so the use of C is refused, as any use
+# of it is.
 lex
 	literal `h
 end

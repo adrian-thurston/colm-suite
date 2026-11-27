@@ -2157,9 +2157,7 @@ context lookup
 		[type_id_list `, type_id]
 	|	[type_id]
 
-	# The parse ends here. What the context holds is printed from inside
-	# the parse: outside it, a context object's structs can't be taken out
-	# of it.
+	# The parse ends here, and prints what the context holds.
 	def start
 		[declaration*]
 		{

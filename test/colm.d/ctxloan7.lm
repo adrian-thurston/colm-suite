@@ -1,0 +1,10 @@
+# A loan, used after the variable that held its object was given another.
+include 'ctxrule.lmi'
+
+C: ctx = new ctx()
+C->L = new list<str>()
+X: list<str> = C->L
+C = new ctx()
+X->push_tail( "x" )
+##### COMP_ERR #####
+8:1: cannot use X: it is a loan on C, which was given another object at 7:1

@@ -1,0 +1,23 @@
+# A loan on two objects, through which a store could put one object's list
+# into the other: only a new object or nil goes through it.
+include 'ctxloan.lmi'
+
+C: ctx = new ctx()
+C->R = new rec()
+C->R->L = new list<int>()
+D: ctx = new ctx()
+D->R = new rec()
+D->R->L = new list<int>()
+X: rec = C->R
+if ( C->R->L->length == 0 )
+	X = D->R
+Y: list<int> = C->R->L
+X->L = Y
+P: parser<ctx::start> = new parser<ctx::start>( D )
+send P "* ;"
+print( "C's list ", C->R->L->length, "\n" )
+C->R->L->pop_tail()
+send P "\n"
+print( P->finish(), "\n" )
+##### COMP_ERR #####
+15:8: only a new object, nil or a variable used only through -> since its new can go through X, which may hold what isn't C's

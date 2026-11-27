@@ -400,12 +400,26 @@ what is got from a loan: a field or an attribute read from it, a `for` loop's
 variable over it, a pattern's variable in a `match` of it, and what a
 function given it returns.
 
+The parse's own actions use their object through the context's variables
+and `this`. A local that an action gives what one of them holds, as
+`+X: list<int> = L+` does, is a loan on the object too, and ends where the
+action lends the object, to a parse or a `new parser`. Where the action puts
+it isn't followed: its trees and the structs it makes hold what the object
+holds as it builds them.
+
 While a loan lasts, the program uses it as it uses the object: it reads it,
 changes what it holds, prints it, matches it, tests it, loops over it and
 returns it. What it puts into a loan goes into the object, so it follows the
-rule above. A loan can go back into the object it is a loan on, as
-`+C->Other = L+` puts it, and to a function that keeps nothing of it and puts
-into it only what the object holds.
+rule above. That holds only for a loan on one object that holds just what the
+object holds. Through a loan on two objects, as `X` is after `X = C->R` on
+one side of an `if` and `X = D->R` on the other, or through what a function
+given the object returns, which could be a global's, only a new object or
+`nil` goes in:
+`only a new object or nil can go through X, which may hold what isn't C's`.
+A loan can go back into the object it is a loan on, as `+C->Other = L+` puts
+it, and to a function that keeps nothing of it and puts into it only what
+the object holds. After an `if` that gives the variable something else on
+one side, such as a global's list, it can't go back.
 
 A loan ends where its object is lent, moved, or given another object: a
 parser lent the object could change what the loan reaches, and back up over
@@ -421,7 +435,9 @@ the next pass would start from what the last one left, as
 `+X takes a loan on C in the loop's body (14:5), and still holds it at its end+`
 and
 `+X's loan on C ends in the loop's body (14:5), and the next pass could use it+`
-say.
+say. Nor can the body give such a variable something else, if it held what
+the object holds:
+`+X holds what C holds at the start of the loop's body, but not surely at its end, and the next pass could put what X holds into C+`.
 
 A loan stays in local variables. Anywhere else, in a global, a field, a list
 or a map, an attribute of a tree that `cons` or `make_token` makes, a `ref`
@@ -430,7 +446,8 @@ defines, it could be changed while a parser the object is lent to can back
 up. Colm stops with the error
 `cannot take L out of C, a context object`. A function given a loan doesn't
 keep it, or what it gets from it, anywhere but in its own local variables,
-and puts into it only what the object holds. Otherwise the call is a compile
+and puts into it only what the object holds, a `ref` parameter given
+another tree included. Otherwise the call is a compile
 error, `cannot give L, a loan on C, to f: f keeps its parameter L` or
 `cannot give R, a loan on C, to f: f can put into its parameter Q what C doesn't hold`.
 Nor can a call give a function both an object and a loan on it, as

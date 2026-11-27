@@ -374,14 +374,28 @@ the last.
 A store through a loan ([Loans](#loans)) reaches what the object holds, so it
 is a store through a context reference too, on the loan's root, as
 `X->L = G` is for a loan `X` on `C`. `setCtxStore()` notes it when the target
-is qualified and starts at a local whose loan has a context root, and the
-error names the root, or says `the context object`. Read through the same
-root now means a value whose loan is on just that root, and *held*: what
-holds only what its roots hold, or new objects. A function's result isn't
-held, since the function could give a global's list; the tree of a parse
-given the object is, since the parse's own code takes nothing out of a
-global (13), and the store rule above keeps what goes into a loan the
-object's.
+is qualified and starts at a local whose loan has a context root, or is a
+tree loop's variable over a loan, which is in the loan's tree, and the error
+names the root, or says `the context object`. Read through the same root now
+means a value whose loan is on just that root, and *held*: what holds only
+what its roots hold, or new objects. A function's result isn't held, since
+the function could give a global's list; the tree of a parse given the
+object is, since the parse's own code takes nothing out of a global (13),
+and the store rule above keeps what goes into a loan the object's.
+
+Only a held loan on one root surely reaches what that object holds. A loan
+on two objects, as after `X = C->R` on one side of an `if` and `X = D->R` on
+the other, or one that isn't held, as what a function given `C` returns,
+may reach another object's, or a global's. Through it only a new object or
+`nil` goes in (`Compiler::ctxStoreLoan` names the local), so nothing read
+out of an object can go into another:
+
+    only a new object or nil can go through X, which may hold what isn't C's
+    only nil can go through X, which may hold what isn't C's: a T can hold a
+    list, map, parser, stream or struct
+
+A loan the parse's own code made on its own object alone (an own loan,
+[Loans](#loans)) is no store into the object here, as nothing it puts in is.
 
 ## Trees into a parse (17)
 
@@ -429,6 +443,15 @@ ownership state, after the expression is evaluated, and evaluate nothing
 - inside a function, a reference that starts at a parameter of a reference
   type other than a context: the parameter, a *parameter root*, which is
   never lent and only feeds `keeps` and `fills` below;
+- a reference the parse's own code reads out of its own object, by a
+  context variable's name or through `this` (`ownRoot()` gives the running
+  context, with no `firstCtxPart`): an *own* loan on the running context
+  (`LoanRoot::own`). It ends where the code lends the running context, as
+  any loan does, so the local can't be used while a parser can back up over
+  the object. Where it goes isn't checked, since the parse's own code puts
+  what its object holds into its trees and into new structs, as c++.lm's
+  `DD->lookupObj = lookupNs->tail` does: not by `checkContextValue()`,
+  `loanArgs`, `checkContextArgs()`, `setCtxStore()` or a loop's take;
 - the tree of a finished parser variable `P`, read as `P->tree`, and what
   its `finish()` or `eof()` gives: the root `P` was lent, which `P`'s
   `Finished` entry keeps (`Compiler::finishParser()`);
@@ -504,8 +527,11 @@ as kept (`ObjectField::keeps`), and what is put into what it reaches, unless
 it is new, `nil` or held and got from that parameter alone, marks it as
 filled (`ObjectField::fills`). A store into what a parameter reaches is one
 whose target is qualified and starts at the parameter, or at a local whose
-loan is on parameters and no context object. A `return` and a `yield` mark
-nothing: the caller's result is a loan on what the arguments were.
+loan is on parameters and no context object. An assignment to a `ref`
+parameter writes into its caller's variable, and one to a tree loop's
+variable into the tree it walks, so each is a store into what the parameter
+or the loop's loan reaches too. A `return` and a `yield` mark nothing: the
+caller's result is a loan on what the arguments were.
 
 A loan on a context object given to a function or an iterator the program
 defines is noted (`CodeBlock::loanArgs`: the function, the parameter, where,
@@ -548,8 +574,11 @@ still be finished:
 ### Loans in branches and loops
 
 `mergeOwns()` merges a loan only with the same variable's loan: the roots are
-unioned, a root ended on either side has ended, and the value is held only
-if it is on both sides. A `Finished` entry's root merges the same way. An
+unioned, a root ended on either side has ended, a root is own only if it is
+own on both sides, and the value is held only if it is on both sides. A
+loan on one side only stays, so that its ends count, but isn't held: the
+other side gave the variable something else, such as a global's list. A
+`Finished` entry's root merges the same way. An
 `if`'s own scope, which holds the variables its test's patterns declare, is
 dropped after the merge, since the else side kept what the test gave them,
 and `leaveLoop()` drops the loop's scope from the state its test left.
@@ -563,6 +592,18 @@ it. `checkLoopOwns()` refuses either at the loop:
     end
     X's loan on C ends in the loop's body (14:5), and the next pass could
     use it
+
+Nor can it give up a held loan of such a variable, by giving it something
+else or a loan that isn't held: the next pass, and what follows the loop,
+would take what it holds for what the object holds. `checkLoopOwns()`
+refuses a held loan at the body's start that has no loan, or no held loan,
+at its end:
+
+    X holds what C holds at the start of the loop's body, but not surely at
+    its end, and the next pass could put what X holds into C
+
+A loan the body made, of an own loan, is no matter: where it goes isn't
+checked. One it ended is.
 
 ## Globals in a context parse
 
@@ -613,11 +654,18 @@ a call such as `push_tail` given one, or a stream sent to a parser it holds.
     of a loan tree's attributes still hold what the object holds. So
     `pointer1`'s `Input.Foo = Held`, through a parse's tree, is refused, as
     the maintainer accepted.
-- What the parse's own code keeps of its object, in a local read from a
-  context variable named alone or through `this`, while it lends the
-  object, is left out ([#773]): the maintainer's answer. A rule for it needs
-  more than loans: the parse's own code puts what its object holds into its
-  trees and into new structs (c++.lm's `DD->lookupObj = lookupNs->tail`).
+- What the parse's own code keeps of its object in a local, read from a
+  context variable named alone or through `this`, is an own loan, which
+  ends where the code lends the object: the maintainer's answer on #784,
+  which folded it in after the plan for [#773] left it out. Where an own
+  loan goes isn't checked: the parse's own code puts what its object holds
+  into its trees and into new structs (c++.lm's
+  `DD->lookupObj = lookupNs->tail`), and refusing that would refuse
+  c++.lm. So what it keeps that way, while it lends the object, stays open.
+- A store through a loan on two objects, or one that isn't held, takes only
+  a new object or `nil`, and a loop's body can't give up a held loan of a
+  variable from outside it: review items 1 and 3 on #784. Each could put
+  what isn't the object's into it.
 - What goes into a loan inside a function has its own summary,
   `ObjectField::fills`, beside `keeps`: the maintainer's answer. Requirement
   12 lets outside code put into what the object holds only new objects,
@@ -639,9 +687,9 @@ a call such as `push_tail` given one, or a stream sent to a parser it holds.
 - A parser that was given its object for good takes input after its end
   ([#439]). Nothing outside can reach its object, and it gives no tree that
   could.
-- The parse's own code can read what its object holds into a local, by a
-  context variable's name or through `this`, lend the object to a new
-  parser, and use the local between the sends. Nothing refuses it.
+- The parse's own code can put what its object holds into its trees, or into
+  a new struct, lend the object to a new parser, and reach it through them
+  between the sends. Nothing refuses it: only a local's own loan ends.
 
 ## Tests
 
@@ -708,7 +756,16 @@ In `test/colm.d`.
   `ctxloan28` and `ctxloan29` run: loans read and changed after their
   parse, a function's result, a loan given to a function that keeps
   nothing, put back into its object, and taken on one side of an `if`. They
-  share `ctxloan.lmi`. `ctxtake1`–`ctxtake5`, `ctxtake8` and `ctxtake15` run
+  share `ctxloan.lmi`.
+
+  #784's review added `ctxloan30`–`ctxloan36`: a loan given a global's list
+  on one side of an `if` (30) and in a loop's body (31); a function that
+  gives its `ref` parameter a global's tree (32); a tree loop's variable
+  over a loan given one (33); a store through a loan on two objects (34)
+  and through what a function returned (35); and a token action that reads
+  its context's list into a local and lends `this` (36). `ctxloan37` runs:
+  a loan held on both sides of an `if`, and a store through a held loan on
+  one object, still compile. `ctxtake1`–`ctxtake5`, `ctxtake8` and `ctxtake15` run
   now, and `pointer1` is refused at its store through a parse's tree.
 
 [#439]: https://github.com/adrian-thurston/colm-suite/issues/439
